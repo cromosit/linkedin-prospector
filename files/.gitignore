@@ -1,0 +1,67 @@
+# Dependências
+node_modules/
+.npm
+
+# Variáveis de ambiente e segredos
+.env
+.env.local
+.env.production
+.env.*.local
+backend/.env
+frontend/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+logs/
+
+# Build do frontend
+frontend/dist/
+frontend/build/
+
+# Arquivos temporários do sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ZIPs temporários gerados durante desenvolvimento
+*.zip
+
+# Arquivos de debug
+*.pid
+*.pid.lock
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Coverage
+coverage/
+.nyc_output
+
+# Pastas criadas por engano pelo Windows
+{routes,config,middleware}/
+
+# Chaves e certificados
+*.pem
+*.key
+*.cert
+
+# Banco de dados local
+*.sqlite
+*.db

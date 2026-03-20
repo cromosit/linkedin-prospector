@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>LinkedIn Prospector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c10; --bg2: #0d1219; --bg3: #131b24;
+      --border: #1e2d3d; --blue: #0a66c2; --blue-b: #1d8fe8;
+      --green: #00c896; --orange: #ff6b35; --red: #ff3b5c;
+      --text: #e8edf2; --text2: #8899aa; --text3: #4a5e70;
+    }
+    body { width: 360px; background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px; }
+    .header { padding: 12px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo-box { width: 26px; height: 26px; background: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+    .logo-text { font-size: 13px; font-weight: 600; }
+    .logo-sub { font-size: 10px; color: var(--text3); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .content { padding: 14px 16px; }
+    .not-linkedin { text-align: center; padding: 28px 16px; color: var(--text2); }
+    .not-linkedin .icon { font-size: 28px; margin-bottom: 8px; }
+    .not-linkedin p { font-size: 12px; line-height: 1.6; }
+    .not-linkedin .hint { margin-top: 12px; font-size: 11px; color: var(--text3); }
+    .profile-card { background: var(--bg2); border: 1px solid var(--border); padding: 12px; margin-bottom: 10px; }
+    .profile-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+    .profile-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); flex-shrink: 0; }
+    .profile-avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .profile-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .profile-sub { font-size: 11px; color: var(--text2); line-height: 1.4; }
+    .profile-degree { font-size: 11px; font-weight: 600; margin-top: 4px; }
+    .profile-mutual { font-size: 10px; color: var(--text3); margin-top: 2px; display: none; }
+    .bulk-header { margin-bottom: 10px; }
+    .bulk-total { font-size: 12px; color: var(--text2); margin-bottom: 8px; line-height: 1.6; }
+    .bulk-actions { display: flex; gap: 6px; margin-bottom: 10px; }
+    .btn-bulk { flex: 1; padding: 8px; border: none; font-size: 12px; font-weight: 600; font-family: 'Sora', sans-serif; cursor: pointer; }
+    .btn-bulk-all { background: var(--blue); color: #fff; }
+    .btn-bulk-sel { background: transparent; border: 1px solid var(--border) !important; color: var(--text2); }
+    .btn-bulk:disabled { opacity: 0.5; cursor: not-allowed; }
+    .leads-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); margin-bottom: 10px; }
+    .lead-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
+    .lead-item:last-child { border-bottom: none; }
+    .lead-checkbox { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); }
+    .lead-info { flex: 1; min-width: 0; }
+    .lead-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lead-sub { font-size: 10px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lead-company { font-size: 10px; color: var(--text3); }
+    .lead-degree { font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .loading-item { padding: 20px; text-align: center; color: var(--text3); font-size: 12px; }
+    .bulk-progress { font-size: 12px; color: var(--text2); text-align: center; padding: 8px; display: none; }
+    .bulk-result { font-size: 12px; text-align: center; padding: 8px; display: none; font-weight: 600; }
+    .temp-select, .notes { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; font-size: 12px; font-family: 'Sora', sans-serif; outline: none; }
+    .notes { resize: none; height: 52px; margin-top: 6px; }
+    .notes::placeholder { color: var(--text3); }
+    .btn-main { width: 100%; padding: 10px; background: var(--blue); border: none; color: #fff; font-size: 13px; font-weight: 600; font-family: 'Sora', sans-serif; cursor: pointer; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-main:hover { background: var(--blue-b); }
+    .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { width: 100%; padding: 8px; background: transparent; border: 1px solid rgba(29,143,232,0.3); color: var(--blue-b); font-size: 12px; font-family: 'Sora', sans-serif; cursor: pointer; margin-top: 6px; display: none; }
+    .btn-whatsapp { width: 100%; padding: 8px; background: transparent; border: 1px solid rgba(0,200,150,0.3); color: var(--green); font-size: 12px; font-family: 'Sora', sans-serif; cursor: pointer; margin-top: 6px; display: none; }
+    .btn-linkedin-msg { width: 100%; padding: 8px; background: transparent; border: 1px solid rgba(10,102,194,0.5); color: #0a66c2; font-size: 12px; font-family: 'Sora', sans-serif; cursor: pointer; margin-top: 6px; display: none; font-weight: 600; }
+    .btn-linkedin-msg:hover { background: rgba(10,102,194,0.1); }
+    .btn-linkedin-msg:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg-box { margin-top: 8px; background: var(--bg3); border: 1px solid var(--blue); padding: 10px; font-size: 12px; color: var(--text); line-height: 1.6; display: none; }
+    .msg-box.visible { display: block; }
+    .btn-copy { margin-top: 6px; width: 100%; padding: 6px; background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 11px; font-family: 'Sora', sans-serif; cursor: pointer; }
+    .success-msg, .error-msg { display: none; margin-top: 8px; padding: 8px; font-size: 12px; text-align: center; }
+    .success-msg { background: rgba(0,200,150,0.1); border: 1px solid rgba(0,200,150,0.3); color: var(--green); }
+    .success-msg.visible { display: block; }
+    .error-msg { background: rgba(255,59,92,0.1); border: 1px solid rgba(255,59,92,0.3); color: var(--red); }
+    .error-msg.visible { display: block; }
+    .section-label { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
+    .config-section { padding: 10px 16px; border-top: 1px solid var(--border); }
+    .config-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; font-size: 11px; font-family: 'Sora', sans-serif; outline: none; margin-bottom: 5px; }
+    .btn-save-token { width: 100%; padding: 6px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); font-size: 11px; font-family: 'Sora', sans-serif; cursor: pointer; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    .linkedin-tip { font-size: 10px; color: var(--text3); margin-top: 4px; text-align: center; line-height: 1.4; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">
+    <div class="logo-box">LP</div>
+    <div><div class="logo-text">Prospector</div><div class="logo-sub">Cromosit IT</div></div>
+  </div>
+  <div class="status-dot" id="statusDot"></div>
+</div>
+
+<!-- TELA: Não LinkedIn -->
+<div id="telaOutro" style="display:none">
+  <div class="content">
+    <div class="not-linkedin">
+      <div class="icon">◈</div>
+      <p>Navegue até um <strong>perfil</strong> ou <strong>resultados de busca</strong> do LinkedIn.</p>
+      <div class="hint">💡 Para captura em massa:<br>Pesquise → filtre → abra a extensão</div>
+    </div>
+  </div>
+</div>
+
+<!-- TELA: Perfil Individual -->
+<div id="telaPerfil" style="display:none">
+  <div class="content">
+    <div class="profile-card">
+      <div class="profile-top">
+        <div id="avatarContainer"></div>
+        <div style="flex:1;min-width:0">
+          <div class="profile-name" id="profileName">—</div>
+          <div class="profile-sub" id="profileHeadline"></div>
+          <div class="profile-sub" id="profileCompany"></div>
+          <div class="profile-sub" id="profileLocation"></div>
+          <div class="profile-degree" id="profileDegree"></div>
+          <div class="profile-mutual" id="profileMutual"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Temperatura</div>
+    <select class="temp-select" id="temperature">
+      <option value="quente">🔥 Quente — 1º Grau</option>
+      <option value="morno">⚡ Morno — 2º Grau</option>
+      <option value="frio">❄️ Frio — 3º Grau</option>
+    </select>
+    <textarea class="notes" id="notes" placeholder="Notas sobre este lead..."></textarea>
+    <button class="btn-main" id="btnCapture">
+      <span id="btnCaptureText">+ Capturar Lead</span>
+      <div class="spinner" id="btnSpinner" style="display:none"></div>
+    </button>
+    <button class="btn-secondary" id="btnAI">✦ Gerar mensagem com IA</button>
+    <button class="btn-whatsapp" id="btnWhatsApp">📱 Enviar via WhatsApp</button>
+    <button class="btn-linkedin-msg" id="btnLinkedInMsg">💬 Enviar no inbox do LinkedIn</button>
+    <div class="linkedin-tip" id="linkedinTip" style="display:none">Apenas para conexões de 1º grau</div>
+    <div class="msg-box" id="msgBox">
+      <div id="msgText"></div>
+      <button class="btn-copy" id="btnCopy">📋 Copiar</button>
+    </div>
+    <div class="success-msg" id="successMsg"></div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+</div>
+
+<!-- TELA: Busca em Massa -->
+<div id="telaBusca" style="display:none">
+  <div class="content">
+    <div class="bulk-header">
+      <div class="bulk-total" id="totalEncontrado">Carregando...</div>
+      <div class="bulk-actions">
+        <button class="btn-bulk btn-bulk-all" id="btnCaptureAll">⬇ Capturar Todos</button>
+        <button class="btn-bulk btn-bulk-sel" id="btnCaptureSelected">Selecionados</button>
+      </div>
+    </div>
+    <div class="leads-list" id="listaLeads"></div>
+    <div class="bulk-progress" id="bulkProgress"></div>
+    <div class="bulk-result" id="bulkResult"></div>
+  </div>
+</div>
+
+<div class="config-section">
+  <div class="section-label">Token de acesso</div>
+  <input class="config-input" type="password" id="tokenInput" placeholder="Cole seu token JWT aqui..." />
+  <button class="btn-save-token" id="btnSaveToken">Salvar token</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
