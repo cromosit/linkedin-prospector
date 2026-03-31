@@ -50,6 +50,20 @@ app.get('/health', (req, res) => {
 });
 
 // ==========================================
+// ROTA DE PING — mantém Railway + Supabase ativos
+// Chamada pelo GitHub Actions a cada 3 dias
+// ==========================================
+app.get('/ping', async (req, res) => {
+  try {
+    const supabase = require('./config/supabase');
+    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    res.json({ status: 'ok', db: 'online', users: count, ts: new Date().toISOString() });
+  } catch (err) {
+    res.json({ status: 'ok', db: 'error', message: err.message });
+  }
+});
+
+// ==========================================
 // ROTA PADRÃO
 // ==========================================
 app.get('/', (req, res) => {
