@@ -175,7 +175,8 @@ export default function Leads() {
       notes: lead.notes || '', source: lead.source || 'manual', connection_degree: lead.connection_degree || '3'
     })
     setMsgGerada(lead.ai_message || '')
-    setTipoMsg('conexao')
+    // Auto-seleciona o tipo correto pelo grau de conexão
+    setTipoMsg(lead.connection_degree === '1' ? 'primeiro_contato' : lead.connection_degree === '2' ? 'conexao_com_comum' : 'conexao')
     setMostrarInputFone(false); setTelefoneManual('')
     setModal(true)
   }
@@ -278,13 +279,15 @@ export default function Leads() {
     empty: { padding: '60px', textAlign: 'center', color: 'var(--text3)' },
   }
 
+  // Tipos de mensagem filtrados por grau de conexão
   const tiposMensagem = [
-    { value: 'conexao', label: '🔗 Conexão' },
-    { value: 'conexao_com_comum', label: '👥 c/ Comum' },
-    { value: 'primeiro_contato', label: '💬 1º Contato' },
-    { value: 'follow_up', label: '🔄 Follow-up' },
-    { value: 'whatsapp', label: '📱 WhatsApp' },
+    { value: 'conexao',          label: '🔗 Conexão',    graus: ['2', '3'] },
+    { value: 'conexao_com_comum', label: '👥 c/ Comum',   graus: ['2', '3'] },
+    { value: 'primeiro_contato', label: '💬 1º Contato', graus: ['1', '2', '3'] },
+    { value: 'follow_up',        label: '🔄 Follow-up',  graus: ['1', '2', '3'] },
+    { value: 'whatsapp',         label: '📱 WhatsApp',   graus: ['1', '2', '3'] },
   ]
+  const tiposParaLead = (lead) => tiposMensagem.filter(t => t.graus.includes(lead?.connection_degree || '3'))
 
   return (
     <div style={S.layout}>
@@ -464,8 +467,19 @@ export default function Leads() {
               </div>
             </div>
             <div style={{ padding: '18px 22px' }}>
+              {/* Banner de contexto por grau */}
+              {leadSel?.connection_degree === '1' && (
+                <div style={{ fontSize: '11px', color: 'var(--green)', background: 'rgba(0,200,150,0.08)', border: '1px solid rgba(0,200,150,0.2)', padding: '6px 10px', marginBottom: '10px' }}>
+                  💬 Já são conectados — gere uma mensagem de 1º contato ou follow-up
+                </div>
+              )}
+              {leadSel?.connection_degree === '2' && (
+                <div style={{ fontSize: '11px', color: 'var(--blue-bright)', background: 'rgba(29,143,232,0.08)', border: '1px solid rgba(29,143,232,0.2)', padding: '6px 10px', marginBottom: '10px' }}>
+                  👥 2º grau — mencione conexões em comum para maior conversão
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                {tiposMensagem.map(t => (
+                {tiposParaLead(leadSel).map(t => (
                   <button key={t.value} style={S.aiBtn(tipoMsg === t.value ? 'var(--blue-bright)' : 'var(--text3)')}
                     onClick={() => { setTipoMsg(t.value); gerarMensagem(leadSel, t.value) }}>
                     {t.label}
@@ -653,7 +667,7 @@ export default function Leads() {
                 <>
                   <div style={S.section}>✦ Mensagem com IA</div>
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    {tiposMensagem.map(t => (
+                    {tiposParaLead(leadSel).map(t => (
                       <button key={t.value} style={S.aiBtn(tipoMsg === t.value ? 'var(--blue-bright)' : 'var(--text3)')}
                         onClick={() => setTipoMsg(t.value)}>
                         {t.label}
