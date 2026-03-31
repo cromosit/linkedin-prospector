@@ -63,9 +63,9 @@ router.post('/bulk', async (req, res) => {
 // ROTA 4: Criar lead
 router.post('/', async (req, res) => {
   try {
-    const { name, linkedin_url, linkedin_id, headline, company, location, profile_picture, email, phone, website, about, birthday, connected_since, followers, mutual_connections, connection_degree, source = 'manual', temperature = 'frio', notes, service_interest, score } = req.body;
+    const { name, linkedin_url, linkedin_id, headline, company, current_role, current_company, location, profile_picture, email, phone, website, about, birthday, connected_since, followers, mutual_connections, connection_degree, source = 'manual', temperature = 'frio', notes, service_interest, score } = req.body;
     if (!name) return res.status(400).json({ error: 'Nome do lead é obrigatório' });
-    const { data: lead, error } = await supabase.from('leads').insert({ name, linkedin_url, linkedin_id, headline, company, location, profile_picture, email, phone, website, about, birthday, connected_since, followers, mutual_connections, connection_degree, source, temperature, notes, service_interest, score: score || 0, status: 'novo', assigned_to: req.user.userId }).select().single();
+    const { data: lead, error } = await supabase.from('leads').insert({ name, linkedin_url, linkedin_id, headline, company, current_role, current_company, location, profile_picture, email, phone, website, about, birthday, connected_since, followers, mutual_connections, connection_degree, source, temperature, notes, service_interest, score: score || 0, status: 'novo', assigned_to: req.user.userId }).select().single();
     if (error) throw error;
 
     // Enriquece com IA em background

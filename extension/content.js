@@ -146,6 +146,44 @@ function extrairSobre() {
 }
 
 // ==========================================
+// EXTRAI CARGO E EMPRESA ATUAIS (REAL)
+// ==========================================
+function extrairExperienciaAtual() {
+  const root = document.querySelector('#experience')?.parentElement || document.querySelector('.pv-profile-section--experience-section')?.parentElement
+  if (!root) return { role: '', company: '' }
+
+  const expNode = root.querySelector('ul.pvs-list > li')
+  if (!expNode) return { role: '', company: '' }
+
+  // O LinkedIn tem dois layouts para experiência: 
+  // 1. Cargo único na empresa: primeiro t-bold = Cargo, primeiro t-normal = Empresa
+  // 2. Múltiplos cargos na mesma empresa: primeiro t-bold = Empresa, cargos ficam aninhados em ul > li
+  
+  const textNodes = Array.from(expNode.querySelectorAll('.t-bold span[aria-hidden="true"], .t-normal span[aria-hidden="true"]'))
+    .map(el => el.innerText?.trim())
+    .filter(t => t && !t.match(/^[0-9]+ a anos|^[0-9]+ anos?|^[0-9]+ meses?/)) // ignora tempo de empresa
+
+  let role = ''
+  let company = ''
+
+  if (textNodes.length >= 2) {
+    const isMultiRole = expNode.querySelector('ul.pvs-list > li') !== null
+    if (isMultiRole) {
+      company = textNodes[0] || '' // 1o textNode
+      // o cargo estará no primeiro .t-bold da sublist
+      const subRoleEl = expNode.querySelector('ul.pvs-list > li .t-bold span[aria-hidden="true"]')
+      role = subRoleEl?.innerText?.trim() || ''
+    } else {
+      role = textNodes[0] || ''
+      company = (textNodes[1] || '').split('·')[0].trim() // Remove "... · Tempo Mínimo"
+    }
+  }
+
+  return { role, company }
+}
+
+
+// ==========================================
 // EXTRAI INFORMAÇÕES DE CONTATO
 // Funciona quando o modal de contato está aberto
 // ==========================================
@@ -552,13 +590,23 @@ async function verificarAcaoPendenteURL() {
       return
     }
 
-    // Monta payload com os dados capturados
     const payload = {}
     if (dados.phone) payload.phone = dados.phone
     if (dados.email) payload.email = dados.email
     if (dados.birthday) payload.birthday = dados.birthday
     if (dados.connected_since) payload.connected_since = dados.connected_since
     if (dados.website) payload.website = dados.website
+    
+    // Captura localização real do header da página se estiver visível
+    const locPage = document.querySelector('.pv-top-card--list li:last-child, .pv-text-details__left-panel .t-normal')?.innerText?.trim()
+    if (locPage && locPage.length > 5 && locPage.length < 80) {
+      payload.location = locPage
+    }
+
+    // Captura Cargo e Empresa Reais da aba Experiência
+    const { role, company } = extrairExperienciaAtual()
+    if (role && role.length > 2) payload.current_role = role
+    if (company && company.length > 2) payload.current_company = company
 
     // Envia via background (CSP do LinkedIn bloqueia fetch direto de content scripts)
     chrome.runtime.sendMessage(

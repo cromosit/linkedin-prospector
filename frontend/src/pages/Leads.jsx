@@ -603,8 +603,18 @@ export default function Leads() {
                   <input style={S.formInput} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="João Silva" />
                 </div>
                 <div style={S.formGroup}>
-                  <label style={S.label}>Cargo / Headline</label>
+                  <label style={S.label}>Headline (Busca)</label>
                   <input style={S.formInput} value={form.headline} onChange={e => setForm({ ...form, headline: e.target.value })} placeholder="Gerente de TI" />
+                </div>
+              </div>
+              <div style={S.formRow}>
+                <div style={S.formGroup}>
+                  <label style={{ ...S.label, color: 'var(--green)' }}>Cargo Atual</label>
+                  <input style={S.formInputHighlight} value={form.current_role} onChange={e => setForm({ ...form, current_role: e.target.value })} placeholder="Software Engineering Manager" />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={{ ...S.label, color: 'var(--green)' }}>Empresa Atual</label>
+                  <input style={S.formInputHighlight} value={form.current_company} onChange={e => setForm({ ...form, current_company: e.target.value })} placeholder="IBM" />
                 </div>
               </div>
               <div style={S.formRow}>
