@@ -9,7 +9,9 @@ const app = express();
 // Em produção: FRONTEND_URL = https://linkedin-prospector.vercel.app (ou domínio próprio)
 // Em desenvolvimento: http://localhost:5173
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL?.trim(),
+  'https://prospector.cromosit.com',          // domínio próprio (sempre permitido)
+  'https://project-4iz1u-samuellbetim-6911s-projects.vercel.app', // Vercel fallback
   'http://localhost:5173',
   'http://localhost:3001',
   'chrome-extension://*'
