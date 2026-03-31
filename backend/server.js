@@ -6,13 +6,25 @@ const cors = require('cors');
 const app = express();
 
 // CORS = permite que o frontend acesse este backend
+// Em produção: FRONTEND_URL = https://linkedin-prospector.vercel.app (ou domínio próprio)
+// Em desenvolvimento: http://localhost:5173
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3001',
+  'chrome-extension://*'
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    'http://localhost:5173',
-    'http://localhost:3001',
-    'chrome-extension://*'
-  ],
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (Postman, extensão Chrome, etc.)
+    if (!origin) return callback(null, true);
+    // Permite qualquer chrome-extension://
+    if (origin.startsWith('chrome-extension://')) return callback(null, true);
+    // Verifica a lista de permitidos
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado para origem: ${origin}`));
+  },
   credentials: true
 }));
 

@@ -6,7 +6,7 @@ echo  Abrindo configuracoes (.env)...
 echo ========================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector
+cd /d "%USERPROFILE%\02 - linkedin-prospector\backend"
 
 if not exist .env (
     echo Criando .env a partir do exemplo...

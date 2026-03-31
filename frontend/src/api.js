@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+// Em produção (Vercel): usa VITE_API_URL definida nas env vars do Vercel
+// Em desenvolvimento (local): usa o proxy do vite.config.js → localhost:3000
+const BASE_URL = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }
 })
 

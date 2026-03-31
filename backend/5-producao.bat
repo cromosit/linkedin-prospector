@@ -6,7 +6,7 @@ echo  Iniciando em modo PRODUCAO...
 echo ========================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector
+cd /d "%USERPROFILE%\02 - linkedin-prospector\backend"
 
 if not exist .env (
     echo [ERRO] Arquivo .env nao encontrado!

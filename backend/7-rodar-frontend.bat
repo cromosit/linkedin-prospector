@@ -6,7 +6,7 @@ echo  Iniciando FRONTEND...
 echo ========================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector-frontend
+cd /d "%USERPROFILE%\02 - linkedin-prospector\frontend"
 
 if not exist node_modules (
     echo Instalando dependencias...

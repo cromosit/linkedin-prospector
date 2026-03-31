@@ -6,7 +6,7 @@ echo  Iniciando BACKEND...
 echo ========================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector\backend
+cd /d "%USERPROFILE%\02 - linkedin-prospector\backend"
 
 if not exist node_modules (
     echo Instalando dependencias...

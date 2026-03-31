@@ -18,6 +18,6 @@ echo.
 :: Aguarda 1 segundo e inicia o servidor
 timeout /t 1 /nobreak > nul
 
-cd /d C:\Users\samue\linkedin-prospector
+cd /d "%USERPROFILE%\02 - linkedin-prospector\backend"
 npm run dev
 pause

@@ -7,13 +7,13 @@ echo ========================================
 echo.
 
 :: Backend
-start "LP Backend - porta 3000" cmd /k "cd /d C:\Users\samue\linkedin-prospector\backend && node server.js"
+start "LP Backend - porta 3000" cmd /k "cd /d \"%USERPROFILE%\02 - linkedin-prospector\backend\" && node server.js"
 
 :: Aguarda backend subir
 timeout /t 3 /nobreak > nul
 
 :: Frontend
-start "LP Frontend - porta 5173" cmd /k "cd /d C:\Users\samue\linkedin-prospector\frontend && npm run dev"
+start "LP Frontend - porta 5173" cmd /k "cd /d \"%USERPROFILE%\02 - linkedin-prospector\frontend\" && npm run dev"
 
 :: Aguarda e abre navegador
 timeout /t 5 /nobreak > nul
