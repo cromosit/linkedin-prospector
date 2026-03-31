@@ -149,11 +149,11 @@ function extrairSobre() {
 // Funciona quando o modal de contato está aberto
 // ==========================================
 function extrairInfoContato(dados) {
-  // Email
+  // Email via href
   const emailEl = document.querySelector('a[href^="mailto:"]')
   if (emailEl) dados.email = emailEl.href.replace('mailto:', '').trim()
 
-  // Telefone
+  // Telefone via tel: link
   const phoneEl = document.querySelector('a[href^="tel:"]')
   if (phoneEl) dados.phone = phoneEl.href.replace('tel:', '').trim()
 
@@ -162,7 +162,38 @@ function extrairInfoContato(dados) {
                     document.querySelector('section.pv-contact-info a[href*="http"]:not([href*="linkedin"])')
   if (websiteEl) dados.website = websiteEl.href
 
-  // Modal de contato aberto
+  // Modal de contato: busca por h3 (header) + próximo elemento (valor)
+  const headers = document.querySelectorAll(
+    '.artdeco-modal__content h3, .pv-contact-info__header, .pv-contact-info__contact-type h3'
+  )
+  headers.forEach(h3 => {
+    const headerTxt = h3.innerText?.trim().toLowerCase() || ''
+    // Valor pode estar no próximo sibling ou dentro do parentElement
+    const valorEl = h3.nextElementSibling ||
+                    h3.parentElement?.querySelector('p, a, span.t-14, span.t-black')
+    let valor = valorEl?.innerText?.trim() || valorEl?.href || ''
+    valor = valor.replace(/\(.*?\)/g, '').trim() // remove "(Trabalho)", "(Pessoal)", etc.
+
+    if (!dados.phone && valor && (headerTxt.includes('telefone') || headerTxt.includes('phone') || headerTxt.includes('celular') || headerTxt.includes('mobile'))) {
+      // Aceita somente se parecer com número de telefone
+      const apenasNumeros = valor.replace(/\D/g, '')
+      if (apenasNumeros.length >= 8) dados.phone = valor
+    }
+    if (!dados.email && valor && (headerTxt.includes('email') || headerTxt.includes('e-mail'))) {
+      dados.email = valor.replace('mailto:', '').trim()
+    }
+    if (!dados.website && valor && (headerTxt.includes('website') || headerTxt.includes('site') || headerTxt.includes('blog'))) {
+      dados.website = valor
+    }
+    if (valor && (headerTxt.includes('aniversário') || headerTxt.includes('birthday') || headerTxt.includes('nascimento'))) {
+      dados.birthday = valor
+    }
+    if (valor && (headerTxt.includes('conectado') || headerTxt.includes('connected') || headerTxt.includes('membro desde'))) {
+      dados.connected_since = valor
+    }
+  })
+
+  // Fallback: contactItems estilo antigo do LinkedIn
   const contactItems = document.querySelectorAll('.pv-contact-info__contact-type, .ci-vanity-url, section.pv-contact-info section')
   contactItems.forEach(item => {
     const header = item.querySelector('h3')?.innerText?.toLowerCase() || ''
@@ -173,7 +204,7 @@ function extrairInfoContato(dados) {
       dados.email = value.replace('mailto:', '')
     }
     if ((header.includes('telefone') || header.includes('phone') || header.includes('celular') || header.includes('mobile')) && !dados.phone && value) {
-      dados.phone = value
+      dados.phone = value.replace(/\(.*?\)/g, '').trim()
     }
     if ((header.includes('website') || header.includes('site') || header.includes('blog')) && !dados.website && value) {
       dados.website = value
@@ -194,15 +225,19 @@ function extrairInfoContato(dados) {
 // ABRE MODAL DE CONTATO E EXTRAI DADOS
 // ==========================================
 async function abrirEExtrairContato() {
-  // Procura botão "Informações de contato" ou "Contact info"
+  // Textos possíveis do botão de contato (PT e EN)
+  const textosBotao = [
+    'informações de contato', 'contact info', 'ver informações de contato',
+    'dados de contato', 'ver dados de contato', 'informacoes de contato'
+  ]
   const botoesContato = Array.from(document.querySelectorAll('a, button, span')).filter(el => {
     const txt = el.innerText?.trim().toLowerCase()
-    return txt === 'informações de contato' || txt === 'contact info' || txt === 'ver informações de contato'
+    return textosBotao.some(t => txt === t || txt?.includes(t))
   })
 
   if (botoesContato.length > 0) {
     botoesContato[0].click()
-    await esperar(1500)
+    await esperar(1800) // aguarda modal abrir
   }
 
   const dados = await extrairPerfilIndividualCompleto()
