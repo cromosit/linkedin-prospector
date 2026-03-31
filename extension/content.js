@@ -389,6 +389,74 @@ function detectarTipoPagina() {
 
 function esperar(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
 
+// ==========================================
+// AÇÃO AUTOMÁTICA VIA URL (disparada pelo web app)
+// Web app abre: linkedin.com/in/perfil?lp_action=connect&lp_msg=...
+// ==========================================
+async function verificarAcaoPendenteURL() {
+  const params = new URLSearchParams(window.location.search)
+  const acao = params.get('lp_action')
+  const msg = params.get('lp_msg')
+  if (!acao) return
+
+  await esperar(2500) // aguarda a página carregar completamente
+
+  if (acao === 'connect' || acao === 'conectar') {
+    // Clica no botão Conectar
+    const btnConectar = Array.from(document.querySelectorAll('button')).find(b => {
+      const t = b.innerText?.trim().toLowerCase()
+      return t === 'conectar' || t === 'connect' || t === 'connect with'
+    })
+    if (btnConectar) {
+      btnConectar.click()
+      await esperar(1000)
+      // Clica em "Adicionar nota" se disponível
+      const btnNota = Array.from(document.querySelectorAll('button, span')).find(b => {
+        const t = b.innerText?.trim().toLowerCase()
+        return t.includes('adicionar nota') || t.includes('add a note')
+      })
+      if (btnNota && msg) {
+        btnNota.click()
+        await esperar(800)
+        const textarea = document.querySelector('#custom-message, textarea[name="message"], .send-invite__custom-message')
+        if (textarea) {
+          textarea.value = decodeURIComponent(msg)
+          textarea.dispatchEvent(new Event('input', { bubbles: true }))
+          textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      }
+      // Notifica o usuário via banner
+      exibirBannerAcao('✅ Convite de conexão pronto! Revise a nota e clique Enviar.', '#00c896')
+    } else {
+      exibirBannerAcao('⚠️ Botão "Conectar" não encontrado. Talvez já sejam conectados.', '#ff6b35')
+    }
+  }
+
+  if (acao === 'message' || acao === 'mensagem') {
+    if (msg) {
+      const resultado = await enviarMensagemLinkedIn(decodeURIComponent(msg))
+      if (resultado.sucesso) {
+        exibirBannerAcao('✅ Mensagem inserida no inbox! Revise e clique Enviar.', '#00c896')
+      } else {
+        exibirBannerAcao(`⚠️ ${resultado.erro}`, '#ff6b35')
+      }
+    }
+  }
+}
+
+function exibirBannerAcao(texto, cor) {
+  const banner = document.createElement('div')
+  banner.style.cssText = `position:fixed;top:16px;right:16px;z-index:99999;padding:12px 20px;background:${cor};color:#fff;font-family:sans-serif;font-size:13px;font-weight:600;border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:360px;`
+  banner.innerText = '🔗 LinkedIn Prospector\n' + texto
+  document.body.appendChild(banner)
+  setTimeout(() => banner.remove(), 6000)
+}
+
+// Executa verificação de ação pendente se estiver em perfil do LinkedIn
+if (window.location.href.includes('/in/') && window.location.search.includes('lp_action')) {
+  verificarAcaoPendenteURL()
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'detectarPagina') {
     const tipo = detectarTipoPagina()
@@ -399,7 +467,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true
   }
   if (request.action === 'extrairPerfil') {
-    // Tenta abrir modal de contato para pegar mais dados
     abrirEExtrairContato().then(dados => sendResponse({ sucesso: true, dados }))
     return true
   }

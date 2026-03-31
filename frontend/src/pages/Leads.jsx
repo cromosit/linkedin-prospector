@@ -505,6 +505,19 @@ export default function Leads() {
                     <button style={S.aiBtn('var(--green)')} onClick={enviarWhatsapp} disabled={enviando}>
                       {enviando ? '⟳ Enviando...' : leadSel.phone ? `📱 WhatsApp (${leadSel.phone})` : '📱 Enviar WhatsApp'}
                     </button>
+                    {leadSel?.linkedin_url && (
+                      <button
+                        style={S.aiBtn('#0a66c2')}
+                        onClick={() => {
+                          const acao = leadSel.connection_degree === '1' ? 'message' : 'connect'
+                          const url = `${leadSel.linkedin_url}?lp_action=${acao}&lp_msg=${encodeURIComponent(msgGerada)}`
+                          window.open(url, '_blank')
+                          showToast(leadSel.connection_degree === '1' ? '✅ Abrindo inbox no LinkedIn...' : '✅ Abrindo conexão no LinkedIn...')
+                        }}
+                      >
+                        {leadSel.connection_degree === '1' ? '💬 Enviar no LinkedIn' : '🔗 Conectar no LinkedIn'}
+                      </button>
+                    )}
                     <button style={S.aiBtn('var(--blue-bright)')} onClick={() => gerarMensagem(leadSel, tipoMsg)} disabled={gerandoMsg}>🔄 Regenerar</button>
                   </div>
                 </>

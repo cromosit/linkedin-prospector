@@ -183,23 +183,55 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
       'whatsapp': 'mensagem de WhatsApp direta (máx 500 caracteres)'
     };
 
-    const prompt = `
-Você é especialista em prospecção B2B da Cromosit IT (treinamentos SAP e consultoria em Curitiba/PR).
+    const grauLabel = lead.connection_degree === '1' ? '1º grau (já conectados)' : lead.connection_degree === '2' ? '2º grau (amigos em comum)' : '3º grau (sem conexão ainda)'
 
-Gere uma mensagem de ${tipoDescricao[tipo] || tipo} para:
+    // Detecta contexto estratégico pelo cargo/empresa
+    const cargo = (lead.headline || '').toLowerCase()
+    const empresa = (lead.company || '').toLowerCase()
+    const isEcossistemaSAP = ['sap', 'deloitte', 'accenture', 'ibm', 'capgemini', 'ey', 'kpmg', 'pwc', 'totvs', 'ntt', 'cognizant', 'wipro', 'infosys'].some(e => empresa.includes(e))
+    const isDecisionMaker = ['diretor', 'director', 'gerente', 'manager', 'vp ', 'vice', 'cio', 'cto', 'cfo', 'ceo', 'head of', 'head de', 'presidente', 'controller', 'superintendente'].some(c => cargo.includes(c))
+    const isConsultor = ['consultor', 'consultant', 'especialista', 'analyst', 'analista'].some(c => cargo.includes(c))
+
+    let anguloEstrategico = ''
+    if (isEcossistemaSAP) {
+      anguloEstrategico = `IMPORTANTE: Este lead trabalha na ${lead.company} (ecossistema SAP/consultoria). Abordagem de PARCERIA e INDICACAO MUTUA:
+- NAO ofereça servicos diretamente
+- Se for Sales/Director SAP: ele VENDE SAP para empresas — voce pode ser parceiro de treinamento/hypercare para os CLIENTES DELE
+- Posicione Cromosit IT como complemento estrategico ao trabalho dele
+- Ex: "seus clientes que implementam SAP precisam de treinamento pos go-live — podemos ser seu parceiro para isso"`
+    } else if (isDecisionMaker) {
+      anguloEstrategico = `Este lead e TOMADOR DE DECISAO (${lead.headline}) na empresa ${lead.company}. Abordagem de SOLUCAO DE NEGOCIO:
+- Foque em como Cromosit IT resolve um problema real do cargo/departamento
+- Mencione ROI, eficiencia operacional, reducao de riscos em projetos SAP`
+    } else if (isConsultor) {
+      anguloEstrategico = `Este lead e CONSULTOR SAP. Abordagem de REDE PROFISSIONAL: network, projetos conjuntos, parceria tecnica.`
+    } else {
+      anguloEstrategico = `Abordagem contextualizada ao cargo e empresa do lead.`
+    }
+
+    const prompt = `Voce e um especialista senior em prospeccao B2B da Cromosit IT (treinamentos SAP e consultoria em Curitiba/PR).
+
+${anguloEstrategico}
+
+Gere uma mensagem de ${tipoDescricao[tipo] || tipo} ESTRATEGICA e PERSONALIZADA para:
 - Nome: ${lead.name}
-- Cargo: ${lead.headline || 'não informado'}
-- Empresa: ${lead.company || 'não informada'}
-- Localização: ${lead.location || 'não informada'}
-- Grau: ${lead.connection_degree === '1' ? '1º (já conectados)' : lead.connection_degree === '2' ? '2º (amigos em comum)' : '3º (sem conexão)'}
-${lead.mutual_connections ? `- Conexões em comum: ${lead.mutual_connections}` : ''}
-${lead.service_interest ? `- Interesse identificado: ${lead.service_interest}` : ''}
-${lead.about ? `- Bio do lead: ${lead.about.substring(0, 300)}` : ''}
+- Cargo: ${lead.headline || 'nao informado'}
+- Empresa: ${lead.company || 'nao informada'}
+- Localizacao: ${lead.location || 'nao informada'}
+- Grau de conexao: ${grauLabel}
+${lead.mutual_connections ? `- Conexoes em comum: ${lead.mutual_connections}` : ''}
+${lead.service_interest ? `- Interesse identificado pela IA: ${lead.service_interest}` : ''}
+${lead.about ? `- Bio do LinkedIn: ${lead.about.substring(0, 400)}` : ''}
 ${contexto ? `- Contexto adicional: ${contexto}` : ''}
 
-Regras: profissional mas humano, sem clichês, termine com pergunta ou CTA claro, português brasileiro.
-Retorne APENAS a mensagem.
-    `.trim();
+Regras OBRIGATORIAS:
+1. Mencione o cargo ou empresa da pessoa de forma especifica (mostre que pesquisou)
+2. Seja estrategico, nao generico — evite cliches como "espero que esteja bem"
+3. Termine com uma pergunta ou CTA claro e especifico
+4. Portugues brasileiro natural, tom executivo mas humano
+5. Respeite o limite de caracteres do tipo
+
+Retorne APENAS a mensagem, sem aspas ou markdown.`.trim();
 
     const aiRes = await axios.post(
       'https://api.openai.com/v1/chat/completions',
