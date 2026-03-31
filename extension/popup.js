@@ -43,7 +43,7 @@ const els = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   const { token } = await chrome.storage.local.get('token')
-  if (token) els.tokenInput.value = token
+  atualizarStatusToken(token)
   verificarAPI()
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab.url || !tab.url.includes('linkedin.com')) { mostrarTela('outro'); return }
@@ -54,6 +54,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (tipoPagina === 'busca') { mostrarTela('busca'); carregarResultadosBusca(tab, response.preview) }
     else mostrarTela('outro')
   })
+})
+
+function atualizarStatusToken(token) {
+  const syncStatus = document.getElementById('syncStatus')
+  const btnOpenApp = document.getElementById('btnOpenApp')
+  const tokenManual = document.getElementById('tokenManual')
+  if (token) {
+    syncStatus.textContent = '✅ Sincronizado com o app'
+    syncStatus.style.color = '#00c896'
+    btnOpenApp.style.display = 'none'
+    tokenManual.style.display = 'none'
+  } else {
+    syncStatus.textContent = '⚠️ Não autenticado — faça login no app'
+    syncStatus.style.color = '#ff6b35'
+    btnOpenApp.style.display = 'block'
+    tokenManual.style.display = 'block'
+  }
+}
+
+document.getElementById('btnOpenApp')?.addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://prospector.cromosit.com' })
 })
 
 function mostrarTela(tela) {
@@ -268,11 +289,14 @@ els.btnLinkedInMsg?.addEventListener('click', async () => {
 })
 
 els.btnSaveToken?.addEventListener('click', async () => {
-  const token = els.tokenInput.value.trim()
+  const tokenInput = document.getElementById('tokenInput')
+  const token = tokenInput?.value.trim()
   if (!token) return
   await chrome.storage.local.set({ token })
-  els.btnSaveToken.textContent = '✅ Salvo!'
-  setTimeout(() => { els.btnSaveToken.textContent = 'Salvar token' }, 2000)
+  atualizarStatusToken(token)
+  const btn = document.getElementById('btnSaveToken')
+  btn.textContent = '✅ Salvo!'
+  setTimeout(() => { btn.textContent = 'Salvar token' }, 2000)
 })
 
 async function verificarAPI() {

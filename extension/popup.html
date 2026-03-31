@@ -156,9 +156,13 @@
 </div>
 
 <div class="config-section">
-  <div class="section-label">Token de acesso</div>
-  <input class="config-input" type="password" id="tokenInput" placeholder="Cole seu token JWT aqui..." />
-  <button class="btn-save-token" id="btnSaveToken">Salvar token</button>
+  <div id="syncStatus" style="font-size:11px;color:#8899aa;text-align:center;padding:6px 0;">⟳ Verificando login...</div>
+  <button class="btn-save-token" id="btnOpenApp" style="display:none;background:#0a66c2;color:#fff;border:none;">🔐 Fazer login no app</button>
+  <div id="tokenManual" style="display:none;margin-top:6px">
+    <div class="section-label" style="margin-bottom:4px">Token manual (fallback)</div>
+    <input class="config-input" type="password" id="tokenInput" placeholder="Cole seu token JWT aqui..." />
+    <button class="btn-save-token" id="btnSaveToken">Salvar token</button>
+  </div>
 </div>
 
 <script src="popup.js"></script>
