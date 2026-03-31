@@ -149,14 +149,80 @@ function extrairSobre() {
 // EXTRAI INFORMAÇÕES DE CONTATO
 // Funciona quando o modal de contato está aberto
 // ==========================================
+// ==========================================
+// NORMALIZA TELEFONE COM DDD POR ESTADO BR
+// ==========================================
+function inferirDDD(location) {
+  if (!location) return null
+  const loc = location.toLowerCase()
+  const mapa = [
+    [['são paulo', 'sp,', ', sp', 'grande sp', 'campinas', 'ribeirão preto', 'sorocaba', 'santos', 'guarulhos', 'osasco', 'barueri', 'mogi'], '11'],
+    [['rio de janeiro', 'rj,', ', rj', 'niterói', 'niteroi', 'volta redonda'], '21'],
+    [['belo horizonte', 'minas gerais', 'mg,', ', mg', 'contagem', 'uberlândia', 'betim', 'juiz de fora'], '31'],
+    [['curitiba', 'paraná', 'pr,', ', pr', 'pinhais', 'são josé dos pinhais'], '41'],
+    [['londrina'], '43'],
+    [['maringá'], '44'],
+    [['porto alegre', 'rio grande do sul', 'rs,', ', rs', 'canoas', 'novo hamburgo'], '51'],
+    [['brasília', 'distrito federal', 'df,', ', df'], '61'],
+    [['goiânia', 'goiás', 'go,', ', go'], '62'],
+    [['salvador', 'bahia', 'ba,', ', ba', 'lauro de freitas', 'camaçari'], '71'],
+    [['recife', 'pernambuco', 'pe,', ', pe', 'olinda', 'caruaru'], '81'],
+    [['fortaleza', 'ceará', 'ce,', ', ce'], '85'],
+    [['manaus', 'amazonas', 'am,', ', am'], '92'],
+    [['florianópolis', 'santa catarina', 'sc,', ', sc', 'joinville', 'blumenau'], '47'],
+    [['belém', 'pará', 'pa,', ', pa'], '91'],
+    [['vitória', 'espírito santo', 'es,', ', es', 'vila velha', 'cariacica'], '27'],
+    [['natal', 'rio grande do norte', 'rn,', ', rn'], '84'],
+    [['são luís', 'maranhão', 'ma,', ', ma'], '98'],
+    [['maceió', 'alagoas', 'al,', ', al'], '82'],
+    [['joão pessoa', 'paraíba', 'pb,', ', pb'], '83'],
+    [['teresina', 'piauí', 'pi,', ', pi'], '86'],
+    [['campo grande', 'mato grosso do sul', 'ms,', ', ms'], '67'],
+    [['cuiabá', 'mato grosso', 'mt,', ', mt'], '65'],
+    [['porto velho', 'rondônia', 'ro,', ', ro'], '69'],
+    [['boa vista', 'roraima', 'rr,', ', rr'], '95'],
+    [['macapá', 'amapá', 'ap,', ', ap'], '96'],
+    [['palmas', 'tocantins', 'to,', ', to'], '63'],
+    [['aracaju', 'sergipe', 'se,', ', se'], '79'],
+  ]
+  for (const [padroes, ddd] of mapa) {
+    if (padroes.some(p => loc.includes(p))) return ddd
+  }
+  return null
+}
+
+function normalizarTelefone(phone, location) {
+  if (!phone) return null
+  // Remove tudo que não é número
+  const nums = phone.replace(/\D/g, '')
+  if (!nums || nums.length < 7) return null
+
+  // Já completo com DDI 55
+  if (nums.startsWith('55') && nums.length >= 12) return '+' + nums
+
+  // DDD + número (10-11 dígitos)
+  if (nums.length === 10 || nums.length === 11) return '+55' + nums
+
+  // Só o número (8-9 dígitos) → infere DDD pelo estado
+  if (nums.length === 8 || nums.length === 9) {
+    const ddd = inferirDDD(location) || '11'
+    return '+55' + ddd + nums
+  }
+
+  return '+55' + nums
+}
+
 function extrairInfoContato(dados) {
+  // LOCALIZAÇÃO da página para inferir DDD
+  const locPage = document.querySelector('.pv-top-card--list li:last-child, .pv-text-details__left-panel .t-normal')?.innerText?.trim() || dados.location || ''
+
   // Email via href
   const emailEl = document.querySelector('a[href^="mailto:"]')
   if (emailEl) dados.email = emailEl.href.replace('mailto:', '').trim()
 
   // Telefone via tel: link
   const phoneEl = document.querySelector('a[href^="tel:"]')
-  if (phoneEl) dados.phone = phoneEl.href.replace('tel:', '').trim()
+  if (phoneEl) dados.phone = normalizarTelefone(phoneEl.href.replace('tel:', '').trim(), locPage || dados.location)
 
   // Website
   const websiteEl = document.querySelector('a[data-field="website_url"]') ||
@@ -176,9 +242,9 @@ function extrairInfoContato(dados) {
     valor = valor.replace(/\(.*?\)/g, '').trim() // remove "(Trabalho)", "(Pessoal)", etc.
 
     if (!dados.phone && valor && (headerTxt.includes('telefone') || headerTxt.includes('phone') || headerTxt.includes('celular') || headerTxt.includes('mobile'))) {
-      // Aceita somente se parecer com número de telefone
-      const apenasNumeros = valor.replace(/\D/g, '')
-      if (apenasNumeros.length >= 8) dados.phone = valor
+      // Normaliza aplicando DDD pelo estado se necessário
+      const foneNorm = normalizarTelefone(valor, locPage || dados.location)
+      if (foneNorm) dados.phone = foneNorm
     }
     if (!dados.email && valor && (headerTxt.includes('email') || headerTxt.includes('e-mail'))) {
       dados.email = valor.replace('mailto:', '').trim()
@@ -205,7 +271,8 @@ function extrairInfoContato(dados) {
       dados.email = value.replace('mailto:', '')
     }
     if ((header.includes('telefone') || header.includes('phone') || header.includes('celular') || header.includes('mobile')) && !dados.phone && value) {
-      dados.phone = value.replace(/\(.*?\)/g, '').trim()
+      const foneNorm = normalizarTelefone(value.replace(/\(.*?\)/g, '').trim(), locPage || dados.location)
+      if (foneNorm) dados.phone = foneNorm
     }
     if ((header.includes('website') || header.includes('site') || header.includes('blog')) && !dados.website && value) {
       dados.website = value

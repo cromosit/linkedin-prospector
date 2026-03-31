@@ -191,12 +191,25 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
     // Detecta contexto estratégico pelo cargo/empresa
     const cargo = (lead.headline || '').toLowerCase()
     const empresa = (lead.company || '').toLowerCase()
+    const isRecrutador = ['talent acquisition', 'recrutament', 'recruiter', 'hr ', 'recursos humanos', 'talent partner', 'people partner', 'talent management', 'rh manager', 'hr manager', 'human resources', 'acquisition manager', 'people & culture', 'gestao de pessoas', 'gestão de pessoas', 'psicólog', 'head of people'].some(c => cargo.includes(c))
     const isEcossistemaSAP = ['sap', 'deloitte', 'accenture', 'ibm', 'capgemini', 'ey', 'kpmg', 'pwc', 'totvs', 'ntt', 'cognizant', 'wipro', 'infosys'].some(e => empresa.includes(e))
     const isDecisionMaker = ['diretor', 'director', 'gerente', 'manager', 'vp ', 'vice', 'cio', 'cto', 'cfo', 'ceo', 'head of', 'head de', 'presidente', 'controller', 'superintendente'].some(c => cargo.includes(c))
     const isConsultor = ['consultor', 'consultant', 'especialista', 'analyst', 'analista'].some(c => cargo.includes(c))
 
     let anguloEstrategico = ''
-    if (isEcossistemaSAP) {
+    if (isRecrutador) {
+      anguloEstrategico = `Este lead é RECRUTADOR/TALENT ACQUISITION (${lead.headline}) na empresa ${lead.company}.
+
+ABORDAGEM DE PARCERIA COMERCIAL com DUPLO VALOR:
+1. ALOCACAO DE PROFISSIONAIS SAP: A Cromosit IT tem base de profissionais SAP certificados e treinados disponíveis para alocação — podemos ser a FONTE DE CANDIDATOS QUALIFICADOS para as vagas SAP da empresa dele
+2. CAPACITACAO CORPORATIVA: Oferecemos plataforma de treinamento SAP para capacitar equipes internas da empresa, reduzindo curva de aprendizado em projetos SAP
+
+REGRAS OBRIGATORIAS:
+- NUNCA ofereça treinamento pessoal para o recrutador
+- O foco é o que PODEMOS OFERECER PARA A EMPRESA DELE como parceiro estratégico B2B
+- Se a empresa tiver vagas SAP abertas, mencione que podemos agilizar o processo com candidatos pré-treinados
+- Tom: executivo, parceiro estratégico, sem ser vendedor`
+    } else if (isEcossistemaSAP) {
       anguloEstrategico = `IMPORTANTE: Este lead trabalha na ${lead.company} (ecossistema SAP/consultoria). Abordagem de PARCERIA e INDICACAO MUTUA:
 - NAO ofereça servicos diretamente
 - Se for Sales/Director SAP: ele VENDE SAP para empresas — voce pode ser parceiro de treinamento/hypercare para os CLIENTES DELE
