@@ -460,7 +460,8 @@ function extrairListaDeBusca() {
         if (m) lead.mutual_connections = m[0]
       }
 
-      // LOCALIZAÇÃO — seletor específico depois whitelist
+      // LOCALIZAÇÃO — apenas seletor CSS específico, sem fallback por texto livre
+      // (texto livre capturava cidades erradas de outros cards ou conexões em comum)
       if (!lead.location && card) {
         const locSelectors = [
           '.entity-result__secondary-subtitle',
@@ -471,14 +472,9 @@ function extrairListaDeBusca() {
         for (const sel of locSelectors) {
           const locEl = card.querySelector(sel)
           const lt = locEl?.innerText?.trim()
-          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum')) {
+          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum') && !lt.match(/^\d/)) {
             lead.location = lt; break
           }
-        }
-        if (!lead.location) {
-          const cidadesRE = /(?:S\u00e3o Paulo|Curitiba|Rio de Janeiro|Belo Horizonte|Porto Alegre|Bras\u00edlia|Salvador|Recife|Fortaleza|Manaus|Goi\u00e2nia|Campinas|Florian\u00f3polis|Vit\u00f3ria|Natal|Macei\u00f3|Jo\u00e3o Pessoa|Campo Grande|Cuiab\u00e1|Ribeir\u00e3o Preto|Londrina|Maring\u00e1|Bel\u00e9m|S\u00e3o Lu\u00eds|Joinville|Niter\u00f3i)[^\n]{0,40}/
-          const cm = texto.match(cidadesRE)
-          if (cm) lead.location = cm[0].trim().substring(0, 60)
         }
       }
 
@@ -556,28 +552,26 @@ async function verificarAcaoPendenteURL() {
       return
     }
 
-    // Busca token e envia para o backend
-    chrome.storage.sync.get(['token', 'apiUrl'], async ({ token, apiUrl }) => {
-      const API = (apiUrl || 'https://linkedin-prospector-production.up.railway.app').replace(/\/$/, '')
-      try {
-        const payload = {}
-        if (dados.phone) payload.phone = dados.phone
-        if (dados.email) payload.email = dados.email
-        if (dados.birthday) payload.birthday = dados.birthday
-        if (dados.connected_since) payload.connected_since = dados.connected_since
-        if (dados.website) payload.website = dados.website
+    // Monta payload com os dados capturados
+    const payload = {}
+    if (dados.phone) payload.phone = dados.phone
+    if (dados.email) payload.email = dados.email
+    if (dados.birthday) payload.birthday = dados.birthday
+    if (dados.connected_since) payload.connected_since = dados.connected_since
+    if (dados.website) payload.website = dados.website
 
-        await fetch(`${API}/api/leads/${leadId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(payload)
-        })
-        const itens = Object.entries(payload).map(([k, v]) => `${k}: ${v}`).join(', ')
-        exibirBannerAcao(`✅ Contatos salvos! ${itens}`, '#00c896')
-      } catch (e) {
-        exibirBannerAcao('❌ Erro ao salvar contatos: ' + e.message, '#ff3b5c')
+    // Envia via background (CSP do LinkedIn bloqueia fetch direto de content scripts)
+    chrome.runtime.sendMessage(
+      { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: payload },
+      (response) => {
+        if (response?.sucesso) {
+          const itens = Object.entries(payload).map(([k, v]) => `${k}: ${v}`).join(' | ')
+          exibirBannerAcao(`✅ Contatos salvos!\n${itens}`, '#00c896')
+        } else {
+          exibirBannerAcao('❌ Erro ao salvar: ' + (response?.erro || 'falha na requisição'), '#ff3b5c')
+        }
       }
-    })
+    )
     return
   }
 
