@@ -428,9 +428,68 @@ async function verificarAcaoPendenteURL() {
   const params = new URLSearchParams(window.location.search)
   const acao = params.get('lp_action')
   const msg = params.get('lp_msg')
+  const leadId = params.get('lp_lead_id')
   if (!acao) return
 
   await esperar(2500) // aguarda a página carregar completamente
+
+  // ================================================
+  // CAPTURA AUTOMÁTICA DE CONTATOS (telefone/email)
+  // Acionado pelo botão 📞 no dashboard
+  // ================================================
+  if (acao === 'capture_contacts') {
+    exibirBannerAcao('⏳ Capturando dados de contato...', '#1d8fe8')
+    const dados = {}
+    extrairInfoContato(dados)
+
+    // Abre "Dados de contato" se ainda não tiver telefone/email
+    if (!dados.phone && !dados.email) {
+      const textosBotao = ['dados de contato', 'informações de contato', 'contact info']
+      const btnContato = Array.from(document.querySelectorAll('a, button, span')).find(el => {
+        const t = el.innerText?.trim().toLowerCase()
+        return textosBotao.some(txt => t === txt || t?.includes(txt))
+      })
+      if (btnContato) {
+        btnContato.click()
+        await esperar(1800)
+        extrairInfoContato(dados)
+        // Fecha modal
+        const fechar = document.querySelector('[aria-label="Fechar"], [aria-label="Close"], .artdeco-modal__dismiss')
+        if (fechar) fechar.click()
+      }
+    }
+
+    // Só atualiza se tiver algo novo
+    const temDados = dados.phone || dados.email || dados.birthday || dados.connected_since
+    if (!temDados || !leadId) {
+      exibirBannerAcao('⚠️ Nenhum dado de contato encontrado neste perfil.', '#ff6b35')
+      return
+    }
+
+    // Busca token e envia para o backend
+    chrome.storage.sync.get(['token', 'apiUrl'], async ({ token, apiUrl }) => {
+      const API = (apiUrl || 'https://linkedin-prospector-production.up.railway.app').replace(/\/$/, '')
+      try {
+        const payload = {}
+        if (dados.phone) payload.phone = dados.phone
+        if (dados.email) payload.email = dados.email
+        if (dados.birthday) payload.birthday = dados.birthday
+        if (dados.connected_since) payload.connected_since = dados.connected_since
+        if (dados.website) payload.website = dados.website
+
+        await fetch(`${API}/api/leads/${leadId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        })
+        const itens = Object.entries(payload).map(([k, v]) => `${k}: ${v}`).join(', ')
+        exibirBannerAcao(`✅ Contatos salvos! ${itens}`, '#00c896')
+      } catch (e) {
+        exibirBannerAcao('❌ Erro ao salvar contatos: ' + e.message, '#ff3b5c')
+      }
+    })
+    return
+  }
 
   if (acao === 'connect' || acao === 'conectar') {
     // Clica no botão Conectar

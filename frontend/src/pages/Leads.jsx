@@ -409,6 +409,18 @@ export default function Leads() {
                         <button style={S.rowBtn('var(--orange)')} onClick={() => enriquecerLead(lead.id)} disabled={enriquecendo === lead.id} title="Enriquecer com IA">
                           {enriquecendo === lead.id ? '⟳' : '⚡'}
                         </button>
+                        {/* Botão captura contato — só aparece se não tiver phone/email */}
+                        {(!lead.phone && !lead.email) && lead.linkedin_url && (
+                          <button
+                            style={S.rowBtn('var(--green)')}
+                            title="Capturar telefone/email automaticamente no LinkedIn"
+                            onClick={() => {
+                              const url = `${lead.linkedin_url}?lp_action=capture_contacts&lp_lead_id=${lead.id}`
+                              window.open(url, '_blank')
+                              showToast('📞 Abrindo LinkedIn... A extensão vai capturar os contatos automaticamente!')
+                            }}
+                          >📞</button>
+                        )}
                         <button style={S.rowBtn('var(--text2)')} onClick={() => { setLeadHistorico(lead); setShowHistorico(true) }} title="Histórico">📋</button>
                         {lead.linkedin_url && (
                           <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer">
