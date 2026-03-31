@@ -9,11 +9,14 @@ router.use(auth);
 const CHATWA_URL   = 'https://apichatwa.cromosit.com/api/messages/send';
 const CHATWA_TOKEN = process.env.CHATWA_TOKEN || 'HiYooAHPQI66uey1HJj0YWkYPq6BWyIB';
 
-// ROTA 1: Listar leads
+// ROTA 1: Listar leads (filtrado por usuário)
 router.get('/', async (req, res) => {
   try {
     const { status, temperature, source, connection_degree, search, page = 1, limit = 20 } = req.query;
-    let query = supabase.from('leads').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+    const userId = req.user.userId;
+    let query = supabase.from('leads').select('*', { count: 'exact' })
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
     if (status)            query = query.eq('status', status);
     if (temperature)       query = query.eq('temperature', temperature);
     if (source)            query = query.eq('source', source);
@@ -27,14 +30,15 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ROTA 2: Dashboard
+// ROTA 2: Dashboard (filtrado por usuário)
 router.get('/stats/dashboard', async (req, res) => {
   try {
-    const { data: porStatus }      = await supabase.from('leads').select('status').not('status', 'is', null);
-    const { data: porTemperatura } = await supabase.from('leads').select('temperature').not('temperature', 'is', null);
-    const { data: porOrigem }      = await supabase.from('leads').select('source').not('source', 'is', null);
-    const { data: porGrau }        = await supabase.from('leads').select('connection_degree').not('connection_degree', 'is', null);
-    const { count: total }         = await supabase.from('leads').select('*', { count: 'exact', head: true });
+    const userId = req.user.userId;
+    const { data: porStatus }      = await supabase.from('leads').select('status').eq('assigned_to', userId).not('status', 'is', null);
+    const { data: porTemperatura } = await supabase.from('leads').select('temperature').eq('assigned_to', userId).not('temperature', 'is', null);
+    const { data: porOrigem }      = await supabase.from('leads').select('source').eq('assigned_to', userId).not('source', 'is', null);
+    const { data: porGrau }        = await supabase.from('leads').select('connection_degree').eq('assigned_to', userId).not('connection_degree', 'is', null);
+    const { count: total }         = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('assigned_to', userId);
     const agrupar = (arr, campo) => arr.reduce((acc, item) => { acc[item[campo]] = (acc[item[campo]] || 0) + 1; return acc; }, {});
     res.json({ total, porStatus: agrupar(porStatus || [], 'status'), porTemperatura: agrupar(porTemperatura || [], 'temperature'), porOrigem: agrupar(porOrigem || [], 'source'), porGrau: agrupar(porGrau || [], 'connection_degree') });
   } catch (err) { res.status(500).json({ error: err.message }); }
