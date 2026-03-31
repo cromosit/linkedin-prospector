@@ -119,14 +119,14 @@ async function enriquecerLeadComIA(lead) {
 
 
   const prompt = `
-Você é um agente de inteligência comercial da Cromosit IT (empresa de treinamentos e consultoria SAP em Curitiba/PR).
+Você é um agente de inteligência comercial da Cromosit IT (empresa de alocação de profissionais de TI, treinamentos e consultoria técnica em Curitiba/PR).
 
 Analise o perfil LinkedIn abaixo e responda SOMENTE um JSON válido com 3 campos:
 
 Perfil:
 - Nome: ${lead.name}
-- Cargo: ${lead.headline || 'não informado'}
-- Empresa: ${lead.company || 'não informada'}
+- Cargo Real: ${lead.current_role || lead.headline || 'não informado'}
+- Empresa Real: ${lead.current_company || lead.company || 'não informada'}
 - Localização: ${lead.location || 'não informada'}
 - Bio: ${lead.about ? lead.about.substring(0, 500) : 'não disponível'}
 - Grau de conexão: ${lead.connection_degree === '1' ? '1º (já conectados)' : lead.connection_degree === '2' ? '2º (amigos em comum)' : '3º (sem conexão)'}
@@ -134,9 +134,9 @@ Perfil:
 
 Responda APENAS este JSON (sem markdown, sem explicações):
 {
-  "service_interest": "Em 1-2 frases: qual serviço/produto da Cromosit IT este lead provavelmente precisa (treinamento SAP MM/SD/FI/CO/HCM/BTP, consultoria, go-live, etc.) com base no cargo e empresa",
-  "notes": "Em 3-5 bullet points curtos: dicas estratégicas para abordar este lead (mencionando cargo, empresa, possível dor, melhor abordagem, módulo SAP relevante)",
-  "score": número de 0 a 100 indicando probabilidade de conversão (considerar: cargo estratégico=+30, empresa SAP=+20, 1º grau=+20, setor relevante=+15, localização BR=+10, sem informação=-10)
+  "service_interest": "Em 1-2 frases: qual serviço da Cromosit IT ele precisa? Se ele for de TI/Software (CTO, Dev Manager), foque em Outsourcing/Alocação de desenvolvedores e squads ágeis. Se for de RH/Recrutamento, foque em fonte de profissionais e treinamentos corporativos. Se for de Negócios/SAP, foque em consultoria SAP.",
+  "notes": "Em 3-5 bullet points curtos: dicas reais de abordagem. NUNCA cite siglas (MM/SD) se não estiverem no perfil dele. Personalize com base nas skills exatas que ele tem (ex: se ele fala de Microsserviços, cite isso).",
+  "score": número de 0 a 100 indicando probabilidade de conversão (considerar: cargo estratégico=+30, empresa potencial=+20, 1º grau=+20, setor relevante=+15, localização BR=+10, sem informação=-10)
 }
   `.trim();
 
@@ -188,66 +188,64 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
 
     const grauLabel = lead.connection_degree === '1' ? '1º grau (já conectados)' : lead.connection_degree === '2' ? '2º grau (amigos em comum)' : '3º grau (sem conexão ainda)'
 
-    // Detecta contexto estratégico pelo cargo/empresa
-    const cargo = (lead.headline || '').toLowerCase()
-    const empresa = (lead.company || '').toLowerCase()
+    // Detecta contexto estratégico pelo cargo/empresa atual ou headline
+    const cargo = (lead.current_role || lead.headline || '').toLowerCase()
+    const empresa = (lead.current_company || lead.company || '').toLowerCase()
+    const hasTechOrDev = ['software', 'developer', 'engineer', 'cto ', 'arquitet', 'architect', 'tech lead', 'desenvolvedor', 'programador'].some(t => cargo.includes(t))
     const isRecrutador = ['talent acquisition', 'recrutament', 'recruiter', 'hr ', 'recursos humanos', 'talent partner', 'people partner', 'talent management', 'rh manager', 'hr manager', 'human resources', 'acquisition manager', 'people & culture', 'gestao de pessoas', 'gestão de pessoas', 'psicólog', 'head of people'].some(c => cargo.includes(c))
     const isEcossistemaSAP = ['sap', 'deloitte', 'accenture', 'ibm', 'capgemini', 'ey', 'kpmg', 'pwc', 'totvs', 'ntt', 'cognizant', 'wipro', 'infosys'].some(e => empresa.includes(e))
-    const isDecisionMaker = ['diretor', 'director', 'gerente', 'manager', 'vp ', 'vice', 'cio', 'cto', 'cfo', 'ceo', 'head of', 'head de', 'presidente', 'controller', 'superintendente'].some(c => cargo.includes(c))
+    const isDecisionMaker = ['diretor', 'director', 'gerente', 'manager', 'vp ', 'vice', 'cio', 'cfo', 'ceo', 'head of', 'head de', 'presidente', 'controller', 'superintendente'].some(c => cargo.includes(c))
     const isConsultor = ['consultor', 'consultant', 'especialista', 'analyst', 'analista'].some(c => cargo.includes(c))
 
     let anguloEstrategico = ''
-    if (isRecrutador) {
-      anguloEstrategico = `Este lead é RECRUTADOR/TALENT ACQUISITION (${lead.headline}) na empresa ${lead.company}.
+    if (hasTechOrDev) {
+      anguloEstrategico = `Este lead lidera ou trabalha com ENGENHARIA DE SOFTWARE/TI (${cargo}) na empresa ${empresa}.
+
+ABORDAGEM: IT OUTSOURCING E CONSULTORIA DE DESENVOLVIMENTO
+1. A Cromosit IT tem base de profissionais de TI (desenvolvedores, arquitetos, engenheiros de dados) prontos para alocação para escalar as operações do time dele.
+2. Seja um parceiro na construção de arquiteturas escaláveis.
+REGRAS OBRIGATORIAS: NUNCA mencione "consultoria SAP" para este lead. Fale de ALOCACAO de profissionais de TI e squads ágeis. Use exatamente as tecnologias citadas no perfil dele (se não tiver, seja genérico).`
+    } else if (isRecrutador) {
+      anguloEstrategico = `Este lead é RECRUTADOR/TALENT ACQUISITION (${cargo}) na empresa ${empresa}.
 
 ABORDAGEM DE PARCERIA COMERCIAL com DUPLO VALOR:
-1. ALOCACAO DE PROFISSIONAIS SAP: A Cromosit IT tem base de profissionais SAP certificados e treinados disponíveis para alocação — podemos ser a FONTE DE CANDIDATOS QUALIFICADOS para as vagas SAP da empresa dele
-2. CAPACITACAO CORPORATIVA: Oferecemos plataforma de treinamento SAP para capacitar equipes internas da empresa, reduzindo curva de aprendizado em projetos SAP
-
-REGRAS OBRIGATORIAS:
-- NUNCA ofereça treinamento pessoal para o recrutador
-- O foco é o que PODEMOS OFERECER PARA A EMPRESA DELE como parceiro estratégico B2B
-- Se a empresa tiver vagas SAP abertas, mencione que podemos agilizar o processo com candidatos pré-treinados
-- Tom: executivo, parceiro estratégico, sem ser vendedor`
+1. ALOCACAO DE PROFISSIONAIS: A Cromosit IT tem base de profissionais (TI e SAP) certificados e disponíveis — podemos ser FONTE DE CANDIDATOS para ele.
+2. CAPACITACAO CORPORATIVA: Oferecemos plataforma de treinamento para equipes.
+REGRAS OBRIGATORIAS: NUNCA ofereça treinamento para ele pessoalmente. Seja um parceiro B2B.`
     } else if (isEcossistemaSAP) {
-      anguloEstrategico = `IMPORTANTE: Este lead trabalha na ${lead.company} (ecossistema SAP/consultoria). Abordagem de PARCERIA e INDICACAO MUTUA:
-- NAO ofereça servicos diretamente
-- Se for Sales/Director SAP: ele VENDE SAP para empresas — voce pode ser parceiro de treinamento/hypercare para os CLIENTES DELE
-- Posicione Cromosit IT como complemento estrategico ao trabalho dele
-- Ex: "seus clientes que implementam SAP precisam de treinamento pos go-live — podemos ser seu parceiro para isso"`
+      anguloEstrategico = `IMPORTANTE: Este lead trabalha na ${empresa} (ecossistema SAP). Abordagem de PARCERIA e INDICACAO MUTUA:
+- NAO ofereça servicos diretamente. Posicione-se como parceiro de treinamento para OS CLIENTES dele.`
     } else if (isDecisionMaker) {
-      anguloEstrategico = `Este lead e TOMADOR DE DECISAO (${lead.headline}) na empresa ${lead.company}. Abordagem de SOLUCAO DE NEGOCIO:
-- Foque em como Cromosit IT resolve um problema real do cargo/departamento
-- Mencione ROI, eficiencia operacional, reducao de riscos em projetos SAP`
+      anguloEstrategico = `Este lead e TOMADOR DE DECISAO (${cargo}) na empresa ${empresa}. Abordagem de SOLUCAO DE NEGOCIO:
+- Foque em como Cromosit IT resolve eficiencia operacional e alocação de recursos.`
     } else if (isConsultor) {
-      anguloEstrategico = `Este lead e CONSULTOR SAP. Abordagem de REDE PROFISSIONAL: network, projetos conjuntos, parceria tecnica.`
+      anguloEstrategico = `Este lead e CONSULTOR. Abordagem de REDE PROFISSIONAL: network e projetos conjuntos.`
     } else {
-      anguloEstrategico = `Abordagem contextualizada ao cargo e empresa do lead.`
+      anguloEstrategico = `Abordagem B2B respeitando o cargo exato do lead (${cargo}).`
     }
 
-    const prompt = `Voce e um especialista senior em prospeccao B2B da Cromosit IT (treinamentos SAP e consultoria em Curitiba/PR).
+    const prompt = `Voce e um especialista senior em prospeccao B2B da Cromosit IT (alocação de times de TI e consultoria).
 
 ${anguloEstrategico}
 
-Gere uma mensagem de ${tipoDescricao[tipo] || tipo} ESTRATEGICA e PERSONALIZADA para:
+Gere uma mensagem de ${tipoDescricao[tipo] || tipo} ESTRATEGICA para:
 - Nome: ${lead.name}
-- Cargo: ${lead.headline || 'nao informado'}
-- Empresa: ${lead.company || 'nao informada'}
+- Cargo Real: ${lead.current_role || lead.headline || 'nao informado'}
+- Empresa Real: ${lead.current_company || lead.company || 'nao informada'}
 - Localizacao: ${lead.location || 'nao informada'}
 - Grau de conexao: ${grauLabel}
 ${lead.mutual_connections ? `- Conexoes em comum: ${lead.mutual_connections}` : ''}
-${lead.service_interest ? `- Interesse identificado pela IA: ${lead.service_interest}` : ''}
-${lead.about ? `- Bio do LinkedIn: ${lead.about.substring(0, 400)}` : ''}
+${lead.about ? `- Contexto extraído do lead: ${lead.headline} | ${lead.about.substring(0, 300)}` : ''}
 ${contexto ? `- Contexto adicional: ${contexto}` : ''}
 
 Regras OBRIGATORIAS:
-1. Mencione o cargo ou empresa da pessoa de forma especifica (mostre que pesquisou)
-2. Seja estrategico, nao generico — evite cliches como "espero que esteja bem"
-3. Termine com uma pergunta ou CTA claro e especifico
-4. Portugues brasileiro natural, tom executivo mas humano
-5. Respeite o limite de caracteres do tipo
+1. SEJA EXTREMAMENTE ESPECÍFICO ao cargo e perfil do lead. NAO inicie a mensagem falando sobre "Cromosit ser especialista em SAP" a menos que ele explicitamente trabalhe com SAP!
+2. NUNCA cite siglas (MM, SD, HCM, FI) se ele não citar.
+3. Termine com CTA rápido e direto (ex: "tem agenda essa semana?").
+4. Evite clichês vazios ("espero que esteja bem", "notei que temos conexões").
+5. Tom executivo, natural e respeite o limite de caracteres de ${tipoDescricao[tipo] || tipo}.
 
-Retorne APENAS a mensagem, sem aspas ou markdown.`.trim();
+Retorne APENAS a mensagem.`.trim();
 
     const aiRes = await axios.post(
       'https://api.openai.com/v1/chat/completions',

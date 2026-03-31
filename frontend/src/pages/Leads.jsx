@@ -422,15 +422,15 @@ export default function Leads() {
                         <button style={S.rowBtn('var(--orange)')} onClick={() => enriquecerLead(lead.id)} disabled={enriquecendo === lead.id} title="Enriquecer com IA">
                           {enriquecendo === lead.id ? '⟳' : '⚡'}
                         </button>
-                        {/* Botão captura contato — só aparece se não tiver phone/email */}
-                        {(!lead.phone && !lead.email) && lead.linkedin_url && (
+                        {/* Botão captura contato — sempre aparece se tiver URL, para forçar atualização de perfil e contatos */}
+                        {lead.linkedin_url && (
                           <button
                             style={S.rowBtn('var(--green)')}
-                            title="Capturar telefone/email automaticamente no LinkedIn"
+                            title="Atualizar dados de perfil e contato no LinkedIn"
                             onClick={() => {
                               const url = `${lead.linkedin_url}?lp_action=capture_contacts&lp_lead_id=${lead.id}`
                               window.open(url, '_blank')
-                              showToast('📞 Abrindo LinkedIn... A extensão vai capturar os contatos automaticamente!')
+                              showToast('📞 Abrindo LinkedIn... A extensão vai atualizar os dados automaticamente!')
                             }}
                           >📞</button>
                         )}
