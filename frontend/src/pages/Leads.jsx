@@ -127,9 +127,22 @@ export default function Leads() {
   const enriquecerLead = async (id) => {
     setEnriquecendo(id)
     try {
-      await api.post(`/api/leads/${id}/enriquecer`)
-      carregarLeads(); showToast('Lead enriquecido pela IA!')
-    } catch (err) { showToast('Erro ao enriquecer', 'error') }
+      const res = await api.post(`/api/leads/${id}/enriquecer`)
+      // Atualiza o form se o modal estiver aberto para este lead
+      if (leadSel?.id === id && res.data?.lead) {
+        const l = res.data.lead
+        setForm(prev => ({
+          ...prev,
+          service_interest: l.service_interest || prev.service_interest,
+          notes: l.notes || prev.notes,
+        }))
+      }
+      carregarLeads()
+      showToast('⚡ Lead enriquecido pela IA!')
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Erro desconhecido ao enriquecer'
+      showToast('❌ ' + msg, 'error')
+    }
     finally { setEnriquecendo(null) }
   }
 

@@ -112,7 +112,9 @@ router.delete('/:id', async (req, res) => {
 // Preenche: about (se vazio), service_interest, notes com sugestões
 // ==========================================
 async function enriquecerLeadComIA(lead) {
-  if (!process.env.OPENAI_API_KEY) return;
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY n\u00e3o configurada. Adicione a chave no Railway → Variables.');
+  }
   if (!lead.headline && !lead.about && !lead.company) return;
 
   const prompt = `

@@ -322,74 +322,97 @@ function extrairListaDeBusca() {
       vistos.add(linkedin_id)
 
       const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' }
-      let container = link
+      // Sobe até encontrar o card raiz do resultado de busca
+      let card = link
+      for (let i = 0; i < 12; i++) {
+        card = card.parentElement
+        if (!card || card.tagName === 'BODY') break
+        // Para no primeiro container grande que contenha o nome E mais dados
+        if (card.querySelectorAll('a[href*="/in/"]').length === 1 &&
+            (card.className?.includes('result') || card.className?.includes('entity') ||
+             card.className?.includes('reusable') || card.className?.includes('search') ||
+             card.tagName === 'LI')) break
+      }
+      if (!card || card.tagName === 'BODY') card = link.parentElement?.parentElement?.parentElement
 
-      for (let i = 0; i < 10; i++) {
-        container = container.parentElement
-        if (!container || container.tagName === 'BODY') break
-        const texto = container.innerText || ''
+      const texto = card?.innerText || document.body.innerText || ''
 
-        if (!lead.name) {
-          const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span')
-          const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim()
-          if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 && !nomeTexto.includes('•') && !nomeTexto.includes('º')) lead.name = nomeTexto
+      // NOME
+      if (!lead.name) {
+        const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span')
+        const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim()
+        if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 &&
+            !nomeTexto.includes('•') && !nomeTexto.includes('·') && !nomeTexto.includes('º')) {
+          lead.name = nomeTexto
         }
+      }
 
-        if (!lead.headline) {
-          // Seletores mais modernos do LinkedIn (2024-2025)
-          const headlineSelectors = [
-            '[class*="subtitle"]', '[class*="headline"]', '.t-14.t-black',
-            '[class*="lockup__subtitle"]', '.entity-result__primary-subtitle',
-            '.search-entity-result__primary-subtitle'
-          ]
-          for (const sel of headlineSelectors) {
-            container.querySelectorAll(sel).forEach(s => {
-              const t = s.innerText?.trim()
-              if (t && t.length > 3 && t.length < 300 && !lead.headline &&
-                  !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
-                  !t.match(/^[\u2022\u00b7\u22c5]/) && !t.match(/^\d/) && !t.includes('grau')) {
-                lead.headline = t
-              }
-            })
-            if (lead.headline) break
+      // FOTO
+      if (!lead.profile_picture && card) {
+        const img = card.querySelector('img')
+        if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') &&
+            (img.src.includes('media') || img.src.includes('profile'))) {
+          lead.profile_picture = img.src
+        }
+      }
+
+      // HEADLINE — seletores modernos do LinkedIn 2024
+      if (!lead.headline && card) {
+        const headlineSelectors = [
+          '.entity-result__primary-subtitle',
+          '.search-entity-result__primary-subtitle',
+          '[class*="primary-subtitle"]',
+          '[class*="subtitle--top"]',
+          '.t-14.t-normal.t-black',
+          '[class*="headline"]',
+          '[class*="lockup__subtitle"]',
+          '.t-14.t-black'
+        ]
+        for (const sel of headlineSelectors) {
+          const el = card.querySelector(sel)
+          const t = el?.innerText?.trim()
+          if (t && t.length > 3 && t.length < 300 &&
+              !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
+              !t.match(/^[\u2022\u00b7]/) && !t.match(/^\d/) && !t.includes('grau')) {
+            lead.headline = t; break
           }
         }
+      }
 
-        if (!lead.profile_picture) {
-          const img = container.querySelector('img')
-          if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') && (img.src.includes('media') || img.src.includes('profile'))) lead.profile_picture = img.src
+      // GRAU DE CONEXÃO
+      if (!lead.connection_degree) {
+        const t = texto.replace(/[\u00b7\u22c5\u2219]/g, '\u2022')
+        if (/\u2022\s*1[\u00bao\u00b0]/.test(t) || t.includes('1st')) lead.connection_degree = '1'
+        else if (/\u2022\s*2[\u00bao\u00b0]/.test(t) || t.includes('2nd')) lead.connection_degree = '2'
+        else if (/\u2022\s*3[\u00bao\u00b0]/.test(t) || t.includes('3rd') || t.includes('3\u00ba e +')) lead.connection_degree = '3'
+      }
+
+      // CONEXÕES EM COMUM
+      if (!lead.mutual_connections) {
+        const m = texto.match(/(\d+)\s+conex[\u00f5o]es? em comum/i)
+        if (m) lead.mutual_connections = m[0]
+      }
+
+      // LOCALIZAÇÃO — seletor específico depois whitelist
+      if (!lead.location && card) {
+        const locSelectors = [
+          '.entity-result__secondary-subtitle',
+          '[class*="secondary-subtitle"]',
+          '[class*="subline-level-2"]',
+          '.t-12.t-black--light.t-normal'
+        ]
+        for (const sel of locSelectors) {
+          const locEl = card.querySelector(sel)
+          const lt = locEl?.innerText?.trim()
+          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum')) {
+            lead.location = lt; break
+          }
         }
-
-        if (!lead.connection_degree) {
-          // Normaliza bullet Unicode — LinkedIn usa · (U+00B7) e • (U+2022)
-          const t = texto.replace(/[·⋅∙]/g, '•')
-          if (/•\s*1[\u00baoa°]/.test(t) || t.includes('1st')) lead.connection_degree = '1'
-          else if (/•\s*2[\u00baoa°]/.test(t) || t.includes('2nd')) lead.connection_degree = '2'
-          else if (/•\s*3[\u00baoa°]/.test(t) || t.includes('3rd') || t.includes('3º e +') || t.includes('3° e +')) lead.connection_degree = '3'
-        }
-
-        if (!lead.mutual_connections) { const m = texto.match(/(\d+)\s+conex[\u00f5o]es? em comum/i); if (m) lead.mutual_connections = m[0] }
-
-        // LOCALIZAÇÃO: tenta seletor específico antes de regex
         if (!lead.location) {
-          // Seletores específicos do LinkedIn para localização
-          const locSelectors = ['[class*="location"]', '.entity-result__secondary-subtitle', '[class*="subline-level-2"]', '.t-12.t-black--light.t-normal']
-          for (const sel of locSelectors) {
-            const locEl = container.querySelector(sel)
-            const lt = locEl?.innerText?.trim()
-            if (lt && lt.length < 60 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum')) {
-              lead.location = lt; break
-            }
-          }
-          // Fallback: whitelist de cidades brasileiras
-          if (!lead.location) {
-            const cidadesRE = /(?:S\u00e3o Paulo|Curitiba|Rio de Janeiro|Belo Horizonte|Porto Alegre|Bras\u00edlia|Salvador|Recife|Fortaleza|Manaus|Goi\u00e2nia|Campinas|Florian\u00f3polis|Vit\u00f3ria|Natal|Macei\u00f3|Jo\u00e3o Pessoa|Teresina|Campo Grande|Cuiab\u00e1|Ribeir\u00e3o Preto|Sorocaba|Londrina|Maring\u00e1|Bel\u00e9m|S\u00e3o Lu\u00eds|Joinville|Uberl\u00e2ndia|Niter\u00f3i|S\u00e3o Jos\u00e9)[^\n]{0,40}/
-            const cm = texto.match(cidadesRE)
-            if (cm) lead.location = cm[0].trim().substring(0, 60)
-          }
+          const cidadesRE = /(?:S\u00e3o Paulo|Curitiba|Rio de Janeiro|Belo Horizonte|Porto Alegre|Bras\u00edlia|Salvador|Recife|Fortaleza|Manaus|Goi\u00e2nia|Campinas|Florian\u00f3polis|Vit\u00f3ria|Natal|Macei\u00f3|Jo\u00e3o Pessoa|Campo Grande|Cuiab\u00e1|Ribeir\u00e3o Preto|Londrina|Maring\u00e1|Bel\u00e9m|S\u00e3o Lu\u00eds|Joinville|Niter\u00f3i)[^\n]{0,40}/
+          const cm = texto.match(cidadesRE)
+          if (cm) lead.location = cm[0].trim().substring(0, 60)
         }
-
-        if (lead.name && lead.connection_degree) break
       }
 
       if (!lead.name || lead.name.length < 2) return
