@@ -58,10 +58,11 @@ async function extrairPerfilIndividualCompleto() {
     if (el?.src && !el.src.includes('ghost') && el.src.startsWith('https')) { dados.profile_picture = el.src; break }
   }
 
-  // GRAU DE CONEXÃO
-  const bodyTxt = document.body.innerText || ''
-  if (bodyTxt.includes('• 1º') || bodyTxt.includes('1st')) dados.connection_degree = '1'
-  else if (bodyTxt.includes('• 2º') || bodyTxt.includes('2nd')) dados.connection_degree = '2'
+  // GRAU DE CONEXÃO — normaliza bullet Unicode antes de verificar
+  // LinkedIn usa: • (U+2022), · (U+00B7), ⋅ (U+22C5) etc.
+  const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•]/g, '•')
+  if (/•\s*1[\u00baoa]/.test(bodyTxt) || bodyTxt.includes(' 1st ') || bodyTxt.includes('· 1º')) dados.connection_degree = '1'
+  else if (/•\s*2[\u00baoa]/.test(bodyTxt) || bodyTxt.includes(' 2nd ') || bodyTxt.includes('· 2º')) dados.connection_degree = '2'
   else dados.connection_degree = '3'
 
   // CONEXÕES EM COMUM
@@ -335,8 +336,23 @@ function extrairListaDeBusca() {
         }
 
         if (!lead.headline) {
-          const subs = container.querySelectorAll('[class*="subtitle"],[class*="headline"],.t-14.t-black')
-          subs.forEach(s => { const t = s.innerText?.trim(); if (t && t.length > 3 && t.length < 200 && !lead.headline && !t.includes('conexões') && !t.includes('seguidores') && !t.includes('•')) lead.headline = t })
+          // Seletores mais modernos do LinkedIn (2024-2025)
+          const headlineSelectors = [
+            '[class*="subtitle"]', '[class*="headline"]', '.t-14.t-black',
+            '[class*="lockup__subtitle"]', '.entity-result__primary-subtitle',
+            '.search-entity-result__primary-subtitle'
+          ]
+          for (const sel of headlineSelectors) {
+            container.querySelectorAll(sel).forEach(s => {
+              const t = s.innerText?.trim()
+              if (t && t.length > 3 && t.length < 300 && !lead.headline &&
+                  !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
+                  !t.match(/^[\u2022\u00b7\u22c5]/) && !t.match(/^\d/) && !t.includes('grau')) {
+                lead.headline = t
+              }
+            })
+            if (lead.headline) break
+          }
         }
 
         if (!lead.profile_picture) {
@@ -345,17 +361,32 @@ function extrairListaDeBusca() {
         }
 
         if (!lead.connection_degree) {
-          if (texto.includes('• 1º')||texto.includes('1st')) lead.connection_degree='1'
-          else if (texto.includes('• 2º')||texto.includes('2nd')) lead.connection_degree='2'
-          else if (texto.includes('3º e +')||texto.includes('3rd')||texto.includes('• 3')) lead.connection_degree='3'
+          // Normaliza bullet Unicode — LinkedIn usa · (U+00B7) e • (U+2022)
+          const t = texto.replace(/[·⋅∙]/g, '•')
+          if (/•\s*1[\u00baoa°]/.test(t) || t.includes('1st')) lead.connection_degree = '1'
+          else if (/•\s*2[\u00baoa°]/.test(t) || t.includes('2nd')) lead.connection_degree = '2'
+          else if (/•\s*3[\u00baoa°]/.test(t) || t.includes('3rd') || t.includes('3º e +') || t.includes('3° e +')) lead.connection_degree = '3'
         }
 
-        if (!lead.mutual_connections) { const m = texto.match(/(\d+)\s+conex[õo]es? em comum/i); if (m) lead.mutual_connections = m[0] }
+        if (!lead.mutual_connections) { const m = texto.match(/(\d+)\s+conex[\u00f5o]es? em comum/i); if (m) lead.mutual_connections = m[0] }
 
-        // Localização real (tem vírgula + local geográfico)
+        // LOCALIZAÇÃO: tenta seletor específico antes de regex
         if (!lead.location) {
-          const locMatch = texto.match(/([A-ZÀ-Ü][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*,\s*(?:Brasil|[A-Z][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*))/u)
-          if (locMatch && !locMatch[0].includes('Jacinto') && locMatch[0].length < 50) lead.location = locMatch[0]
+          // Seletores específicos do LinkedIn para localização
+          const locSelectors = ['[class*="location"]', '.entity-result__secondary-subtitle', '[class*="subline-level-2"]', '.t-12.t-black--light.t-normal']
+          for (const sel of locSelectors) {
+            const locEl = container.querySelector(sel)
+            const lt = locEl?.innerText?.trim()
+            if (lt && lt.length < 60 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum')) {
+              lead.location = lt; break
+            }
+          }
+          // Fallback: whitelist de cidades brasileiras
+          if (!lead.location) {
+            const cidadesRE = /(?:S\u00e3o Paulo|Curitiba|Rio de Janeiro|Belo Horizonte|Porto Alegre|Bras\u00edlia|Salvador|Recife|Fortaleza|Manaus|Goi\u00e2nia|Campinas|Florian\u00f3polis|Vit\u00f3ria|Natal|Macei\u00f3|Jo\u00e3o Pessoa|Teresina|Campo Grande|Cuiab\u00e1|Ribeir\u00e3o Preto|Sorocaba|Londrina|Maring\u00e1|Bel\u00e9m|S\u00e3o Lu\u00eds|Joinville|Uberl\u00e2ndia|Niter\u00f3i|S\u00e3o Jos\u00e9)[^\n]{0,40}/
+            const cm = texto.match(cidadesRE)
+            if (cm) lead.location = cm[0].trim().substring(0, 60)
+          }
         }
 
         if (lead.name && lead.connection_degree) break
