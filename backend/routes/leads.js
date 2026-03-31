@@ -115,7 +115,8 @@ async function enriquecerLeadComIA(lead) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY n\u00e3o configurada. Adicione a chave no Railway → Variables.');
   }
-  if (!lead.headline && !lead.about && !lead.company) return;
+  if (!lead.name) return;
+
 
   const prompt = `
 Você é um agente de inteligência comercial da Cromosit IT (empresa de treinamentos e consultoria SAP em Curitiba/PR).
