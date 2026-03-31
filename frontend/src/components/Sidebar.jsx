@@ -34,7 +34,7 @@ export default function Sidebar() {
         <div style={S.logoBox}>LP</div>
         <div style={S.logoText}>Prospector</div>
       </div>
-      <div style={S.status}><div style={S.statusDot} />API online · porta 3000</div>
+      <div style={S.status}><div style={S.statusDot} />API online · Railway</div>
       <div style={S.nav}>
         <div style={S.sectionLabel}>Menu</div>
         {navItems.map(item => (
