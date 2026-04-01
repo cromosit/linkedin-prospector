@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Prospector v2.0",
+  "version": "2.0.0",
+  "description": "Nova versão robusta com monitoramento de dados e resiliência de rede.",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://linkedin-prospector-production.up.railway.app/*",
+    "https://prospector.cromosit.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://prospector.cromosit.com/*"],
+      "js": ["app_bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

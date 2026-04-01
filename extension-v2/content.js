@@ -1,5 +1,4 @@
-// content.js — v2.0
-// Abordagem: Texto Bruto + Espera Inteligente (Smart Wait)
+// content.js — LinkedIn Prospector v2.0 — LIMPO
 
 async function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -14,111 +13,211 @@ function exibirBanner(texto, cor = '#1d8fe8') {
   setTimeout(() => banner.remove(), 7000);
 }
 
-function normalizarTelefone(phone, location = '') {
+function normalizarTelefone(phone) {
   if (!phone) return null;
   const nums = phone.replace(/\D/g, '');
   if (nums.length < 8) return null;
   if (nums.startsWith('55') && nums.length >= 12) return '+' + nums;
-  if (nums.length >= 10) return '+55' + nums;
-  return '+55' + nums; // Fallback simples
+  return '+55' + nums;
 }
 
+// Extrai dados de qualquer container usando texto bruto
 function extrairDadosDoTexto(root) {
   const dados = {};
   if (!root) return dados;
   const rawText = root.innerText || '';
-  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const lowerLines = lines.map(l => l.toLowerCase());
 
-  // E-mail (Regex)
-  const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+  // Email via regex
+  const emailMatch = rawText.match(/([a-zA-Z0-9._+-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,})/);
   if (emailMatch) dados.email = emailMatch[1];
 
-  // Telefone (Busca por título e próxima linha)
-  const phoneIdx = lowerLines.findIndex(l => l === 'telefone' || l === 'phone' || l.includes('celular'));
-  if (phoneIdx !== -1 && lines[phoneIdx + 1]) {
-    dados.phone = normalizarTelefone(lines[phoneIdx + 1]);
+  // Telefone — busca linha após "telefone" ou "phone" ou "celular"
+  for (let i = 0; i < lowerLines.length; i++) {
+    if (lowerLines[i] === 'telefone' || lowerLines[i] === 'phone' || lowerLines[i].includes('celular') || lowerLines[i].includes('mobile')) {
+      const next = lines[i + 1] || '';
+      const tel = normalizarTelefone(next);
+      if (tel) { dados.phone = tel; break; }
+    }
+  }
+
+  // Fallback telefone via regex
+  if (!dados.phone) {
+    const telMatch = rawText.match(/(\+?[\d\s\-().]{10,20})/);
+    if (telMatch) {
+      const tel = normalizarTelefone(telMatch[1]);
+      if (tel) dados.phone = tel;
+    }
   }
 
   // Aniversário
-  const bdIdx = lowerLines.findIndex(l => l.includes('aniversário') || l.includes('birthday') || l.includes('nascimento'));
-  if (bdIdx !== -1 && lines[bdIdx + 1]) {
-    dados.birthday = lines[bdIdx + 1];
+  for (let i = 0; i < lowerLines.length; i++) {
+    if (lowerLines[i].includes('aniversário') || lowerLines[i].includes('birthday') || lowerLines[i].includes('nascimento')) {
+      if (lines[i + 1]) { dados.birthday = lines[i + 1]; break; }
+    }
   }
 
-  // Conectado desde
-  const connIdx = lowerLines.findIndex(l => l.includes('conexão desde') || l.includes('connected') || l.includes('membro desde'));
-  if (connIdx !== -1 && lines[connIdx + 1]) {
-    dados.connected_since = lines[connIdx + 1];
+  // Conexão desde
+  for (let i = 0; i < lowerLines.length; i++) {
+    if (lowerLines[i].includes('conexão desde') || lowerLines[i].includes('connected since') || lowerLines[i].includes('membro desde')) {
+      if (lines[i + 1]) { dados.connected_since = lines[i + 1]; break; }
+    }
   }
+
+  // Website
+  const links = root.querySelectorAll('a[href]');
+  links.forEach(a => {
+    const href = a.href || '';
+    if (href.startsWith('http') && !href.includes('linkedin.com') && !dados.website) {
+      dados.website = href;
+    }
+  });
 
   return dados;
 }
 
+// Aguarda elemento aparecer no DOM
+async function aguardarElemento(selector, timeout = 4000) {
+  return new Promise(resolve => {
+    const el = document.querySelector(selector);
+    if (el) return resolve(el);
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) { observer.disconnect(); resolve(el); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+  });
+}
+
 async function extrairExperiencia() {
-  window.scrollTo(0, 500); await esperar(500);
-  window.scrollTo(0, 1000); await esperar(500);
   const expSection = document.querySelector('#experience')?.parentElement;
   if (!expSection) return { role: '', company: '' };
-  
   const firstExp = expSection.querySelector('li');
   const texts = Array.from(firstExp?.querySelectorAll('span[aria-hidden="true"]') || [])
-    .map(el => el.innerText.trim())
-    .filter(t => t.length > 2);
-    
+    .map(el => el.innerText.trim()).filter(t => t.length > 2);
   return {
     role: texts[0] || '',
     company: (texts[1] || '').split('·')[0].trim()
   };
 }
 
-async function iniciarCaptura(leadId) {
-  exibirBanner('⏳ Iniciando captura robusta...');
-  const finalDados = {};
+// Captura dados do modal de contato (/overlay/contact-info)
+async function capturarDadosContato(leadId) {
+  exibirBanner('⏳ Lendo dados de contato...');
 
-  // 1. Captura do Modal (se aberto pela URL)
-  for (let i = 0; i < 5; i++) {
-    const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info');
-    if (modal) {
-      const modalDados = extrairDadosDoTexto(modal);
-      Object.assign(finalDados, modalDados);
-      if (modalDados.email || modalDados.phone) break;
-    }
-    await esperar(1000); // Tenta 5 vezes esperar os dados aparecerem
+  // Aguarda o conteúdo do modal carregar — tenta múltiplos seletores
+  const seletoresModal = [
+    '.pv-contact-info__contact-type',
+    '.pv-contact-info',
+    '[data-view-name="profile-contact-info"]',
+    '.artdeco-modal__content',
+    'section.pv-contact-info',
+    'main'
+  ];
+
+  let container = null;
+  for (const sel of seletoresModal) {
+    container = await aguardarElemento(sel, 3000);
+    if (container) break;
   }
 
-  // 2. Localização do Header
-  const locEl = document.querySelector('.pv-text-details__left-panel span.text-body-small') || 
-                document.querySelector('.pv-top-card--list li:last-child');
-  if (locEl) finalDados.location = locEl.innerText.trim();
+  // Aguarda mais um pouco para o conteúdo dinâmico carregar
+  await esperar(1000);
 
-  // 3. Experiência
-  const { role, company } = await extrairExperiencia();
-  finalDados.current_role = role;
-  finalDados.current_company = company;
+  // Usa o body inteiro como fallback
+  const root = container || document.body;
+  const dados = extrairDadosDoTexto(root);
 
-  // Envio
+  // Também tenta links diretos
+  const telLink = document.querySelector('a[href^="tel:"]');
+  if (telLink && !dados.phone) {
+    dados.phone = normalizarTelefone(telLink.href.replace('tel:', ''));
+  }
+
+  const emailLink = document.querySelector('a[href^="mailto:"]');
+  if (emailLink && !dados.email) {
+    dados.email = emailLink.href.replace('mailto:', '');
+  }
+
+  // Envia para API
   chrome.runtime.sendMessage(
-    { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: finalDados },
+    { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: dados },
     (res) => {
       if (res?.sucesso) {
-        exibirBanner(`✅ Captura concluída!\n${finalDados.current_role} @ ${finalDados.current_company}\nTel: ${finalDados.phone || 'N/A'}`, '#00c896');
+        exibirBanner(
+          `✅ Captura concluída!\n` +
+          `📱 Tel: ${dados.phone || 'N/A'}\n` +
+          `✉ Email: ${dados.email || 'N/A'}\n` +
+          `🎂 Aniv: ${dados.birthday || 'N/A'}\n` +
+          `🔗 Desde: ${dados.connected_since || 'N/A'}`,
+          '#00c896'
+        );
       } else {
-        exibirBanner(`❌ Erro no envio: ${res?.erro || 'falha'}`, '#ff3b5c');
+        exibirBanner(`❌ Erro: ${res?.erro || 'falha na API'}`, '#ff3b5c');
       }
     }
   );
 }
 
-// Escuta a URL para disparar a ação
-const p = new URLSearchParams(window.location.search);
-if (p.get('lp_action') === 'capture_contacts' && p.get('lp_lead_id')) {
-  iniciarCaptura(p.get('lp_lead_id'));
+// Captura geral do perfil
+async function iniciarCaptura(leadId) {
+  exibirBanner('⏳ Iniciando captura...');
+  const finalDados = {};
+
+  // Localização
+  const locEl = document.querySelector('.pv-text-details__left-panel span.text-body-small') ||
+                document.querySelector('.pv-top-card--list li:last-child');
+  if (locEl) finalDados.location = locEl.innerText.trim();
+
+  // Experiência
+  const { role, company } = await extrairExperiencia();
+  if (role) finalDados.current_role = role;
+  if (company) finalDados.current_company = company;
+
+  chrome.runtime.sendMessage(
+    { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: finalDados },
+    (res) => {
+      if (res?.sucesso) {
+        exibirBanner(`✅ Captura concluída!\n${role} @ ${company}`, '#00c896');
+      } else {
+        exibirBanner(`❌ Erro: ${res?.erro || 'falha'}`, '#ff3b5c');
+      }
+    }
+  );
 }
 
-window.addEventListener('message', (event) => {
-  if (event.source !== window) return
-  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
-    chrome.storage.local.set({ token: event.data.token })
+// Detecta ação pela URL
+const params = new URLSearchParams(window.location.search);
+const lpAction = params.get('lp_action');
+const lpLeadId = params.get('lp_lead_id');
+
+if (lpLeadId) {
+  if (lpAction === 'capture_contacts' || window.location.href.includes('/overlay/contact-info')) {
+    capturarDadosContato(lpLeadId);
+  } else if (lpAction === 'capture') {
+    iniciarCaptura(lpLeadId);
   }
-})
+}
+
+// Detecta navegação SPA para /overlay/contact-info
+let lastUrl = location.href;
+new MutationObserver(() => {
+  if (location.href !== lastUrl) {
+    lastUrl = location.href;
+    const p = new URLSearchParams(window.location.search);
+    const id = p.get('lp_lead_id');
+    if (id && location.href.includes('/overlay/contact-info')) {
+      setTimeout(() => capturarDadosContato(id), 800);
+    }
+  }
+}).observe(document.body, { subtree: true, childList: true });
+
+// Sincroniza token enviado pelo CRM
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
+    chrome.storage.local.set({ token: event.data.token });
+  }
+});
