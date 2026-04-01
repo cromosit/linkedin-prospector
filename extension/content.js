@@ -267,36 +267,42 @@ function extrairInfoContato(dados) {
                     document.querySelector('section.pv-contact-info a[href*="http"]:not([href*="linkedin"])')
   if (websiteEl) dados.website = websiteEl.href
 
-  // Modal de contato: busca por h3 (header) + próximo elemento (valor)
-  const headers = document.querySelectorAll(
-    '.artdeco-modal__content h3, .pv-contact-info__header, .pv-contact-info__contact-type h3'
+  // Modal de contato: busca por blocos inteiros
+  const sections = document.querySelectorAll(
+    '.pv-contact-info__contact-type, section.pv-contact-info section, .artdeco-modal__content section'
   )
-  headers.forEach(h3 => {
-    const headerTxt = h3.innerText?.trim().toLowerCase() || ''
-    // Valor pode estar no próximo sibling ou dentro do parentElement
-    const valorEl = h3.nextElementSibling ||
-                    h3.parentElement?.querySelector('p, a, span.t-14, span.t-black')
-    let valor = valorEl?.innerText?.trim() || valorEl?.href || ''
-    valor = valor.replace(/\(.*?\)/g, '').trim() // remove "(Trabalho)", "(Pessoal)", etc.
+  
+  sections.forEach(sec => {
+    const rawText = sec.innerText || ''
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l)
+    if (lines.length < 2) return
+    
+    // Na estrutura do LinkedIn, a primeira linha costuma ser o Header (Telefone, E-mail, etc)
+    // E as demais são os valores
+    const headerTxt = lines[0].toLowerCase()
+    // Junta as próximas linhas que tiverem dados, ignorando textos adjacentes desnecessários
+    let valor = lines.slice(1).join(' ').replace(/\(.*?\)/g, '').trim()
 
     if (!dados.phone && valor && (headerTxt.includes('telefone') || headerTxt.includes('phone') || headerTxt.includes('celular') || headerTxt.includes('mobile'))) {
-      // Normaliza aplicando DDD pelo estado se necessário
       const foneNorm = normalizarTelefone(valor, locPage || dados.location)
       if (foneNorm) dados.phone = foneNorm
     }
     if (!dados.email && valor && (headerTxt.includes('email') || headerTxt.includes('e-mail'))) {
-      dados.email = valor.replace('mailto:', '').trim()
+      // O regex captura qualquer email no texto
+      const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/)
+      if (emailMatch) dados.email = emailMatch[1]
     }
     if (!dados.website && valor && (headerTxt.includes('website') || headerTxt.includes('site') || headerTxt.includes('blog'))) {
-      dados.website = valor
+      dados.website = valor.split(' ')[0] // Pega só o primeiro link
     }
-    if (valor && (headerTxt.includes('aniversário') || headerTxt.includes('birthday') || headerTxt.includes('nascimento'))) {
+    if (valor && (headerTxt.includes('aniversário') || headerTxt.includes('aniversario') || headerTxt.includes('birthday') || headerTxt.includes('nascimento'))) {
       dados.birthday = valor
     }
-    if (valor && (headerTxt.includes('conectado') || headerTxt.includes('connected') || headerTxt.includes('membro desde'))) {
+    if (valor && (headerTxt.includes('conectado') || headerTxt.includes('conexão desde') || headerTxt.includes('conexao') || headerTxt.includes('connected') || headerTxt.includes('membro desde'))) {
       dados.connected_since = valor
     }
   })
+
 
   // Fallback: contactItems estilo antigo do LinkedIn
   const contactItems = document.querySelectorAll('.pv-contact-info__contact-type, .ci-vanity-url, section.pv-contact-info section')
@@ -315,10 +321,10 @@ function extrairInfoContato(dados) {
     if ((header.includes('website') || header.includes('site') || header.includes('blog')) && !dados.website && value) {
       dados.website = value
     }
-    if ((header.includes('aniversário') || header.includes('birthday') || header.includes('nascimento')) && value) {
+    if ((header.includes('aniversário') || header.includes('aniversario') || header.includes('birthday') || header.includes('nascimento')) && value) {
       dados.birthday = value
     }
-    if ((header.includes('conectado') || header.includes('connected') || header.includes('membro desde')) && value) {
+    if ((header.includes('conectado') || header.includes('conexão desde') || header.includes('conexao') || header.includes('connected') || header.includes('membro desde')) && value) {
       dados.connected_since = value
     }
     if (header.includes('twitter') || header.includes('x.com')) {
