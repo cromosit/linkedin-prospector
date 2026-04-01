@@ -267,41 +267,39 @@ function extrairInfoContato(dados) {
                     document.querySelector('section.pv-contact-info a[href*="http"]:not([href*="linkedin"])')
   if (websiteEl) dados.website = websiteEl.href
 
-  // Modal de contato: busca por blocos inteiros
-  const sections = document.querySelectorAll(
-    '.pv-contact-info__contact-type, section.pv-contact-info section, .artdeco-modal__content section'
-  )
-  
-  sections.forEach(sec => {
-    const rawText = sec.innerText || ''
+  // Modal de contato: pega o texto bruto de TUDO dentro do modal para evitar falhas de estrutura HTML
+  const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info')
+  if (modal) {
+    const rawText = modal.innerText || ''
     const lines = rawText.split('\n').map(l => l.trim()).filter(l => l)
-    if (lines.length < 2) return
     
-    // Na estrutura do LinkedIn, a primeira linha costuma ser o Header (Telefone, E-mail, etc)
-    // E as demais são os valores
-    const headerTxt = lines[0].toLowerCase()
-    // Junta as próximas linhas que tiverem dados, ignorando textos adjacentes desnecessários
-    let valor = lines.slice(1).join(' ').replace(/\(.*?\)/g, '').trim()
+    // Captura o email via Regex (linha independente)
+    const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/)
+    if (emailMatch && !dados.email) dados.email = emailMatch[1]
 
-    if (!dados.phone && valor && (headerTxt.includes('telefone') || headerTxt.includes('phone') || headerTxt.includes('celular') || headerTxt.includes('mobile'))) {
-      const foneNorm = normalizarTelefone(valor, locPage || dados.location)
-      if (foneNorm) dados.phone = foneNorm
+    // Procura os títulos (Telefone, Conexão, Aniversário) e pega a linha imediatamente abaixo
+    for (let i = 0; i < lines.length; i++) {
+      const headerTxt = lines[i].toLowerCase()
+      const proximaLinha = lines[i+1] || ''
+
+      if (!dados.phone && proximaLinha && (headerTxt === 'telefone' || headerTxt === 'phone' || headerTxt === 'celular' || headerTxt === 'mobile')) {
+        const foneNorm = normalizarTelefone(proximaLinha.replace(/\(.*?\)/g, ''), locPage || dados.location)
+        if (foneNorm) dados.phone = foneNorm
+      }
+      
+      if (!dados.website && proximaLinha && (headerTxt === 'website' || headerTxt === 'site' || headerTxt === 'blog' || headerTxt === 'portfólio')) {
+        dados.website = proximaLinha.split(' ')[0]
+      }
+      
+      if (!dados.birthday && proximaLinha && (headerTxt.includes('aniversário') || headerTxt.includes('aniversario') || headerTxt.includes('birthday') || headerTxt.includes('nascimento'))) {
+        dados.birthday = proximaLinha
+      }
+      
+      if (!dados.connected_since && proximaLinha && (headerTxt.includes('conectado') || headerTxt.includes('conexão desde') || headerTxt.includes('conexao desde') || headerTxt.includes('conexao') || headerTxt.includes('connected') || headerTxt.includes('membro desde'))) {
+        dados.connected_since = proximaLinha
+      }
     }
-    if (!dados.email && valor && (headerTxt.includes('email') || headerTxt.includes('e-mail'))) {
-      // O regex captura qualquer email no texto
-      const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/)
-      if (emailMatch) dados.email = emailMatch[1]
-    }
-    if (!dados.website && valor && (headerTxt.includes('website') || headerTxt.includes('site') || headerTxt.includes('blog'))) {
-      dados.website = valor.split(' ')[0] // Pega só o primeiro link
-    }
-    if (valor && (headerTxt.includes('aniversário') || headerTxt.includes('aniversario') || headerTxt.includes('birthday') || headerTxt.includes('nascimento'))) {
-      dados.birthday = valor
-    }
-    if (valor && (headerTxt.includes('conectado') || headerTxt.includes('conexão desde') || headerTxt.includes('conexao') || headerTxt.includes('connected') || headerTxt.includes('membro desde'))) {
-      dados.connected_since = valor
-    }
-  })
+  }
 
 
   // Fallback: contactItems estilo antigo do LinkedIn
