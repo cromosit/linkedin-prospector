@@ -115,3 +115,10 @@ const p = new URLSearchParams(window.location.search);
 if (p.get('lp_action') === 'capture_contacts' && p.get('lp_lead_id')) {
   iniciarCaptura(p.get('lp_lead_id'));
 }
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return
+  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
+    chrome.storage.local.set({ token: event.data.token })
+  }
+})

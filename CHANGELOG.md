@@ -1,210 +1,139 @@
 # 📋 Changelog — LinkedIn Prospector Cromosit IT
 
 Todas as mudanças significativas do projeto são documentadas aqui.
-Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
-## [v8.0] — 19/03/2026
+## [v9.0] — Março 2026 — 🚀 PRODUÇÃO
+
+### Deploy
+- **Frontend:** https://prospector.cromosit.com/ (Vercel)
+- **Backend API:** https://linkedin-prospector-production.up.railway.app (Railway)
+- **Deploy contínuo:** git push → build automático → online em ~2 min
+
+### Adicionado
+- Sistema em produção — acessível pela equipe Cromosit IT
+- IA 100% dinâmica: `service_interest` determina o contexto da mensagem
+- Captura automática de contatos: banner verde confirma email, telefone, cargo, empresa
+- Empresa correta: extraída da seção Experiência do LinkedIn
+- Localização correta: filtra nomes próprios, captura locais geográficos reais
+- Mensagem alinhada ao serviço real do lead (TI Outsourcing, SAP, Alocação, etc.)
+- `background.js` da extensão apontando para API Railway em produção
+
+### Corrigido (definitivo)
+- **ERRO-007:** prompt da IA não usava `service_interest` — corrigido e testado
+- **ERRO-015:** dados de contato não capturados (empresa, cargo, telefone, email) — corrigido
+
+---
+
+## [v8.0] — Março 2026
 
 ### Adicionado
 - Barra de ações no estilo SAP Easy Access no painel de leads
-- Botões visuais de grau de conexão (🟢 1º / 🔵 2º / ⚪ 3º) no formulário
+- Botões visuais de grau de conexão (🟢 1º / 🔵 2º / ⚪ 3º)
 - Campo "🎯 O que este lead precisa?" com preenchimento por IA
 - Destaque visual azul para campos preenchidos pela extensão
-- Botão WhatsApp exibe o número diretamente: `📱 WhatsApp (5541...)`
-- Input inline para telefone quando lead não tem número (sem `alert()` nativo)
+- Botão WhatsApp exibe o número: `📱 WhatsApp (5541...)`
+- Input inline para telefone quando lead não tem número (sem `alert()`)
 - Paginação completa (20 leads por página)
 - Score com cores: 🟢 ≥70 · 🟠 ≥40 · ⚪ <40
+- Alerta visual `⚠ Sem telefone` na tabela de leads
+- Botão 🔄 Cadência por lead (estrutura backend + frontend)
+- `LeadHistorico.jsx` corrigido e funcionando com timeline real
+- `LeadCadencia.jsx` — painel completo de cadências
 
 ### Corrigido
 - WhatsApp não usava o telefone do cadastro automaticamente
 - Modal sem barra de ações profissional
-- Empresa, email e telefone não apareciam corretamente nos campos
+- LeadHistorico não passava props corretas (leadNome faltava)
 
 ---
 
-## [v7.0] — 19/03/2026
+## [v7.0] — Março 2026
 
 ### Adicionado
-- IA preenche automaticamente `service_interest`, `notes` e `score` ao capturar leads
-- Nova rota `POST /api/leads/:id/enriquecer` para enriquecimento manual com IA
-- Botão ⚡ na tabela de leads para enriquecer qualquer lead a qualquer momento
-- Campo `service_interest`: análise automática do que o lead pode precisar
-- Campo `notes`: dicas estratégicas com bullet points gerados pela IA
+- IA preenche automaticamente `service_interest`, `notes` e `score`
+- Rota `POST /api/leads/:id/enriquecer`
+- Botão ⚡ na tabela para enriquecer qualquer lead
+- Sistema GitHub com `git-salvar.bat` e `git-configurar.bat`
 
 ### Corrigido
-- Empresa agora vem da seção **Experiência** do LinkedIn (não da headline)
-- Localização filtrada para remover nomes próprios (ex: "Jacinto" não é uma cidade)
-- Tentativa automática de abrir modal "Informações de Contato" para capturar telefone/email
-- WhatsApp sem `prompt()` desnecessário quando lead tem telefone
+- Empresa da seção Experiência (não da headline)
+- Localização filtrada para remover nomes próprios
+- WhatsApp sem `prompt()` quando lead tem telefone
 
 ---
 
-## [v6.0] — 19/03/2026
+## [v6.0] — Março 2026
 
 ### Adicionado
 - Histórico de atividades por lead (`LeadHistorico.jsx`)
-  - Timeline: mensagens geradas, WhatsApp enviado, lead capturado, notas manuais
-  - Campo para registrar atividades manuais (nota, ligação, reunião)
-- Envio de mensagem diretamente no inbox do LinkedIn via extensão
-  - Detecta se é 1º grau (conexão direta) e exibe botão "✉ Enviar no LinkedIn"
-  - Extensão clica no botão "Mensagem" do perfil e preenche o texto automaticamente
-  - Usuário revisa e confirma — não é bot
+- Envio de mensagem no inbox do LinkedIn (extensão + 1º grau)
+
+---
+
+## [v5.0] — Março 2026
+
+### Adicionado
+- 5 tipos de mensagem IA com regeneração
+- Rota DELETE `/api/leads/:id`
+- Botões Editar / IA / LinkedIn / Excluir na tabela
+- Campos `birthday`, `connected_since`, `service_interest`, `score`
+
+---
+
+## [v4.0] — Março 2026
+
+### Adicionado
+- Captura em massa da página de resultados LinkedIn
+- Notificação automática WhatsApp ao vendedor (`notify.js`)
+- Campos `connection_degree`, `mutual_connections`, `followers`, `website`, `about`
+
+---
+
+## [v3.0] — Março 2026
+
+### Adicionado
+- Integração ChatWA para envio de WhatsApp
+- Rota `POST /api/leads/:id/enviar-whatsapp`
 
 ### Alterado
-- `popup.js` e `popup.html` completamente reescritos para interface v6
+- API de IA: Anthropic → OpenAI GPT-4o-mini
 
 ---
 
-## [v5.0] — 19/03/2026
+## [v2.0] — Março 2026
 
 ### Adicionado
-- Análise de brechas de mercado (10 brechas identificadas)
-- Arquivo `git-configurar.bat` para setup automático do GitHub
-- Arquivo `git-salvar.bat` para commits com 1 clique
-- Arquivo `.gitignore` protegendo `.env`, `node_modules`, etc.
-- Blueprint v5 com documentação completa (16 capítulos)
-- README.md para o repositório GitHub
-
-### Adicionado ao banco de dados
-```sql
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS birthday TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS connected_since TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS service_interest TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT 0;
-```
-
-### Corrigido
-- Botões de nível (1º/2º/3º grau) adicionados ao formulário do lead
-- Modal do lead com todos os campos organizados
-- Botões: Editar / IA / LinkedIn / Excluir na tabela
+- Frontend React completo (Login, Dashboard, Leads)
+- Extensão Chrome v1 — captura de perfil individual
+- Arquivos `.bat` para automação (1 a 8)
 
 ---
 
-## [v4.0] — 19/03/2026
+## [v1.0] — Fevereiro 2026
 
 ### Adicionado
-- Captura em massa de leads da página de resultados do LinkedIn
-  - Detecta automaticamente que é uma página de busca
-  - Lista todos os perfis com grau de conexão (🟢1º 🔵2º ⚪3º)
-  - Captura todos os perfis de uma página com 1 clique
-- Rota de notificação automática para o vendedor no WhatsApp (`notify.js`)
-  - Ao capturar leads, envia resumo para `VENDEDOR_WHATSAPP`
-- Suporte a campos: `connection_degree`, `mutual_connections`, `followers`, `website`, `about`, `can_connect`
-
-### Adicionado ao banco de dados
-```sql
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS connection_degree TEXT DEFAULT '3';
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS mutual_connections TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS followers TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS website TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS about TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS can_connect BOOLEAN DEFAULT true;
-```
-
-### Corrigido
-- Seletores da extensão reescritos para usar estrutura de URL (`href*="/in/"`) em vez de classes CSS instáveis
+- Backend Node.js + Express (porta 3000)
+- LinkedIn OAuth 2.0 + OpenID Connect
+- Supabase — 3 tabelas: `users`, `leads`, `lead_activities`
+- 8 endpoints REST + JWT
 
 ---
 
-## [v3.0] — 19/03/2026
+## Próximas Versões
 
-### Adicionado
-- Integração com ChatWA da Cromosit IT
-  - Rota `POST /api/leads/:id/enviar-whatsapp`
-  - Envia mensagem gerada pela IA diretamente para o WhatsApp do lead
-- Configuração no `.env`: `CHATWA_TOKEN`, `CHATWA_API_URL`
+### [v9.5] — Sprint Atual
+- [ ] Relatórios básicos (funil, origem, performance por período)
+- [ ] Dashboard com filtro por período
 
-### Alterado
-- API de IA migrada de Anthropic (Claude) para OpenAI (GPT) por problemas de saldo
-- Variável de ambiente: `ANTHROPIC_API_KEY` → `OPENAI_API_KEY`
+### [v10.0] — Sprint 2 (Abr/2026)
+- [ ] Follow-up automático Dia 0/3/7/14
+- [ ] Integração funil ChatWA (criar contato + negócio)
+- [ ] Cadência de mensagens ativa no painel
 
-### Corrigido
-- Bug crítico: `lead.lead` → `lead.company` no prompt da IA (causava erro 400)
-- Modelo da API atualizado para versão compatível
-- `server.js` corrigido após corrupção acidental
+### [v11.0] — Sprint 3 (Mai/2026)
+- [ ] Playwright — envio automático de conexão LinkedIn
 
----
-
-## [v2.0] — 19/03/2026
-
-### Adicionado
-- Frontend React completo com Vite
-  - Tela de Login com botão "Entrar com LinkedIn"
-  - Dashboard com estatísticas e gráficos de pipeline
-  - Tela de Leads com filtros, busca e status
-  - Modal de lead com formulário completo
-  - Geração de mensagem com IA (5 tipos: Conexão, 2º Grau, 1º Contato, Follow-up, WhatsApp)
-- Extensão Chrome (versão inicial)
-  - Detecta perfil ao visitar manualmente
-  - Captura: nome, cargo, empresa, localização, URL do LinkedIn
-  - Popup com botão "+ Capturar Lead"
-- Arquivos `.bat` para automação (1-instalar até 8-iniciar-tudo)
-- Frontend rodando na porta 5173
-
-### Corrigido
-- Configuração do `vite.config.js` para proxy do backend
-- Erro `Cannot GET /auth/sucesso` após login LinkedIn
-
----
-
-## [v1.0] — 18/03/2026
-
-### Adicionado
-- Backend Node.js com Express (porta 3000)
-- Autenticação OAuth com LinkedIn (Sign In with OpenID Connect)
-- Banco de dados Supabase com 3 tabelas: `users`, `leads`, `lead_activities`
-- 8 endpoints REST para gestão de leads:
-  - `GET /api/leads` — listar com filtros
-  - `POST /api/leads` — criar lead
-  - `POST /api/leads/bulk` — importar em massa
-  - `GET /api/leads/:id` — detalhes do lead
-  - `PUT /api/leads/:id` — atualizar
-  - `DELETE /api/leads/:id` — excluir
-  - `POST /api/leads/:id/gerar-mensagem` — IA gera mensagem
-  - `GET /api/leads/stats/dashboard` — estatísticas
-- JWT para autenticação de todas as rotas de leads
-- Middleware de autenticação
-
-### Infraestrutura
-- Supabase configurado com RLS desativado e permissões corretas
-- Arquivo `.env.example` com todas as variáveis necessárias
-- `package.json` com scripts `dev` (nodemon) e `start` (produção)
-
----
-
-## Próximas Versões Planejadas
-
-### [v9.0] — Previsto: Sprint 2 (Semana 2 de Abril/2026)
-- [ ] Botão Refresh no Dashboard e na tela de Leads
-- [ ] Export CSV dos leads
-- [ ] Paginação real no Dashboard
-- [ ] Filtros por período (hoje / 7 dias / 30 dias)
-- [ ] Seleção múltipla + ações em massa na tabela
-
-### [v10.0] — Previsto: Sprint 3
-- [ ] Relatório: Taxa de Conversão por Grau de Conexão
-- [ ] Relatório: Leads por Cargo/Empresa
-- [ ] Relatório: Performance do Funil
-- [ ] Dashboard de KPIs em tempo real
-
-### [v11.0] — Integração ChatWA (quando API estiver disponível)
-- [ ] `POST /api/chatwa/criar-contato`
-- [ ] `POST /api/chatwa/criar-negocio`
-- [ ] Lead capturado → entra automaticamente no funil LinkedIn Prospector do ChatWA
-- [ ] Etapas: Novo Lead → Contatado → Proposta → Negociando → Fechado
-
-### [v12.0] — Follow-up Automático
-- [ ] Sequência automática por grau de conexão
-- [ ] Dia 0: mensagem de conexão
-- [ ] Dia 3: follow-up 1 (sem resposta)
-- [ ] Dia 7: follow-up 2 via WhatsApp
-- [ ] Dia 14: descarte automático
-- [ ] Pausa automática quando lead responde
-
-### [v13.0 em diante] — SaaS / Produção
-- [ ] Deploy Railway (backend) + Vercel (frontend)
-- [ ] Multi-tenant (múltiplos clientes)
-- [ ] Planos: Free / Pro / Enterprise
-- [ ] Onboarding guiado para novos clientes
+### [v12.0+] — SaaS
+- [ ] Multi-usuário, planos, white-label para parceiros SAP

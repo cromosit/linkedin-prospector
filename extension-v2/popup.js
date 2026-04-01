@@ -1,31 +1,34 @@
-// popup.js — v2.0
-// Verifica se a extensão v2.0 tem o token sincronizado
+const CRM_URL = 'https://prospector.cromosit.com'
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const syncStatus = document.getElementById('syncStatus');
-  const errorMsg = document.getElementById('errorMsg');
-  
-  chrome.storage.local.get(['token'], (res) => {
-    if (res.token) {
-      syncStatus.textContent = '✅ Sincronizado com o App — CRM';
-      syncStatus.style.background = 'rgba(0,200,150,0.1)';
-      syncStatus.style.color = '#00c896';
-      errorMsg.style.display = 'none';
-    } else {
-      syncStatus.textContent = '⚠️ Não autenticado — faça login no CRM';
-      syncStatus.style.background = 'rgba(255,107,53,0.1)';
-      syncStatus.style.color = '#ff6b35';
-      errorMsg.textContent = 'O CRM deve estar aberto para sincronizar.';
-      errorMsg.style.display = 'block';
-    }
-  });
+  document.getElementById('btnAbrirCRM').addEventListener('click', () => {
+    chrome.tabs.create({ url: CRM_URL })
+  })
+  verificarAutenticacao()
+})
 
-  // Verifica saúde da API (opcional)
+async function verificarAutenticacao() {
+  const statusEl = document.getElementById('syncStatus')
   try {
-    const res = await fetch('https://linkedin-prospector-production.up.railway.app/health');
-    if (!res.ok) throw new Error();
-  } catch (e) {
-    errorMsg.textContent = '❌ Backend (Railway) offline. Verifique o servidor.';
-    errorMsg.style.display = 'block';
+    const { token } = await chrome.storage.local.get('token')
+    if (!token) {
+      statusEl.className = 'status error'
+      statusEl.textContent = '⚠️ Não autenticado — clique em Abrir CRM e faça login'
+      return
+    }
+    const res = await fetch(`${CRM_URL}/api/leads/stats/dashboard`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (res.ok) {
+      statusEl.className = 'status'
+      statusEl.textContent = '✅ Autenticado — pronto para capturar'
+    } else {
+      statusEl.className = 'status error'
+      statusEl.textContent = '⚠️ Token expirado — faça login novamente'
+      await chrome.storage.local.remove('token')
+    }
+  } catch {
+    statusEl.className = 'status error'
+    statusEl.textContent = '⚠️ Sem conexão com o CRM'
   }
-});
+}
