@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>LP Prospector v2.0</title>
+  <style>
+    body { width: 320px; background: #080c10; color: #e8edf2; font-family: sans-serif; padding: 16px; }
+    .header { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #1e2d3d; }
+    .logo { background: #0a66c2; color: white; padding: 4px 8px; font-weight: bold; font-size: 14px; }
+    .status { background: rgba(0,200,150,0.1); border: 1px solid rgba(0,200,150,0.3); color: #00c896; padding: 10px; font-size: 11px; text-align: center; border-radius: 4px; }
+    .hint { margin-top: 16px; font-size: 12px; color: #8899aa; line-height: 1.5; background: #0d1219; padding: 12px; border-radius: 4px; }
+    .btn { width: 100%; padding: 10px; background: #0a66c2; border: none; color: white; font-weight: bold; cursor: pointer; margin-top: 12px; border-radius: 4px; }
+    .error { color: #ff3b5c; border: 1px solid #ff3b5c30; background: #ff3b5c10; display: none; margin-top: 10px; padding: 8px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="header"><div class="logo">LP</div><div><strong>v2.0</strong> — Cromosit IT</div></div>
+  <div id="syncStatus" class="status">⟳ Verificando sincronização...</div>
+  <div id="errorMsg" class="error"></div>
+  <div class="hint">
+    <strong>💡 Como usar a v2.0:</strong><br><br>
+    1. Vá ao perfil de um lead no LinkedIn.<br>
+    2. Clique no 📞 verde do seu CRM.<br>
+    3. A extensão irá capturar os dados automaticamente.
+  </div>
+  <button class="btn" onclick="window.open('https://prospector.cromosit.com')">Abrir CRM</button>
+  <script src="popup.js"></script>
+</body>
+</html>
