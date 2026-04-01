@@ -570,24 +570,20 @@ async function verificarAcaoPendenteURL() {
   if (acao === 'capture_contacts') {
     exibirBannerAcao('⏳ Capturando dados do perfil e contatos...', '#1d8fe8')
     const dados = {}
-    extrairInfoContato(dados) // Tenta capturar o que estiver visível primeiro
 
-    // Tentar SEMPRE abrir o modal "Dados de contato" se tiver o botão presente
-    const btnContato = document.querySelector('#top-card-text-details-contact-info, [href$="/overlay/contact-info/"]') ||
-      Array.from(document.querySelectorAll('a, button, span')).find(el => {
-        const t = el.innerText?.trim().toLowerCase()
-        return t && (t.includes('dados de contato') || t.includes('informações de contato') || t.includes('contact info'))
-      })
+    // 1. O modal de contato JÁ FOI ABERTO pela URL (termina em /overlay/contact-info/)
+    // Vamos esperar a animação de montagem e extrair
+    await esperar(3000)
+    extrairInfoContato(dados)
 
-    if (btnContato) {
-      btnContato.click()
-      await esperar(1800) // Aguarda animacao do modal
-      extrairInfoContato(dados) // Executa novamente com o modal aberto
-      
-      // Tenta fechar o modal
-      const fechar = document.querySelector('.artdeco-modal__dismiss, [aria-label="Fechar"], [aria-label="Close"]')
-      if (fechar) fechar.click()
+    // Tenta fechar o modal para liberar o scroll da página de trás
+    const fechar = document.querySelector('.artdeco-modal__dismiss, [aria-label*="Fechar"], [aria-label*="Close"]')
+    if (fechar) {
+      fechar.click()
+    } else {
+      window.history.back() // Fallback de fechamento na URL do LinkedIn
     }
+    await esperar(1500)
 
     // Só atualiza se tiver conseguido extrair ALGO útil (contatos ou cargo ou localização)
     const temContatos = dados.phone || dados.email || dados.birthday || dados.connected_since

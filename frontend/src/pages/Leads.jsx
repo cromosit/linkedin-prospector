@@ -428,7 +428,8 @@ export default function Leads() {
                             style={S.rowBtn('var(--green)')}
                             title="Atualizar dados de perfil e contato no LinkedIn"
                             onClick={() => {
-                              const url = `${lead.linkedin_url}?lp_action=capture_contacts&lp_lead_id=${lead.id}`
+                              const baseUrl = lead.linkedin_url.endsWith('/') ? lead.linkedin_url.slice(0, -1) : lead.linkedin_url
+                              const url = `${baseUrl}/overlay/contact-info/?lp_action=capture_contacts&lp_lead_id=${lead.id}`
                               window.open(url, '_blank')
                               showToast('📞 Abrindo LinkedIn... A extensão vai atualizar os dados automaticamente!')
                             }}
