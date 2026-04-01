@@ -270,40 +270,39 @@ function extrairInfoContato(dados) {
   // Modal de contato: pega o texto bruto de TUDO dentro do modal para evitar falhas de estrutura HTML
   const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info')
   if (modal) {
+    // Extração baseada em buscar a linha-título e extrair a linha logo abaixo,
+    // que é a estrutura padrão que o LinkedIn sempre exibe no innerText (Linha 1: Título | Linha 2: Valor)
     const rawText = modal.innerText || ''
     const lines = rawText.split('\n').map(l => l.trim()).filter(l => l)
-    
-    // Extração baseada em Regex diretamente sobre o texto bruto de todo o modal.
-    // Desta forma, não dependemos se o LinkedIn quebrou a linha ou juntou no innerText.
+    const lowerLines = lines.map(l => l.toLowerCase())
 
-    // 1. E-mail (Captura qualquer e-mail no texto)
+    // 1. E-mail (via Index ou Regex caso esteja na mesma linha)
     const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/)
     if (emailMatch && !dados.email) dados.email = emailMatch[1]
 
-    // 2. Telefone/Celular (Busca a palavra chave e a sequência de números e símbolos na frente dela)
-    const phoneMatch = rawText.match(/(?:telefone|phone|celular|mobile)[\s\n]*([\+0-9\s\-\(\)]{9,20})/i)
-    if (phoneMatch && !dados.phone) {
-      const foneRaw = phoneMatch[1].trim()
-      const foneNorm = normalizarTelefone(foneRaw, locPage || dados.location)
+    // 2. Telefone/Celular
+    const phoneIdx = lowerLines.findIndex(l => l === 'telefone' || l === 'phone' || l.includes('celular'))
+    if (phoneIdx !== -1 && lines[phoneIdx + 1] && !dados.phone) {
+      const foneNorm = normalizarTelefone(lines[phoneIdx + 1].replace(/\(.*?\)/g, ''), locPage || dados.location)
       if (foneNorm) dados.phone = foneNorm
     }
 
-    // 3. Aniversário (Ex: "18 de fevereiro" ou "February 18")
-    const bdMatch = rawText.match(/(?:anivers[aá]rio|birthday|nascimento)[\s\n]*([0-9]{1,2}\s+de\s+[a-z]+|[a-z]+\s+[0-9]{1,2})/i)
-    if (bdMatch && !dados.birthday) {
-      dados.birthday = bdMatch[1].trim()
+    // 3. Aniversário
+    const bdIdx = lowerLines.findIndex(l => l.includes('aniversário') || l.includes('aniversario') || l.includes('nascimento') || l.includes('birthday'))
+    if (bdIdx !== -1 && lines[bdIdx + 1] && !dados.birthday) {
+      dados.birthday = lines[bdIdx + 1]
     }
 
-    // 4. Conectado / Membro desde (Ex: "2 de ago de 2022" ou "August 2, 2022")
-    const connMatch = rawText.match(/(?:conex[aã]o desde|membro desde|connected|conectado)[\s\n]*([0-9]{1,2}\s+de\s+[a-z]+\.?\s+(?:de\s+)?[0-9]{4}|[a-z]+\s+[0-9]{1,2},?\s+[0-9]{4})/i)
-    if (connMatch && !dados.connected_since) {
-      dados.connected_since = connMatch[1].trim()
+    // 4. Conexão desde
+    const connIdx = lowerLines.findIndex(l => l.includes('conexão desde') || l.includes('conexao') || l.includes('membro desde') || l.includes('conectado') || l.includes('connected'))
+    if (connIdx !== -1 && lines[connIdx + 1] && !dados.connected_since) {
+      dados.connected_since = lines[connIdx + 1]
     }
 
-    // 5. Website / Site
-    const siteMatch = rawText.match(/(?:website|site|blog|portf[oó]lio)[\s\n]*((?:https?:\/\/|www\.)[^\s]+)/i)
-    if (siteMatch && !dados.website) {
-      dados.website = siteMatch[1].trim()
+    // 5. Website
+    const siteIdx = lowerLines.findIndex(l => l === 'site' || l === 'website' || l === 'blog')
+    if (siteIdx !== -1 && lines[siteIdx + 1] && !dados.website) {
+      dados.website = lines[siteIdx + 1].split(' ')[0]
     }
   }
 
