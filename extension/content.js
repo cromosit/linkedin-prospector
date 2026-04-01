@@ -583,12 +583,18 @@ async function verificarAcaoPendenteURL() {
       }
     }
 
-    // Só atualiza se tiver algo novo
-    const temDados = dados.phone || dados.email || dados.birthday || dados.connected_since
-    if (!temDados || !leadId) {
-      exibirBannerAcao('⚠️ Nenhum dado de contato encontrado neste perfil.', '#ff6b35')
-      return
-    }
+    // Só atualiza se tiver conseguido extrair ALGO útil (contatos ou cargo ou localização)
+    const temContatos = dados.phone || dados.email || dados.birthday || dados.connected_since
+    // Não vamos mais dar early return ainda, pois pode não ter telefone, mas a gente ainda quer atualizar Cargo e Empresa!
+
+    // ============================================
+    // DADOS DO PERFIL (Localização, Cargo Real)
+    // ============================================
+    // Rolar a página para baixo para forçar o carregamento do #experience (lazy-load)
+    window.scrollTo(0, document.body.scrollHeight / 3)
+    await esperar(800)
+    window.scrollTo(0, document.body.scrollHeight / 2)
+    await esperar(800)
 
     const payload = {}
     if (dados.phone) payload.phone = dados.phone
@@ -597,9 +603,11 @@ async function verificarAcaoPendenteURL() {
     if (dados.connected_since) payload.connected_since = dados.connected_since
     if (dados.website) payload.website = dados.website
     
-    // Captura localização real do header da página se estiver visível
-    const locPage = document.querySelector('.pv-top-card--list li:last-child, .pv-text-details__left-panel .t-normal')?.innerText?.trim()
-    if (locPage && locPage.length > 5 && locPage.length < 80) {
+    // Captura localização real
+    const locEl = document.querySelector('.pv-text-details__left-panel span.text-body-small') || 
+                  document.querySelector('.pv-top-card--list li:last-child')
+    const locPage = locEl?.innerText?.trim()
+    if (locPage && locPage.length > 3 && locPage.length < 100) {
       payload.location = locPage
     }
 
