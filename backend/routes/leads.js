@@ -235,8 +235,9 @@ Gere uma mensagem de ${tipoDescricao[tipo] || tipo} ESTRATEGICA para:
 - Localizacao: ${lead.location || 'nao informada'}
 - Grau de conexao: ${grauLabel}
 ${lead.mutual_connections ? `- Conexoes em comum: ${lead.mutual_connections}` : ''}
+${lead.service_interest ? `- Interesse mapeado pela IA: ${lead.service_interest}` : ''}
 ${lead.about ? `- Contexto extraído do lead: ${lead.headline} | ${lead.about.substring(0, 300)}` : ''}
-${contexto ? `- Contexto adicional: ${contexto}` : ''}
+${contexto ? `- Contexto adicional (input do usuario): ${contexto}` : ''}
 
 Regras OBRIGATORIAS:
 1. SEJA EXTREMAMENTE ESPECÍFICO ao cargo e perfil do lead. NAO inicie a mensagem falando sobre "Cromosit ser especialista em SAP" a menos que ele explicitamente trabalhe com SAP!
