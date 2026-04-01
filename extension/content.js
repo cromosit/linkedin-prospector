@@ -562,25 +562,25 @@ async function verificarAcaoPendenteURL() {
   // Acionado pelo botão 📞 no dashboard
   // ================================================
   if (acao === 'capture_contacts') {
-    exibirBannerAcao('⏳ Capturando dados de contato...', '#1d8fe8')
+    exibirBannerAcao('⏳ Capturando dados do perfil e contatos...', '#1d8fe8')
     const dados = {}
-    extrairInfoContato(dados)
+    extrairInfoContato(dados) // Tenta capturar o que estiver visível primeiro
 
-    // Abre "Dados de contato" se ainda não tiver telefone/email
-    if (!dados.phone && !dados.email) {
-      const textosBotao = ['dados de contato', 'informações de contato', 'contact info']
-      const btnContato = Array.from(document.querySelectorAll('a, button, span')).find(el => {
+    // Tentar SEMPRE abrir o modal "Dados de contato" se tiver o botão presente
+    const btnContato = document.querySelector('#top-card-text-details-contact-info, [href$="/overlay/contact-info/"]') ||
+      Array.from(document.querySelectorAll('a, button, span')).find(el => {
         const t = el.innerText?.trim().toLowerCase()
-        return textosBotao.some(txt => t === txt || t?.includes(txt))
+        return t && (t.includes('dados de contato') || t.includes('informações de contato') || t.includes('contact info'))
       })
-      if (btnContato) {
-        btnContato.click()
-        await esperar(1800)
-        extrairInfoContato(dados)
-        // Fecha modal
-        const fechar = document.querySelector('[aria-label="Fechar"], [aria-label="Close"], .artdeco-modal__dismiss')
-        if (fechar) fechar.click()
-      }
+
+    if (btnContato) {
+      btnContato.click()
+      await esperar(1800) // Aguarda animacao do modal
+      extrairInfoContato(dados) // Executa novamente com o modal aberto
+      
+      // Tenta fechar o modal
+      const fechar = document.querySelector('.artdeco-modal__dismiss, [aria-label="Fechar"], [aria-label="Close"]')
+      if (fechar) fechar.click()
     }
 
     // Só atualiza se tiver conseguido extrair ALGO útil (contatos ou cargo ou localização)
