@@ -31,6 +31,7 @@ const FORM_EMPTY = {
 }
 
 export default function Leads() {
+  const version = '2.0.1' // Forçar refresh de cache
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
