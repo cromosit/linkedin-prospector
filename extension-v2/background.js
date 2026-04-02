@@ -1,7 +1,5 @@
 // background.js — v2.0
-// Tenta localhost primeiro, senao vai para producao
-const API_URL = 'http://localhost:3000'; 
-const PROD_URL = 'https://prospector.cromosit.com';
+const API_URL = 'https://linkedin-prospector-production.up.railway.app'
 
 // Sincronização de Token e Chamadas de Proxy
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
