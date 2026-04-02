@@ -1,4 +1,4 @@
-// content.js — LinkedIn Prospector v2.0 — LIMPO
+// content.js — LinkedIn Prospector v2.0 — Automação de Mensagens
 
 async function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -11,6 +11,101 @@ function exibirBanner(texto, cor = '#1d8fe8') {
   banner.innerText = '🚀 LP Prospector v2.0\n' + texto;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 7000);
+}
+
+// Digita texto simulando humano
+async function digitarSimulado(elemento, texto) {
+  elemento.focus();
+  elemento.innerHTML = ''; // Limpa antes
+  const chars = texto.split('');
+  for (const char of chars) {
+    const event = new InputEvent('input', { bubbles: true, cancelable: true, data: char });
+    elemento.innerText += char;
+    elemento.dispatchEvent(event);
+    await esperar(Math.random() * 50 + 30); // 30-80ms por letra
+  }
+  elemento.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+async function focarEEnviar() {
+  const botaoEnviar = document.querySelector('.msg-form__send-button') || 
+                      document.querySelector('button[type="submit"].artdeco-button--primary');
+  if (botaoEnviar && !botaoEnviar.disabled) {
+    await esperar(1000);
+    botaoEnviar.click();
+    exibirBanner('✅ Mensagem enviada com sucesso!', '#00c896');
+    await esperar(2000);
+    window.close(); // Fecha a aba após enviar
+  }
+}
+
+// Automação de Inbox (1º Grau)
+async function automatizarMensagemInbox(mensagem) {
+  exibirBanner('⏳ Automatizando envio de mensagem...');
+  
+  // Aguarda caixa de texto do LinkedIn
+  const seletorMsg = '.msg-form__contenteditable';
+  const caixaTexto = await aguardarElemento(seletorMsg, 6000);
+  
+  if (!caixaTexto) {
+    exibirBanner('❌ Erro: Não encontrei a caixa de texto do LinkedIn.', '#ff3b5c');
+    return;
+  }
+
+  await esperar(1500);
+  await digitarSimulado(caixaTexto, mensagem);
+  await focarEEnviar();
+}
+
+// Automação de Conexão (2º e 3º Grau)
+async function automatizarConexao(mensagem) {
+  exibirBanner('⏳ Iniciando pedido de conexão...');
+  
+  // 1. Clica no botão Conectar (se existir na página)
+  let btnConectar = document.querySelector('button[aria-label^="Conectar"] span') || 
+                    document.querySelector('.pvs-profile-actions button span');
+  
+  // Se não achou pelo texto, tenta pelo seletor de "Mais"
+  if (!btnConectar || !btnConectar.innerText.includes('Conectar')) {
+     const btnMais = document.querySelector('button[aria-label="Mais ações"]');
+     if (btnMais) {
+       btnMais.click();
+       await esperar(1000);
+       btnConectar = Array.from(document.querySelectorAll('.artdeco-dropdown__item span'))
+                          .find(el => el.innerText.includes('Conectar'));
+     }
+  }
+
+  if (btnConectar) {
+    btnConectar.click();
+    await esperar(1500);
+    
+    // 2. Clica em "Adicionar nota"
+    const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"]');
+    if (btnNota) {
+      btnNota.click();
+      await esperar(1000);
+      
+      // 3. Digita a mensagem
+      const campoNota = document.querySelector('textarea[name="message"]');
+      if (campoNota) {
+        campoNota.value = mensagem;
+        campoNota.dispatchEvent(new Event('input', { bubbles: true }));
+        await esperar(1000);
+        
+        // 4. Envia
+        const btnEnviar = document.querySelector('button[aria-label="Enviar agora"]');
+        if (btnEnviar) {
+          btnEnviar.click();
+          exibirBanner('✅ Pedido de conexão enviado!', '#00c896');
+          await esperar(2000);
+          window.close();
+        }
+      }
+    }
+  } else {
+    exibirBanner('❌ Botão de conexão não encontrado ou já enviado.', '#ff3b5c');
+  }
 }
 
 function normalizarTelefone(phone) {
@@ -192,8 +287,13 @@ async function iniciarCaptura(leadId) {
 const params = new URLSearchParams(window.location.search);
 const lpAction = params.get('lp_action');
 const lpLeadId = params.get('lp_lead_id');
+const lpMsg    = params.get('lp_msg');
 
-if (lpLeadId) {
+if (lpAction === 'send_message' && lpMsg) {
+  automatizarMensagemInbox(decodeURIComponent(lpMsg));
+} else if (lpAction === 'connect' && lpMsg) {
+  automatizarConexao(decodeURIComponent(lpMsg));
+} else if (lpLeadId) {
   if (lpAction === 'capture_contacts' || window.location.href.includes('/overlay/contact-info')) {
     capturarDadosContato(lpLeadId);
   } else if (lpAction === 'capture') {
@@ -201,14 +301,19 @@ if (lpLeadId) {
   }
 }
 
-// Detecta navegação SPA para /overlay/contact-info
+// Detecta navegação SPA
 let lastUrl = location.href;
 new MutationObserver(() => {
   if (location.href !== lastUrl) {
     lastUrl = location.href;
     const p = new URLSearchParams(window.location.search);
     const id = p.get('lp_lead_id');
-    if (id && location.href.includes('/overlay/contact-info')) {
+    const act = p.get('lp_action');
+    const msg = p.get('lp_msg');
+    
+    if (act === 'send_message' && msg) {
+       setTimeout(() => automatizarMensagemInbox(decodeURIComponent(msg)), 1500);
+    } else if (id && location.href.includes('/overlay/contact-info')) {
       setTimeout(() => capturarDadosContato(id), 800);
     }
   }

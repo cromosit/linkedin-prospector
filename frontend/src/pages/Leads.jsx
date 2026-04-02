@@ -575,24 +575,23 @@ export default function Leads() {
                       <button
                         style={S.aiBtn('#0a66c2')}
                         onClick={() => {
+                          const recipient = leadSel.linkedin_id || leadSel.linkedin_url.split('/in/')[1]?.replace(/\/$/, '')
                           if (leadSel.connection_degree === '1') {
-                            // URL direta de composição de mensagem — sem depender da extensão
-                            navigator.clipboard.writeText(msgGerada)
-                            const recipient = leadSel.linkedin_id || leadSel.linkedin_url.split('/in/')[1]?.replace(/\/$/, '')
-                            const url = recipient
-                              ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}`
-                              : leadSel.linkedin_url
+                            // 1º grau: Abrir inbox e automatizar escrita
+                            const url = recipient 
+                              ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
+                              : `${leadSel.linkedin_url}?lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
                             window.open(url, '_blank')
-                            showToast('✅ Mensagem copiada! Cole no inbox que abrirá.')
+                            showToast('🚀 Abrindo inbox... a extensão vai digitar e enviar!')
                           } else {
                             // 2º/3º grau: extensão faz o clique em Conectar automaticamente
                             const url = `${leadSel.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
                             window.open(url, '_blank')
-                            showToast('✅ A extensão vai clicar em Conectar e preencher a nota!')
+                            showToast('🔗 Solicitando conexão... a extensão vai preencher a nota!')
                           }
                         }}
                       >
-                        {leadSel.connection_degree === '1' ? '💬 Abrir Inbox LinkedIn' : '🔗 Conectar no LinkedIn'}
+                        {leadSel.connection_degree === '1' ? '💬 Enviar Automatizado' : '🔗 Conectar Automatizado'}
                       </button>
                     )}
                     <button style={S.aiBtn('var(--blue-bright)')} onClick={() => gerarMensagem(leadSel, tipoMsg)} disabled={gerandoMsg}>🔄 Regenerar</button>
