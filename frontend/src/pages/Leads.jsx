@@ -59,6 +59,7 @@ export default function Leads() {
 
   const [enriquecendo, setEnriquecendo] = useState(null)
   const [toast, setToast] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([]) // Leads selecionados para exclusão em massa
 
   useEffect(() => { carregarLeads() }, [busca, filtroStatus, filtroTemp, filtroGrau, pagina])
 
@@ -120,8 +121,34 @@ export default function Leads() {
       await api.delete(`/api/leads/${id}`)
       carregarLeads(); showToast('Lead excluído')
       if (modal) { setModal(false); resetForm() }
+      setSelectedIds(prev => prev.filter(i => i !== id))
     } catch (err) { showToast('Erro ao excluir', 'error') }
     finally { setExcluindo(null) }
+  }
+
+  const excluirEmMassa = async () => {
+    if (!selectedIds.length) return
+    if (!confirm(`Excluir ${selectedIds.length} lead(s) selecionados?`)) return
+    setLoading(true)
+    try {
+      await api.delete('/api/leads/bulk-delete', { data: { ids: selectedIds } })
+      setSelectedIds([])
+      carregarLeads()
+      showToast(`${selectedIds.length} leads excluídos!`)
+    } catch (err) {
+      showToast('Erro ao excluir em massa', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === leads.length) setSelectedIds([])
+    else setSelectedIds(leads.map(l => l.id))
+  }
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
   const enriquecerLead = async (id) => {
@@ -332,6 +359,12 @@ export default function Leads() {
             <span style={S.sapBtnIcon}>✕</span> Limpar Filtros
           </button>
 
+          {selectedIds.length > 0 && (
+            <button style={S.sapBtn('var(--red)', true)} onClick={excluirEmMassa}>
+              <span style={S.sapBtnIcon}>🗑</span> Excluir Selecionados ({selectedIds.length})
+            </button>
+          )}
+
           <span style={S.sapCount}>
             {totalLeads} lead{totalLeads !== 1 ? 's' : ''} &nbsp;|&nbsp; Pág. {pagina}/{totalPaginas || 1}
           </span>
@@ -369,6 +402,9 @@ export default function Leads() {
             <table style={S.table}>
               <thead>
                 <tr>
+                  <th style={{ ...S.th, width: '30px' }}>
+                    <input type="checkbox" checked={leads.length > 0 && selectedIds.length === leads.length} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                  </th>
                   {['Nome / Cargo','Empresa / Local','Contato','Grau','Score','Status','Temp.','Ações'].map(h =>
                     <th key={h} style={S.th}>{h}</th>
                   )}
@@ -379,7 +415,11 @@ export default function Leads() {
                   <tr key={lead.id}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    style={{ background: selectedIds.includes(lead.id) ? 'rgba(29,143,232,0.1)' : 'transparent' }}
                   >
+                    <td style={S.td}>
+                      <input type="checkbox" checked={selectedIds.includes(lead.id)} onChange={() => toggleSelectOne(lead.id)} style={{ cursor: 'pointer' }} />
+                    </td>
                     <td style={S.td}>
                       <div style={{ fontWeight: '600', fontSize: '12px' }}>{lead.name}</div>
                       {lead.headline && <div style={{ fontSize: '10px', color: 'var(--text2)', marginTop: '1px' }}>{lead.headline.substring(0, 50)}{lead.headline.length > 50 ? '…' : ''}</div>}

@@ -311,4 +311,32 @@ router.post('/:id/atividades', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ROTA: Excluir leads em massa
+router.delete('/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Nenhum lead selecionado para exclusão.' });
+    }
+
+    const userId = req.user.userId;
+
+    // 1. Excluir atividades vinculadas a esses leads
+    await supabase.from('lead_activities').delete().in('lead_id', ids);
+
+    // 2. Excluir os leads (garantindo que pertencem ao usuário logado)
+    const { error } = await supabase.from('leads')
+      .delete()
+      .in('id', ids)
+      .eq('assigned_to', userId);
+
+    if (error) throw error;
+
+    res.json({ message: `${ids.length} leads excluídos com sucesso.` });
+  } catch (err) {
+    console.error('Erro ao excluir em massa:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
