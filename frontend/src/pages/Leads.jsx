@@ -27,11 +27,12 @@ const FORM_EMPTY = {
   linkedin_url: '', email: '', phone: '', website: '',
   birthday: '', connected_since: '', mutual_connections: '',
   about: '', service_interest: '', temperature: 'frio',
-  notes: '', source: 'manual', connection_degree: '3'
+  notes: '', source: 'manual', connection_degree: '3',
+  instant_messaging: ''
 }
 
 export default function Leads() {
-  const version = '2.0.2-FORCED-UI' 
+  const version = '2.1.0' // Versão final com automação e UI restaurada
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
@@ -60,7 +61,7 @@ export default function Leads() {
 
   const [enriquecendo, setEnriquecendo] = useState(null)
   const [toast, setToast] = useState(null)
-  const [selectedIds, setSelectedIds] = useState([]) // Leads selecionados para exclusão em massa
+  const [selectedIds, setSelectedIds] = useState([]) 
 
   useEffect(() => { carregarLeads() }, [busca, filtroStatus, filtroTemp, filtroGrau, pagina])
 
@@ -167,8 +168,7 @@ export default function Leads() {
       carregarLeads()
       showToast('⚡ Lead enriquecido pela IA!')
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Erro desconhecido ao enriquecer'
-      showToast('❌ ' + msg, 'error')
+      showToast('❌ Erro ao enriquecer', 'error')
     }
     finally { setEnriquecendo(null) }
   }
@@ -184,7 +184,7 @@ export default function Leads() {
     try {
       const res = await api.post(`/api/leads/${lead.id}/gerar-mensagem`, { tipo: t })
       setMsgGerada(res.data.mensagem)
-    } catch (err) { setMsgGerada('Erro ao gerar mensagem. Verifique a chave da API.') }
+    } catch (err) { setMsgGerada('Erro ao gerar mensagem.') }
     finally { setGerandoMsg(false) }
   }
 
@@ -195,10 +195,10 @@ export default function Leads() {
     setEnviando(true)
     try {
       await api.post(`/api/leads/${leadSel.id}/enviar-whatsapp`, { telefone: fone, mensagem: msgGerada })
-      showToast('✅ Mensagem enviada via WhatsApp!')
+      showToast('✅ Enviada via WhatsApp!')
       setMostrarInputFone(false); setTelefoneManual('')
       carregarLeads()
-    } catch (err) { showToast('Erro: ' + (err.response?.data?.error || err.message), 'error') }
+    } catch (err) { showToast('Erro no WhatsApp', 'error') }
     finally { setEnviando(false) }
   }
 
@@ -212,7 +212,8 @@ export default function Leads() {
       birthday: lead.birthday || '', connected_since: lead.connected_since || '',
       mutual_connections: lead.mutual_connections || '', about: lead.about || '',
       service_interest: lead.service_interest || '', temperature: lead.temperature || 'frio',
-      notes: lead.notes || '', source: lead.source || 'manual', connection_degree: lead.connection_degree || '3'
+      notes: lead.notes || '', source: lead.source || 'manual', connection_degree: lead.connection_degree || '3',
+      instant_messaging: lead.instant_messaging || ''
     })
     setMsgGerada(lead.ai_message || '')
     setTipoMsg(lead.connection_degree === '1' ? 'primeiro_contato' : lead.connection_degree === '2' ? 'conexao_com_comum' : 'conexao')
@@ -235,7 +236,7 @@ export default function Leads() {
       height: '44px',
       flexShrink: 0,
     },
-    sapTitle: { fontSize: '14px', fontWeight: '700', color: 'var(--text)', marginRight: '16px', letterSpacing: '-0.01em' },
+    sapTitle: { fontSize: '14px', fontWeight: '700', color: 'var(--text)', marginRight: '16px' },
     sapDivider: { width: '1px', height: '24px', background: 'var(--border)', margin: '0 6px' },
     sapBtn: (color = 'var(--text2)', active = false) => ({
       display: 'flex', alignItems: 'center', gap: '5px',
@@ -244,32 +245,24 @@ export default function Leads() {
       border: `1px solid ${active ? color : 'var(--border)'}`,
       color: active ? color : 'var(--text2)',
       fontSize: '11px', fontWeight: '500', cursor: 'pointer',
-      transition: 'all 0.12s', letterSpacing: '0.01em',
-      whiteSpace: 'nowrap',
+      transition: 'all 0.12s',
     }),
-    sapBtnIcon: { fontSize: '13px', lineHeight: 1 },
-    sapCount: { fontSize: '11px', color: 'var(--text3)', marginLeft: 'auto', paddingLeft: '12px' },
     filterBar: { padding: '8px 24px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '6px', flexWrap: 'wrap', background: 'var(--bg2)' },
     input: { background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 10px', fontSize: '12px', outline: 'none', flex: 1, minWidth: '200px' },
     select: { background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 8px', fontSize: '12px', outline: 'none', cursor: 'pointer' },
     content: { padding: '16px 24px', flex: 1, overflow: 'auto' },
     table: { width: '100%', borderCollapse: 'collapse' },
-    th: { padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: 'var(--text3)', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '2px solid var(--blue)', background: 'var(--bg2)', position: 'sticky', top: 0, zIndex: 1 },
-    td: { padding: '8px 10px', fontSize: '12px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
+    th: { padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', borderBottom: '2px solid var(--blue)', background: 'var(--bg2)', position: 'sticky', top: 0, zIndex: 1 },
+    td: { padding: '8px 10px', fontSize: '12px', borderBottom: '1px solid var(--border)' },
     badge: (color) => ({ display: 'inline-flex', alignItems: 'center', padding: '2px 7px', background: color + '18', border: `1px solid ${color}40`, color, fontSize: '10px', fontWeight: '700', borderRadius: '2px' }),
-    rowBtn: (color = 'var(--text2)') => ({
-      padding: '3px 7px', border: `1px solid ${color}30`,
-      background: 'transparent', color, fontSize: '10px',
-      cursor: 'pointer', transition: 'all 0.1s', fontWeight: '500',
-      letterSpacing: '0.02em',
-    }),
+    rowBtn: (color = 'var(--text2)') => ({ padding: '3px 7px', border: `1px solid ${color}30`, background: 'transparent', color, fontSize: '10px', cursor: 'pointer', fontWeight: '500' }),
     pagination: { padding: '12px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between', background: 'var(--bg2)' },
-    pageBtn: (active) => ({ padding: '4px 10px', border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`, background: active ? 'var(--blue)' : 'transparent', color: active ? '#fff' : 'var(--text2)', fontSize: '11px', cursor: 'pointer', fontWeight: active ? '700' : '400' }),
+    pageBtn: (active) => ({ padding: '4px 10px', border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`, background: active ? 'var(--blue)' : 'transparent', color: active ? '#fff' : 'var(--text2)', fontSize: '11px', cursor: 'pointer' }),
     overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(4px)' },
-    modal: { background: 'var(--bg2)', border: '1px solid var(--border)', width: '680px', maxWidth: '96vw', maxHeight: '94vh', overflow: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' },
+    modalBase: { background: 'var(--bg2)', border: '1px solid var(--border)', width: '680px', maxWidth: '96vw', maxHeight: '94vh', overflow: 'auto' },
     modalToolbar: {
       padding: '0 22px', height: '44px',
-      background: (modal && !leadSel) ? 'linear-gradient(180deg, #1a2535 0%, #0d1219 100%)' : 'linear-gradient(180deg, #ff3b3b 0%, #8b0000 100%)',
+      background: 'linear-gradient(180deg, #1a2535 0%, #0d1219 100%)',
       borderBottom: '2px solid var(--blue)',
       display: 'flex', alignItems: 'center', gap: '2px',
       position: 'sticky', top: 0, zIndex: 10,
@@ -279,17 +272,12 @@ export default function Leads() {
     section: { fontSize: '10px', fontWeight: '700', color: 'var(--blue-bright)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px', marginTop: '18px', paddingBottom: '5px', borderBottom: '1px solid var(--border)' },
     formRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
     formGroup: { marginBottom: '10px' },
-    label: { display: 'block', fontSize: '10px', fontWeight: '700', color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' },
+    label: { display: 'block', fontSize: '10px', fontWeight: '700', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '3px' },
     formInput: { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', padding: '7px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' },
     formInputHighlight: { width: '100%', background: 'rgba(29,143,232,0.08)', border: '1px solid var(--blue)', color: 'var(--text)', padding: '7px 10px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' },
-    textarea: { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', padding: '7px 10px', fontSize: '12px', outline: 'none', resize: 'vertical', minHeight: '72px', fontFamily: 'var(--font)', boxSizing: 'border-box' },
-    grauBtns: { display: 'flex', gap: '4px' },
-    grauBtn: (active, color) => ({ padding: '6px 14px', border: `1px solid ${active ? color : 'var(--border)'}`, background: active ? color + '20' : 'transparent', color: active ? color : 'var(--text2)', fontSize: '11px', fontWeight: active ? '700' : '400', cursor: 'pointer', transition: 'all 0.1s' }),
+    textarea: { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', padding: '7px 10px', fontSize: '12px', outline: 'none', resize: 'vertical', minHeight: '72px', boxSizing: 'border-box' },
+    aiBtn: (color) => ({ padding: '6px 11px', background: 'transparent', border: `1px solid ${color}40`, color, fontSize: '11px', cursor: 'pointer', fontWeight: '500' }),
     msgBox: { background: 'var(--bg)', border: '1px solid var(--blue)', padding: '12px', fontSize: '12px', color: 'var(--text)', lineHeight: '1.7', marginTop: '10px' },
-    aiActions: { display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '8px' },
-    aiBtn: (color) => ({ padding: '6px 11px', background: 'transparent', border: `1px solid ${color}40`, color, fontSize: '11px', cursor: 'pointer', transition: 'all 0.1s', fontWeight: '500' }),
-    phoneAlert: { background: 'rgba(255,107,53,0.08)', border: '1px solid rgba(255,107,53,0.4)', padding: '10px 12px', marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' },
-    phoneAlertInput: { flex: 1, background: 'var(--bg3)', border: '1px solid var(--orange)', color: 'var(--text)', padding: '6px 10px', fontSize: '12px', outline: 'none' },
     empty: { padding: '60px', textAlign: 'center', color: 'var(--text3)' },
   }
 
@@ -306,6 +294,7 @@ export default function Leads() {
     <div style={S.layout}>
       <Sidebar />
       <div style={S.main}>
+        {/* TOOLBAR PRINCIPAL */}
         <div style={S.sapToolbar}>
           <span style={S.sapTitle}>Leads</span>
           <div style={S.sapDivider} />
@@ -314,13 +303,12 @@ export default function Leads() {
           <div style={S.sapDivider} />
           <button style={S.sapBtn('var(--green)')} onClick={exportarCSV}>↓ Exportar CSV</button>
           <div style={S.sapDivider} />
-          <button style={S.sapBtn()} onClick={() => { setBusca(''); setFiltroStatus(''); setFiltroTemp(''); setFiltroGrau(''); setPagina(1) }}>✕ Limpar Filtros</button>
-          {selectedIds.length > 0 && (
-            <button style={S.sapBtn('var(--red)', true)} onClick={excluirEmMassa}>🗑 Excluir ({selectedIds.length})</button>
-          )}
-          <span style={S.sapCount}>{totalLeads} leads | Pág. {pagina}/{totalPaginas || 1}</span>
+          <button style={S.sapBtn()} onClick={() => { setBusca(''); setFiltroStatus(''); setFiltroTemp(''); setFiltroGrau(''); setPagina(1) }}>✕ Limpar</button>
+          {selectedIds.length > 0 && <button style={S.sapBtn('var(--red)', true)} onClick={excluirEmMassa}>🗑 Excluir ({selectedIds.length})</button>}
+          <span style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: 'auto' }}>{totalLeads} leads | Pág. {pagina}/{totalPaginas || 1}</span>
         </div>
 
+        {/* FILTROS */}
         <div style={S.filterBar}>
           <input style={S.input} placeholder="🔍 Buscar..." value={busca} onChange={e => { setBusca(e.target.value); setPagina(1) }} />
           <select style={S.select} value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPagina(1) }}>
@@ -335,13 +323,14 @@ export default function Leads() {
           </select>
         </div>
 
+        {/* TABELA DE LEADS */}
         <div style={S.content}>
           {loading ? <div style={S.empty}>Carregando...</div> : (
             <table style={S.table}>
               <thead>
                 <tr>
                   <th style={{ ...S.th, width: '30px' }}><input type="checkbox" checked={leads.length > 0 && selectedIds.length === leads.length} onChange={toggleSelectAll} /></th>
-                  <th style={S.th}>Lead</th>
+                  <th style={S.th}>Nome / Cargo</th>
                   <th style={S.th}>Empresa</th>
                   <th style={S.th}>Grau</th>
                   <th style={S.th}>Status</th>
@@ -355,10 +344,18 @@ export default function Leads() {
                     <td style={S.td}><div style={{ fontWeight: 600 }}>{lead.name}</div><div style={{ fontSize: 10, color: 'var(--text3)' }}>{lead.headline}</div></td>
                     <td style={S.td}>{lead.company}</td>
                     <td style={S.td}><span style={S.badge(GRAU[lead.connection_degree]?.color)}>{GRAU[lead.connection_degree]?.label}</span></td>
-                    <td style={S.td}>{STATUS[lead.status]?.label}</td>
                     <td style={S.td}>
-                      <button style={S.rowBtn('var(--blue-bright)')} onClick={() => abrirEditar(lead)}>✏</button>
-                      <button style={S.rowBtn('var(--yellow)')} onClick={() => gerarMensagem(lead)}>✦</button>
+                      <select style={{ ...S.select, padding: '3px', fontSize: '10px' }} value={lead.status} onChange={e => atualizarStatus(lead.id, e.target.value)}>
+                        {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </select>
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button style={S.rowBtn('var(--blue-bright)')} onClick={() => abrirEditar(lead)}>✏</button>
+                        <button style={S.rowBtn('var(--yellow)')} onClick={() => gerarMensagem(lead)}>✦ IA</button>
+                        <button style={S.rowBtn('var(--orange)')} onClick={() => enriquecerLead(lead.id)}>⚡</button>
+                        <button style={S.rowBtn('var(--red)')} onClick={() => excluirLead(lead.id, lead.name)}>🗑</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -368,43 +365,59 @@ export default function Leads() {
         </div>
       </div>
 
-      {msgGerada && !modal && leadSel && (
+      {/* MODAL IA RÁPIDA (O Botão Azul está aqui também!) */}
+      {msgGerada !== '' && !modal && leadSel && (
         <div style={S.overlay} onClick={() => { setMsgGerada(''); setLeadSel(null) }}>
-          <div style={{ ...S.modal, width: '540px' }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...S.modalBase, width: '540px' }} onClick={e => e.stopPropagation()}>
             <div style={S.modalToolbar}>
               <span style={S.modalTitle}>✦ IA — {leadSel.name}</span>
               <button style={S.sapBtn()} onClick={() => { setMsgGerada(''); setLeadSel(null) }}>✕</button>
             </div>
             <div style={{ padding: 20 }}>
+               <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                {tiposParaLead(leadSel).map(t => (
+                  <button key={t.value} style={S.aiBtn(tipoMsg === t.value ? 'var(--blue-bright)' : 'var(--text3)')}
+                    onClick={() => { setTipoMsg(t.value); gerarMensagem(leadSel, t.value) }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <div style={S.msgBox}>{msgGerada}</div>
-              <div style={S.aiActions}>
+              <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
+                <button style={S.aiBtn('var(--text2)')} onClick={() => { navigator.clipboard.writeText(msgGerada); showToast('Copiado!') }}>📋 Copiar</button>
+                <button style={S.aiBtn('var(--green)')} onClick={enviarWhatsapp}>📱 WhatsApp</button>
                 <button style={S.aiBtn('#0a66c2')} onClick={() => {
                    const recipient = leadSel.linkedin_id || leadSel.linkedin_url?.split('/in/')[1]?.replace(/\/$/, '')
-                   const action = leadSel.connection_degree === '1' ? 'send_message' : 'connect'
-                   const url = `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=${action}&lp_msg=${encodeURIComponent(msgGerada)}`
+                   const degree = leadSel.connection_degree
+                   const action = degree === '1' ? 'send_message' : 'connect'
+                   const url = degree === '1'
+                     ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
+                     : `${leadSel.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
                    window.open(url, '_blank')
-                }}>🚀 ENVIAR AUTOMATIZADO</button>
+                   showToast('🚀 Abrindo LinkedIn... Automação iniciada!')
+                }}>💬 ENVIAR AUTOMATIZADO</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* MODAL EDITAR LEAD COMPLETÃO */}
       {modal && (
         <div style={S.overlay} onClick={() => { setModal(false); resetForm() }}>
-          <div style={S.modal} onClick={e => e.stopPropagation()}>
+          <div style={S.modalBase} onClick={e => e.stopPropagation()}>
             <div style={S.modalToolbar}>
               <span style={S.modalTitle}>{leadSel ? `✏ ${leadSel.name}` : '＋ Novo Lead'}</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '3px' }}>
-                {(leadSel?.linkedin_url || form.linkedin_url) && (
+                 {(leadSel?.linkedin_url || form.linkedin_url) && (
                   <button style={S.sapBtn('#0a66c2', true)} onClick={() => {
                     const urlFinal = leadSel?.linkedin_url || form.linkedin_url;
                     const recipient = leadSel?.linkedin_id || urlFinal.split('/in/')[1]?.replace(/\/$/, '')
-                    const is1st = leadSel?.connection_degree === '1' || form.connection_degree === '1'
-                    const action = is1st ? 'send_message' : 'connect'
-                    const url = is1st 
-                      ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=${action}&lp_msg=${encodeURIComponent(msgGerada || 'Olá!')}`
-                      : `${urlFinal}?lp_action=${action}&lp_msg=${encodeURIComponent(msgGerada || 'Olá!')}`
+                    const degree = leadSel?.connection_degree || form.connection_degree
+                    const action = degree === '1' ? 'send_message' : 'connect'
+                    const url = degree === '1'
+                      ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada || 'Olá!')}`
+                      : `${urlFinal}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada || 'Olá!')}`
                     window.open(url, '_blank')
                   }}>💬 AUTOMATIZAR LINKEDIN</button>
                 )}
@@ -413,18 +426,34 @@ export default function Leads() {
               </div>
             </div>
             <div style={S.modalBody}>
-               <div style={S.formGroup}>
-                 <label style={S.label}>Nome</label>
-                 <input style={S.formInput} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+               <div style={S.section}>Identificação</div>
+               <div style={S.formRow}>
+                  <div style={S.formGroup}><label style={S.label}>Nome</label><input style={S.formInput} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                  <div style={S.formGroup}><label style={S.label}>Cargo</label><input style={S.formInput} value={form.headline} onChange={e => setForm({ ...form, headline: e.target.value })} /></div>
                </div>
-               <div style={S.formGroup}>
-                 <label style={S.label}>LinkedIn URL</label>
-                 <input style={S.formInput} value={form.linkedin_url} onChange={e => setForm({ ...form, linkedin_url: e.target.value })} />
+               <div style={S.formGroup}><label style={S.label}>LinkedIn URL</label><input style={S.formInput} value={form.linkedin_url} onChange={e => setForm({ ...form, linkedin_url: e.target.value })} /></div>
+               
+               <div style={S.section}>Contato</div>
+               <div style={S.formRow}>
+                  <div style={S.formGroup}><label style={S.label}>Email</label><input style={S.formInput} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+                  <div style={S.formGroup}><label style={S.label}>Telefone</label><input style={S.formInput} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
                </div>
-               <div style={S.formGroup}>
-                 <label style={S.label}>Sobre</label>
-                 <textarea style={S.textarea} value={form.about} onChange={e => setForm({ ...form, about: e.target.value })} />
+               <div style={S.formGroup}><label style={S.label}>Mensagem Instantânea (Skype/etc)</label><input style={S.formInput} value={form.instant_messaging} onChange={e => setForm({ ...form, instant_messaging: e.target.value })} /></div>
+
+               <div style={S.section}>Qualificação</div>
+               <div style={S.formRow}>
+                  <div style={S.formGroup}><label style={S.label}>Grau</label>
+                    <select style={S.formInput} value={form.connection_degree} onChange={e => setForm({ ...form, connection_degree: e.target.value })}>
+                      <option value="1">1º Grau</option><option value="2">2º Grau</option><option value="3">3º Grau</option>
+                    </select>
+                  </div>
+                  <div style={S.formGroup}><label style={S.label}>Status</label>
+                    <select style={S.formInput} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                      {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                  </div>
                </div>
+               <textarea style={{ ...S.textarea, marginTop: '10px' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notas internas..." />
             </div>
           </div>
         </div>

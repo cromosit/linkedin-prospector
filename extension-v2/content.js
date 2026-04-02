@@ -1,4 +1,4 @@
-// content.js — LinkedIn Prospector v2.0 — Automação de Mensagens
+// content.js — LinkedIn Prospector v2.1 — Automação de Mensagens (Correção de Chat)
 
 async function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -8,169 +8,124 @@ function exibirBanner(texto, cor = '#1d8fe8') {
   const banner = document.createElement('div');
   banner.id = 'lp-banner-v2';
   banner.style.cssText = `position:fixed;top:20px;right:20px;z-index:999999;padding:14px 20px;background:${cor};color:white;font-family:sans-serif;font-size:13px;font-weight:600;border-radius:6px;box-shadow:0 6px 30px rgba(0,0,0,0.4);max-width:380px;white-space:pre-wrap;line-height:1.4;`;
-  banner.innerText = '🚀 LP Prospector v2.0\n' + texto;
+  banner.innerText = '🚀 LP Prospector v2.1\n' + texto;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 7000);
 }
 
-// Digita texto simulando humano
+// Digita texto simulando humano em campos ContentEditable
 async function digitarSimulado(elemento, texto) {
   elemento.focus();
-  elemento.innerHTML = ''; // Limpa antes
+  
+  // Limpa se for a primeira vez
+  if (elemento.innerText.trim() === 'Escreva uma mensagem' || elemento.innerText.trim() === '') {
+    elemento.innerHTML = ''; 
+  }
+
   const chars = texto.split('');
   for (const char of chars) {
     const event = new InputEvent('input', { bubbles: true, cancelable: true, data: char });
-    elemento.innerText += char;
+    
+    // Se for um parágrafo interno (LinkedIn as vezes usa <p>)
+    const target = elemento.querySelector('p') || elemento;
+    target.innerText += char;
+    
     elemento.dispatchEvent(event);
-    await esperar(Math.random() * 50 + 30); // 30-80ms por letra
+    await esperar(Math.random() * 40 + 20); // 20-60ms por letra
   }
   elemento.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 async function focarEEnviar() {
   const botaoEnviar = document.querySelector('.msg-form__send-button') || 
-                      document.querySelector('button[type="submit"].artdeco-button--primary');
+                      document.querySelector('button[type="submit"].artdeco-button--primary') ||
+                      document.querySelector('.msg-form__footer button.artdeco-button--primary');
+  
   if (botaoEnviar && !botaoEnviar.disabled) {
-    await esperar(1000);
+    await esperar(800);
     botaoEnviar.click();
     exibirBanner('✅ Mensagem enviada com sucesso!', '#00c896');
-    await esperar(2000);
-    window.close(); // Fecha a aba após enviar
+    await esperar(1500);
+    window.close(); 
+  } else {
+    exibirBanner('⚠️ Mensagem escrita! Clique em Enviar.', '#ff9f0a');
   }
 }
 
-// Automação de Inbox (1º Grau)
+// Automação de Inbox (Chat de 1º Grau)
 async function automatizarMensagemInbox(mensagem) {
-  exibirBanner('⏳ Automatizando envio de mensagem...');
+  exibirBanner('⏳ Automatizando envio no chat...');
   
-  // Aguarda caixa de texto do LinkedIn
-  const seletorMsg = '.msg-form__contenteditable';
-  const caixaTexto = await aguardarElemento(seletorMsg, 6000);
+  // Aguarda caixa de texto do LinkedIn (tenta vários seletores do chat)
+  const seletoresChat = [
+    '.msg-form__contenteditable',
+    '[contenteditable="true"]',
+    '.msg-form__placeholder'
+  ];
+
+  let caixaTexto = null;
+  for (const sel of seletoresChat) {
+    caixaTexto = await aguardarElemento(sel, 3000);
+    if (caixaTexto) break;
+  }
   
   if (!caixaTexto) {
-    exibirBanner('❌ Erro: Não encontrei a caixa de texto do LinkedIn.', '#ff3b5c');
+    exibirBanner('❌ Erro: Não encontrei a caixa de texto do chat.', '#ff3b5c');
     return;
   }
 
-  await esperar(1500);
+  await esperar(1000);
+  
+  // Se clicamos no placeholder, o LinkedIn foca no real
+  if (caixaTexto.classList.contains('msg-form__placeholder')) {
+     caixaTexto.click();
+     await esperar(500);
+     caixaTexto = document.querySelector('.msg-form__contenteditable');
+  }
+
   await digitarSimulado(caixaTexto, mensagem);
   await focarEEnviar();
 }
 
-// Automação de Conexão (2º e 3º Grau)
+// Automação de Conexão (Nota de 2º Grau)
 async function automatizarConexao(mensagem) {
   exibirBanner('⏳ Iniciando pedido de conexão...');
   
-  // 1. Clica no botão Conectar (se existir na página)
-  let btnConectar = document.querySelector('button[aria-label^="Conectar"] span') || 
-                    document.querySelector('.pvs-profile-actions button span');
+  // Tenta clicar no botão "Adicionar nota" se o modal já abriu
+  const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"]', 3000);
   
-  // Se não achou pelo texto, tenta pelo seletor de "Mais"
-  if (!btnConectar || !btnConectar.innerText.includes('Conectar')) {
-     const btnMais = document.querySelector('button[aria-label="Mais ações"]');
-     if (btnMais) {
-       btnMais.click();
-       await esperar(1000);
-       btnConectar = Array.from(document.querySelectorAll('.artdeco-dropdown__item span'))
-                          .find(el => el.innerText.includes('Conectar'));
-     }
-  }
-
-  if (btnConectar) {
-    btnConectar.click();
-    await esperar(1500);
+  if (btnNota) {
+    btnNota.click();
+    await esperar(1000);
     
-    // 2. Clica em "Adicionar nota"
-    const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"]');
-    if (btnNota) {
-      btnNota.click();
-      await esperar(1000);
+    const campoNota = document.querySelector('textarea[name="message"]');
+    if (campoNota) {
+      campoNota.value = mensagem;
+      campoNota.dispatchEvent(new Event('input', { bubbles: true }));
+      await esperar(800);
       
-      // 3. Digita a mensagem
-      const campoNota = document.querySelector('textarea[name="message"]');
-      if (campoNota) {
-        campoNota.value = mensagem;
-        campoNota.dispatchEvent(new Event('input', { bubbles: true }));
-        await esperar(1000);
-        
-        // 4. Envia
-        const btnEnviar = document.querySelector('button[aria-label="Enviar agora"]');
-        if (btnEnviar) {
-          btnEnviar.click();
-          exibirBanner('✅ Pedido de conexão enviado!', '#00c896');
-          await esperar(2000);
-          window.close();
-        }
+      const btnEnviar = document.querySelector('button[aria-label="Enviar agora"]');
+      if (btnEnviar) {
+        btnEnviar.click();
+        exibirBanner('✅ Pedido de conexão enviado!', '#00c896');
+        await esperar(1500);
+        window.close();
       }
     }
   } else {
-    exibirBanner('❌ Botão de conexão não encontrado ou já enviado.', '#ff3b5c');
+     // Se não abriu o modal de nota, talvez abriu o chat de mensagem direta?
+     // Fallback para inbox
+     await automatizarMensagemInbox(mensagem);
   }
 }
 
-function normalizarTelefone(phone) {
-  if (!phone) return null;
-  const nums = phone.replace(/\D/g, '');
-  if (nums.length < 8) return null;
-  if (nums.startsWith('55') && nums.length >= 12) return '+' + nums;
-  return '+55' + nums;
-}
-
-// Extrai dados de qualquer container usando texto bruto
-function extrairDadosDoTexto(root) {
-  const dados = {};
-  if (!root) return dados;
-  const rawText = root.innerText || '';
-  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const lowerLines = lines.map(l => l.toLowerCase());
-
-  // Email via regex
-  const emailMatch = rawText.match(/([a-zA-Z0-9._+-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,})/);
-  if (emailMatch) dados.email = emailMatch[1];
-
-  // Telefone — busca linha após "telefone" ou "phone" ou "celular"
-  for (let i = 0; i < lowerLines.length; i++) {
-    if (lowerLines[i] === 'telefone' || lowerLines[i] === 'phone' || lowerLines[i].includes('celular') || lowerLines[i].includes('mobile')) {
-      const next = lines[i + 1] || '';
-      const tel = normalizarTelefone(next);
-      if (tel) { dados.phone = tel; break; }
-    }
+// Sincroniza token enviado pelo CRM
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
+    chrome.storage.local.set({ token: event.data.token });
   }
-
-  // Fallback telefone via regex
-  if (!dados.phone) {
-    const telMatch = rawText.match(/(\+?[\d\s\-().]{10,20})/);
-    if (telMatch) {
-      const tel = normalizarTelefone(telMatch[1]);
-      if (tel) dados.phone = tel;
-    }
-  }
-
-  // Aniversário
-  for (let i = 0; i < lowerLines.length; i++) {
-    if (lowerLines[i].includes('aniversário') || lowerLines[i].includes('birthday') || lowerLines[i].includes('nascimento')) {
-      if (lines[i + 1]) { dados.birthday = lines[i + 1]; break; }
-    }
-  }
-
-  // Conexão desde
-  for (let i = 0; i < lowerLines.length; i++) {
-    if (lowerLines[i].includes('conexão desde') || lowerLines[i].includes('connected since') || lowerLines[i].includes('membro desde')) {
-      if (lines[i + 1]) { dados.connected_since = lines[i + 1]; break; }
-    }
-  }
-
-  // Website
-  const links = root.querySelectorAll('a[href]');
-  links.forEach(a => {
-    const href = a.href || '';
-    if (href.startsWith('http') && !href.includes('linkedin.com') && !dados.website) {
-      dados.website = href;
-    }
-  });
-
-  return dados;
-}
+});
 
 // Aguarda elemento aparecer no DOM
 async function aguardarElemento(selector, timeout = 4000) {
@@ -186,143 +141,17 @@ async function aguardarElemento(selector, timeout = 4000) {
   });
 }
 
-async function extrairExperiencia() {
-  const expSection = document.querySelector('#experience')?.parentElement;
-  if (!expSection) return { role: '', company: '' };
-  const firstExp = expSection.querySelector('li');
-  const texts = Array.from(firstExp?.querySelectorAll('span[aria-hidden="true"]') || [])
-    .map(el => el.innerText.trim()).filter(t => t.length > 2);
-  return {
-    role: texts[0] || '',
-    company: (texts[1] || '').split('·')[0].trim()
-  };
-}
-
-// Captura dados do modal de contato (/overlay/contact-info)
-async function capturarDadosContato(leadId) {
-  exibirBanner('⏳ Lendo dados de contato...');
-
-  // Aguarda o conteúdo do modal carregar — tenta múltiplos seletores
-  const seletoresModal = [
-    '.pv-contact-info__contact-type',
-    '.pv-contact-info',
-    '[data-view-name="profile-contact-info"]',
-    '.artdeco-modal__content',
-    'section.pv-contact-info',
-    'main'
-  ];
-
-  let container = null;
-  for (const sel of seletoresModal) {
-    container = await aguardarElemento(sel, 3000);
-    if (container) break;
-  }
-
-  // Aguarda mais um pouco para o conteúdo dinâmico carregar
-  await esperar(1000);
-
-  // Usa o body inteiro como fallback
-  const root = container || document.body;
-  const dados = extrairDadosDoTexto(root);
-
-  // Também tenta links diretos
-  const telLink = document.querySelector('a[href^="tel:"]');
-  if (telLink && !dados.phone) {
-    dados.phone = normalizarTelefone(telLink.href.replace('tel:', ''));
-  }
-
-  const emailLink = document.querySelector('a[href^="mailto:"]');
-  if (emailLink && !dados.email) {
-    dados.email = emailLink.href.replace('mailto:', '');
-  }
-
-  // Envia para API
-  chrome.runtime.sendMessage(
-    { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: dados },
-    (res) => {
-      if (res?.sucesso) {
-        exibirBanner(
-          `✅ Captura concluída!\n` +
-          `📱 Tel: ${dados.phone || 'N/A'}\n` +
-          `✉ Email: ${dados.email || 'N/A'}\n` +
-          `🎂 Aniv: ${dados.birthday || 'N/A'}\n` +
-          `🔗 Desde: ${dados.connected_since || 'N/A'}`,
-          '#00c896'
-        );
-      } else {
-        exibirBanner(`❌ Erro: ${res?.erro || 'falha na API'}`, '#ff3b5c');
-      }
-    }
-  );
-}
-
-// Captura geral do perfil
-async function iniciarCaptura(leadId) {
-  exibirBanner('⏳ Iniciando captura...');
-  const finalDados = {};
-
-  // Localização
-  const locEl = document.querySelector('.pv-text-details__left-panel span.text-body-small') ||
-                document.querySelector('.pv-top-card--list li:last-child');
-  if (locEl) finalDados.location = locEl.innerText.trim();
-
-  // Experiência
-  const { role, company } = await extrairExperiencia();
-  if (role) finalDados.current_role = role;
-  if (company) finalDados.current_company = company;
-
-  chrome.runtime.sendMessage(
-    { action: 'apiRequest', method: 'PUT', path: `/api/leads/${leadId}`, body: finalDados },
-    (res) => {
-      if (res?.sucesso) {
-        exibirBanner(`✅ Captura concluída!\n${role} @ ${company}`, '#00c896');
-      } else {
-        exibirBanner(`❌ Erro: ${res?.erro || 'falha'}`, '#ff3b5c');
-      }
-    }
-  );
-}
-
-// Detecta ação pela URL
+// Extrai e envia dados (Normalizado)
 const params = new URLSearchParams(window.location.search);
 const lpAction = params.get('lp_action');
-const lpLeadId = params.get('lp_lead_id');
 const lpMsg    = params.get('lp_msg');
 
-if (lpAction === 'send_message' && lpMsg) {
-  automatizarMensagemInbox(decodeURIComponent(lpMsg));
-} else if (lpAction === 'connect' && lpMsg) {
-  automatizarConexao(decodeURIComponent(lpMsg));
-} else if (lpLeadId) {
-  if (lpAction === 'capture_contacts' || window.location.href.includes('/overlay/contact-info')) {
-    capturarDadosContato(lpLeadId);
-  } else if (lpAction === 'capture') {
-    iniciarCaptura(lpLeadId);
+// Inicia ações baseadas na URL
+if (lpMsg) {
+  const mensagem = decodeURIComponent(lpMsg);
+  if (lpAction === 'send_message') {
+    setTimeout(() => automatizarMensagemInbox(mensagem), 2000);
+  } else if (lpAction === 'connect') {
+    setTimeout(() => automatizarConexao(mensagem), 2000);
   }
 }
-
-// Detecta navegação SPA
-let lastUrl = location.href;
-new MutationObserver(() => {
-  if (location.href !== lastUrl) {
-    lastUrl = location.href;
-    const p = new URLSearchParams(window.location.search);
-    const id = p.get('lp_lead_id');
-    const act = p.get('lp_action');
-    const msg = p.get('lp_msg');
-    
-    if (act === 'send_message' && msg) {
-       setTimeout(() => automatizarMensagemInbox(decodeURIComponent(msg)), 1500);
-    } else if (id && location.href.includes('/overlay/contact-info')) {
-      setTimeout(() => capturarDadosContato(id), 800);
-    }
-  }
-}).observe(document.body, { subtree: true, childList: true });
-
-// Sincroniza token enviado pelo CRM
-window.addEventListener('message', (event) => {
-  if (event.source !== window) return;
-  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
-    chrome.storage.local.set({ token: event.data.token });
-  }
-});
