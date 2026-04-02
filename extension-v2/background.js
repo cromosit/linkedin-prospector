@@ -1,5 +1,5 @@
 // background.js — v2.0
-const API_URL = 'https://linkedin-prospector-production.up.railway.app'
+const API_URL = 'https://prospector.cromosit.com'; // Endereço de produção unificado
 
 // Sincronização de Token e Chamadas de Proxy
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

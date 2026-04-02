@@ -3,6 +3,7 @@ const router   = express.Router();
 const axios    = require('axios');
 const supabase = require('../config/supabase');
 const auth     = require('../middleware/auth');
+const { tasks } = require("@trigger.dev/sdk/v3");
 
 router.use(auth);
 
@@ -91,9 +92,22 @@ router.put('/:id', async (req, res) => {
   try {
     const updates = { ...req.body, updated_at: new Date().toISOString() };
     if (updates.status === 'contatado' && !updates.contacted_at) updates.contacted_at = new Date().toISOString();
+    
+    // 1. Salvar no Supabase (Resposta imediata)
     const { data: lead, error } = await supabase.from('leads').update(updates).eq('id', req.params.id).select().single();
     if (error) throw error;
-    res.json({ message: 'Lead atualizado', lead });
+
+    // 2. SAFETY NET: Disparar Trigger.dev em background para auditoria e retentativas se necessário
+    // Se o lead capturado for de Portugal ou tiver campos críticos, o Trigger garante o processamento pesado
+    if (tasks) {
+       await tasks.trigger("process-lead-prospecting", { 
+          id: req.params.id, 
+          updates: updates, 
+          userId: req.user.userId 
+       }).catch(e => console.error('Erro ao disparar Trigger.dev:', e));
+    }
+
+    res.json({ message: 'Lead atualizado (Trigger.dev orquestrando em background)', lead });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
