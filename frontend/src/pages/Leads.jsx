@@ -571,27 +571,26 @@ export default function Leads() {
                     <button style={S.aiBtn('var(--green)')} onClick={enviarWhatsapp} disabled={enviando}>
                       {enviando ? '⟳ Enviando...' : leadSel?.phone ? `📱 WhatsApp (${leadSel.phone})` : '📱 Enviar WhatsApp'}
                     </button>
-                    {leadSel?.linkedin_url && (
+                    { (leadSel?.linkedin_url || (modal && form.linkedin_url)) && (
                       <button
                         style={S.aiBtn('#0a66c2')}
                         onClick={() => {
-                          const recipient = leadSel.linkedin_id || leadSel.linkedin_url.split('/in/')[1]?.replace(/\/$/, '')
-                          if (leadSel.connection_degree === '1') {
-                            // 1º grau: Abrir inbox e automatizar escrita
+                          const urlFinal = leadSel?.linkedin_url || form.linkedin_url;
+                          const recipient = leadSel?.linkedin_id || urlFinal.split('/in/')[1]?.replace(/\/$/, '')
+                          if (leadSel?.connection_degree === '1' || form.connection_degree === '1') {
                             const url = recipient 
                               ? `https://www.linkedin.com/messaging/compose/?recipient=${recipient}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
-                              : `${leadSel.linkedin_url}?lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
+                              : `${urlFinal}?lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
                             window.open(url, '_blank')
                             showToast('🚀 Abrindo inbox... a extensão vai digitar e enviar!')
                           } else {
-                            // 2º/3º grau: extensão faz o clique em Conectar automaticamente
-                            const url = `${leadSel.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
+                            const url = `${urlFinal}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
                             window.open(url, '_blank')
                             showToast('🔗 Solicitando conexão... a extensão vai preencher a nota!')
                           }
                         }}
                       >
-                        {leadSel.connection_degree === '1' ? '💬 Enviar Automatizado' : '🔗 Conectar Automatizado'}
+                        { (leadSel?.connection_degree === '1' || form.connection_degree === '1') ? '💬 Enviar Automatizado' : '🔗 Conectar Automatizado' }
                       </button>
                     )}
                     <button style={S.aiBtn('var(--blue-bright)')} onClick={() => gerarMensagem(leadSel, tipoMsg)} disabled={gerandoMsg}>🔄 Regenerar</button>
