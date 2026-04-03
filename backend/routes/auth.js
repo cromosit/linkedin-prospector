@@ -12,9 +12,9 @@ router.get('/linkedin', (req, res) => {
   linkedinAuthUrl.searchParams.set('response_type', 'code');
   linkedinAuthUrl.searchParams.set('client_id', process.env.LINKEDIN_CLIENT_ID);
   
-  // 🏛️ DOMÍNIO OFICIAL FIX (v5.7.1 ULTRA)
-  const finalRedirect = 'https://prospector.cromosit.com/auth/linkedin/callback';
-  linkedinAuthUrl.searchParams.set('redirect_uri', finalRedirect);
+  // 🏛️ LinkedIn Developers SYNC (v5.7.2 ULTRA)
+  // Esta URL DEVE ser IGUAL à que está no portal de desenvolvedores
+  linkedinAuthUrl.searchParams.set('redirect_uri', 'https://linkedin-prospector-production.up.railway.app/auth/linkedin/callback');
   
   linkedinAuthUrl.searchParams.set('scope', 'openid profile email');
   const state = Math.random().toString(36).substring(7);
