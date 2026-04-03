@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Prospector v2.0",
-  "version": "2.0.0",
-  "description": "Nova versão robusta com monitoramento de dados e resiliência de rede.",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "name": "LinkedIn Prospector v5.3",
+  "version": "5.3.0",
+  "description": "Super Cérebro Híbrido: Captura Premium de Leads + Automação de Mensagens Resiliente.",
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://linkedin-prospector-production.up.railway.app/*",
@@ -19,7 +19,8 @@
     {
       "matches": ["https://www.linkedin.com/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start",
+      "all_frames": true
     },
     {
       "matches": ["https://prospector.cromosit.com/*"],
