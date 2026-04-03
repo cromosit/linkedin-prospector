@@ -136,9 +136,22 @@ export default function Leads() {
         <div style={S.toolbar}>
            <h3 style={{ margin: 0 }}>Leads ({totalLeads})</h3>
            <button style={S.btnRow('#1d8fe8')} onClick={() => { setLeadSel(null); setForm(FORM_EMPTY); setModal(true) }}>＋ Novo Lead</button>
-           <input style={{...S.input, width:'300px', marginBottom:0}} placeholder="Pesquise por nome, empresa ou cargo..." value={busca} onChange={e => setBusca(e.target.value)} />
-           <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'10px'}}>
-              <span style={{fontSize:'12px', color:'#00c896'}}>● API online · Railway</span>
+           <input style={{...S.input, width:'320px', marginBottom:0}} placeholder="Pesquise por nome, empresa ou cargo..." value={busca} onChange={e => setBusca(e.target.value)} />
+           
+           <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}}>
+              <button style={{...S.headerBtn('#8899aa'), display:'flex', alignItems:'center', gap:'5px'}} onClick={() => carregarLeads()}>
+                <span>🔄</span> Atualizar
+              </button>
+              <button style={{...S.headerBtn('#1d8fe8'), display:'flex', alignItems:'center', gap:'5px'}} onClick={() => window.location.href='/dashboard'}>
+                <span>📊</span> Relatórios
+              </button>
+              <button style={{...S.headerBtn('#00c896'), display:'flex', alignItems:'center', gap:'5px'}}>
+                <span>📤</span> Exportar
+              </button>
+              <button style={{...S.headerBtn('#8899aa'), display:'flex', alignItems:'center', gap:'5px'}}>
+                <span>⚙️</span> Config
+              </button>
+              <span style={{fontSize:'11px', color:'#00c896', marginLeft:'10px'}}>● API online</span>
            </div>
         </div>
 
