@@ -1,0 +1,3 @@
+date,decision,reasoning,expected_result,review_date,status
+2026-04-03,Captura ULTRA v5.6 via Tag H1,LinkedIn muda classes CSS frequentemente. O H1 é a tag raiz do nome do lead.,Capturar Daniel Pugliesi e Sara Almeida com nomes reais sempre.,2026-05-03,LOGGED
+2026-04-03,Extensão Híbrida Prioritária,Erros de captura travavam o envio de mensagens.,Garantir que o envio para o Frederico funcione mesmo que o CRM esteja instável.,2026-05-03,LOGGED

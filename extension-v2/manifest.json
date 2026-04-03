@@ -1,31 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Prospector v5.3",
-  "version": "5.3.0",
-  "description": "Super Cérebro Híbrido: Captura Premium de Leads + Automação de Mensagens Resiliente.",
+  "name": "LinkedIn Prospector v5.6 ULTRA",
+  "version": "5.6.0",
+  "description": "Cérebro Híbrido: Captura de Nome Real + Envio Resiliente Frederico Fix.",
   "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": [
     "https://www.linkedin.com/*",
-    "https://linkedin-prospector-production.up.railway.app/*",
-    "https://prospector.cromosit.com/*"
+    "https://linkedin-prospector-production.up.railway.app/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {
-    "default_popup": "popup.html"
-  },
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" },
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],
       "js": ["content.js"],
       "run_at": "document_start",
       "all_frames": true
-    },
-    {
-      "matches": ["https://prospector.cromosit.com/*"],
-      "js": ["app_bridge.js"],
-      "run_at": "document_idle"
     }
   ]
 }

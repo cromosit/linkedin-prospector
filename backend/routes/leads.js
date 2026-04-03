@@ -69,6 +69,11 @@ router.post('/', async (req, res) => {
     const { data: lead, error } = await supabase.from('leads').insert({ name, linkedin_url, linkedin_id, headline, company, current_role, current_company, location, profile_picture, email, phone, website, about, birthday, connected_since, followers, mutual_connections, connection_degree, source, temperature, notes, service_interest, score: score || 0, status: 'novo', assigned_to: req.user.userId }).select().single();
     if (error) throw error;
 
+    // 🏛️ n8n SYNC (SKILL v5.7 ULTRA)
+    if (process.env.N8N_WEBHOOK_URL) {
+      axios.post(process.env.N8N_WEBHOOK_URL, { event: 'lead_created', lead: lead, user_id: req.user.userId }).catch(e => {});
+    }
+
     // Enriquece com IA em background
     if (lead && (headline || about)) {
       enriquecerLeadComIA(lead).catch(e => console.error('Erro IA:', e));
