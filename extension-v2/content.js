@@ -117,24 +117,69 @@ async function aguardarConteudo(termos, timeout) {
   });
 }
 
-// INICIALIZAÇÃO AGRESSIVA
+// 3️⃣ SENSOR DE PRESENÇA AGRESSIVO (v5.8 ULTRA)
+function monitorarPerfil() {
+    if (!window.location.href.includes('/in/')) return;
+    
+    // Verifica se o botão já existe para não duplicar
+    if (document.getElementById('lp-btn-float-v58')) return;
+
+    // Busca o nome com redundância (H1 ou Title)
+    let nome = document.querySelector('h1')?.innerText.trim();
+    if (!nome) nome = document.title.split('|')[0].trim();
+
+    if (nome && !nome.includes('LinkedIn')) {
+        const btn = document.createElement('button');
+        btn.id = 'lp-btn-float-v58';
+        btn.innerHTML = `<span>⚡</span> Capturar <b>${nome.split(' ')[0]}</b>`;
+        btn.style.cssText = `position:fixed;bottom:30px;right:30px;z-index:9999999;background:#1d8fe8;color:white;border:none;padding:18px 28px;border-radius:50px;font-weight:800;cursor:pointer;box-shadow:0 15px 45px rgba(29,143,232,0.5);border:3px solid white;font-family:Inter,sans-serif;font-size:16px;display:flex;align-items:center;gap:10px;transition:all 0.3s;`;
+        btn.onmouseover = () => btn.style.transform = 'scale(1.05) translateY(-5px)';
+        btn.onmouseout = () => btn.style.transform = 'scale(1) translateY(0)';
+        btn.onclick = capturarPerfilIndividual;
+        document.body.appendChild(btn);
+        console.log(`[v5.8] ✅ Botão injetado para: ${nome}`);
+    }
+}
+
+// 4️⃣ MOTOR DE ATUALIZAÇÃO DE STATUS E HISTÓRICO
+async function registrarSucessoEnvio(linkedinUrl) {
+    const leadId = params.get('leadId'); // ID passado via URL pelo CRM
+    if (!leadId) return;
+
+    chrome.runtime.sendMessage({
+        action: 'apiRequest',
+        method: 'PUT',
+        path: `/api/leads/${leadId}`,
+        body: { status: 'contatado', notes: `Mensagem enviada automaticamente via LinkedIn em ${new Date().toLocaleString()}` }
+    }, (res) => {
+        if (res.sucesso) {
+            exibirBanner('🏛️ CRM ATUALIZADO: Status alterado para "Contatado"!', '#00c896');
+            // Registra atividade no histórico
+            chrome.runtime.sendMessage({
+                action: 'apiRequest',
+                method: 'POST',
+                path: `/api/leads/${leadId}/atividades`,
+                body: { type: 'mensagem_enviada', description: 'Mensagem enviada automaticamente via LinkedIn Prospector' }
+            });
+        }
+    });
+}
+
+// INICIALIZAÇÃO v5.8
 const params = new URLSearchParams(window.location.search);
 if (params.get('lp_msg')) {
     const m = decodeURIComponent(params.get('lp_msg'));
     const act = params.get('lp_action');
-    setTimeout(() => {
-      if (act === 'send_message') automatizarChat(m);
-      else if (act === 'connect') automatizarConexao(m);
+    setTimeout(async () => {
+      if (act === 'send_message') {
+          await automatizarChat(m);
+          await registrarSucessoEnvio(window.location.href);
+      }
+      else if (act === 'connect') await automatizarConexao(m);
     }, 2000);
 } else {
-    setInterval(() => {
-        if (window.location.href.includes('/in/')) {
-            if (!document.getElementById('lp-btn-float-capturar')) {
-                const btn = document.createElement('button');
-                btn.id = 'lp-btn-float-capturar'; btn.innerText = '📞 Capturar Lead';
-                btn.style.cssText = 'position:fixed;bottom:25px;right:25px;z-index:9999999;background:#00c896;color:white;border:none;padding:16px 26px;border-radius:40px;font-weight:bold;cursor:pointer;box-shadow:0 12px 30px rgba(0,200,150,0.5);border:2px solid white;';
-                btn.onclick = capturarPerfilIndividual; document.body.appendChild(btn);
-            }
-        }
-    }, 1500);
+    // Observer para capturar mudanças no DOM (estratégia SPA do LinkedIn)
+    const observer = new MutationObserver(monitorarPerfil);
+    observer.observe(document.body, { childList: true, subtree: true });
+    monitorarPerfil(); // Execução inicial
 }
