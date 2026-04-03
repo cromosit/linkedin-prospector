@@ -166,12 +166,31 @@ export default function Leads() {
                     <td style={S.td}><b>{l.name}</b><br/><span style={{fontSize:'10px', color:'#8899aa'}}>{l.headline}</span></td>
                     <td style={S.td}>{l.company}<br/><span style={{fontSize:'11px', color:'#8899aa'}}>📍 {l.location}</span></td>
                     <td style={S.td}>
-                       {l.phone ? (
-                         <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                           <span style={{color:'#eee', fontSize:'12px'}}>{l.phone}</span>
-                           <span style={{cursor:'pointer', color:'#00c896', fontSize:'14px'}} onClick={() => window.open(`https://wa.me/${l.phone?.replace(/\D/g,'')}`)}> 🟢</span>
-                         </div>
-                       ) : <span style={{color:'#444', fontSize:'11px'}}>sem num.</span>}
+                      <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
+                        {/* LinkedIn Link */}
+                        <a href={l.linkedin_url} target="_blank" rel="noreferrer" style={{textDecoration:'none', cursor:'pointer', fontSize:'16px'}} title="Ver Perfil">
+                          <span style={{color: l.linkedin_url ? '#0a66c2' : '#444'}}></span>
+                        </a>
+                        
+                        {/* Telefone Simples */}
+                        <span style={{color: l.phone ? '#ff3b5c' : '#444', fontSize:'16px', cursor:'help'}} title={l.phone || 'Sem telefone'}>
+                          📞
+                        </span>
+                        
+                        {/* WhatsApp Direto */}
+                        {l.phone ? (
+                          <a href={`https://wa.me/${l.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{textDecoration:'none', fontSize:'18px'}} title="Chamar no Zap">
+                            <span style={{color:'#00c853'}}></span>
+                          </a>
+                        ) : (
+                          <span style={{color:'#444', fontSize:'18px'}}></span>
+                        )}
+                        
+                        {/* E-mail Badge */}
+                        <span style={{fontSize:'10px', color: l.email ? '#1d8fe8' : '#444'}} title={l.email || 'Sem e-mail'}>
+                          {l.email ? '✉️' : ''}
+                        </span>
+                      </div>
                     </td>
                     <td style={S.td}><span style={S.badge(GRAU[l.connection_degree]?.color)}>{GRAU[l.connection_degree]?.label}</span></td>
                     <td style={S.td}>
