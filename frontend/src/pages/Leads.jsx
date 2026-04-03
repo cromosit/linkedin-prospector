@@ -144,7 +144,7 @@ export default function Leads() {
               <button style={{...S.headerBtn('#ff9f0a'), display:'flex', boxShadow:'0 0 10px rgba(255,159,10,0.3)'}}><span>⚡</span> Enriquecer</button>
               <button style={{...S.headerBtn('#00c896'), display:'flex'}}><span>📤</span> Exportar</button>
               <button style={{...S.headerBtn('#8899aa'), display:'flex'}}><span>⚙️</span> Config</button>
-              <div style={{marginLeft:'10px', fontSize:'10px', color:'#00c896', background:'rgba(0,255,150,0.1)', padding:'6px 12px', borderRadius:'20px', border:'2px solid #00c896', fontWeight:'800'}}>🏛️ v5.6 [REBORN]</div>
+              <div style={{marginLeft:'10px', fontSize:'10px', color:'#1d8fe8', background:'rgba(29,143,232,0.1)', padding:'6px 12px', borderRadius:'20px', border:'2px solid #1d8fe8', fontWeight:'800'}}>🏛️ v5.7 [ULTRA]</div>
            </div>
         </div>
 
