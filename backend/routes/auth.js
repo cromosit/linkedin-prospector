@@ -11,7 +11,11 @@ router.get('/linkedin', (req, res) => {
   const linkedinAuthUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
   linkedinAuthUrl.searchParams.set('response_type', 'code');
   linkedinAuthUrl.searchParams.set('client_id', process.env.LINKEDIN_CLIENT_ID);
-  linkedinAuthUrl.searchParams.set('redirect_uri', process.env.LINKEDIN_REDIRECT_URI);
+  
+  // 🏛️ DOMÍNIO OFICIAL FIX (v5.7.1 ULTRA)
+  const finalRedirect = 'https://prospector.cromosit.com/auth/linkedin/callback';
+  linkedinAuthUrl.searchParams.set('redirect_uri', finalRedirect);
+  
   linkedinAuthUrl.searchParams.set('scope', 'openid profile email');
   const state = Math.random().toString(36).substring(7);
   linkedinAuthUrl.searchParams.set('state', state);
@@ -25,11 +29,14 @@ router.get('/linkedin/callback', async (req, res) => {
   const { code, error } = req.query;
 
   // .trim() evita caracteres invisíveis vindos do Railway no FRONTEND_URL
-  const frontendUrl = (process.env.FRONTEND_URL || '').trim();
+  const rawFrontendUrl = (process.env.FRONTEND_URL || '').trim();
+  // 🏛️ DOMÍNIO OFICIAL FIX (v5.7 ULTRA)
+  const frontendUrl = rawFrontendUrl.includes('railway.app') ? 'https://prospector.cromosit.com' : rawFrontendUrl;
+  
   console.log('🔐 Callback LinkedIn. FRONTEND_URL:', JSON.stringify(frontendUrl));
 
   if (error) {
-    return res.redirect(`${frontendUrl}?erro=acesso_negado`);
+    return res.redirect(`${frontendUrl}/?erro=acesso_negado`);
   }
 
   try {

@@ -9,29 +9,18 @@ const app = express();
 // Em produção: FRONTEND_URL = https://linkedin-prospector.vercel.app (ou domínio próprio)
 // Em desenvolvimento: http://localhost:5173
 const allowedOrigins = [
-  process.env.FRONTEND_URL?.trim(),
-  'https://prospector.cromosit.com',          // domínio próprio (sempre permitido)
-  'https://project-4iz1u-samuellbetim-6911s-projects.vercel.app', // Vercel fallback
+  'https://prospector.cromosit.com',
+  'https://linkedin-prospector-production.up.railway.app',
   'http://localhost:5173',
-  'http://localhost:3001',
   'chrome-extension://*'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requisições de extensões Chrome ou sem origin
-    if (!origin || origin.startsWith('chrome-extension://')) {
+    if (!origin || origin.startsWith('chrome-extension://') || origin.includes('cromosit.com') || origin.includes('railway.app')) {
       return callback(null, true);
     }
-    // Verifica a lista de permitidos
-    if (allowedOrigins.some(o => origin.includes(o.replace('https://', '').replace('http://', '')))) {
-      return callback(null, true);
-    }
-    // Fallback: se for produção e vier de domínio conhecido, aceita
-    if (origin.includes('linkedin.com') || origin.includes('prospector.cromosit.com')) {
-      return callback(null, true);
-    }
-    callback(null, true); // Temporariamente permissivo para estabilizar a prospecção
+    callback(null, true); 
   },
   credentials: true
 }));
