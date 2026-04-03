@@ -1,4 +1,4 @@
-// content.js — LinkedIn Prospector v2.1 — Automação de Mensagens (Correção de Chat)
+// content.js — LinkedIn Prospector v2.3 — Automação de Cliques em Chat Flutuante
 
 async function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -8,150 +8,142 @@ function exibirBanner(texto, cor = '#1d8fe8') {
   const banner = document.createElement('div');
   banner.id = 'lp-banner-v2';
   banner.style.cssText = `position:fixed;top:20px;right:20px;z-index:999999;padding:14px 20px;background:${cor};color:white;font-family:sans-serif;font-size:13px;font-weight:600;border-radius:6px;box-shadow:0 6px 30px rgba(0,0,0,0.4);max-width:380px;white-space:pre-wrap;line-height:1.4;`;
-  banner.innerText = '🚀 LP Prospector v2.1\n' + texto;
+  banner.innerText = '🚀 LP Prospector v2.3\n' + texto;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 7000);
 }
 
-// Digita texto simulando humano em campos ContentEditable
+// Digita texto simulando humano
 async function digitarSimulado(elemento, texto) {
   elemento.focus();
-  
-  // Limpa se for a primeira vez
-  if (elemento.innerText.trim() === 'Escreva uma mensagem' || elemento.innerText.trim() === '') {
-    elemento.innerHTML = ''; 
+  // Se for contenteditable, limpa o texto base
+  if (elemento.getAttribute('contenteditable') === 'true') {
+     elemento.innerHTML = '';
+  } else {
+     elemento.value = '';
   }
-
+  
   const chars = texto.split('');
   for (const char of chars) {
     const event = new InputEvent('input', { bubbles: true, cancelable: true, data: char });
-    
-    // Se for um parágrafo interno (LinkedIn as vezes usa <p>)
     const target = elemento.querySelector('p') || elemento;
-    target.innerText += char;
-    
+    if (target.getAttribute('contenteditable') === 'true') {
+       target.innerText += char;
+    } else {
+       target.value += char;
+    }
     elemento.dispatchEvent(event);
-    await esperar(Math.random() * 40 + 20); // 20-60ms por letra
+    await esperar(Math.random() * 40 + 20);
   }
-  elemento.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 async function focarEEnviar() {
-  const botaoEnviar = document.querySelector('.msg-form__send-button') || 
-                      document.querySelector('button[type="submit"].artdeco-button--primary') ||
-                      document.querySelector('.msg-form__footer button.artdeco-button--primary');
-  
-  if (botaoEnviar && !botaoEnviar.disabled) {
-    await esperar(800);
-    botaoEnviar.click();
-    exibirBanner('✅ Mensagem enviada com sucesso!', '#00c896');
+  // Detecta botão de envio em chats comuns e chats flutuantes (Overlays)
+  const seletoresBotao = [
+    '.msg-form__send-button', 
+    'button[type="submit"].artdeco-button--primary',
+    '.msg-overlay-bubble-header + .msg-overlay-conversation-container .msg-form__send-button',
+    '.msg-form__footer button.artdeco-button--primary',
+    'button.msg-form__send-button'
+  ];
+
+  let btnEnviar = null;
+  for (const s of seletoresBotao) {
+    btnEnviar = document.querySelector(s);
+    if (btnEnviar) break;
+  }
+
+  if (btnEnviar && !btnEnviar.disabled) {
+    await esperar(1000);
+    btnEnviar.click();
+    exibirBanner('✅ Mensagem entregue no chat!', '#00c896');
     await esperar(1500);
-    window.close(); 
+    window.close();
   } else {
     exibirBanner('⚠️ Mensagem escrita! Clique em Enviar.', '#ff9f0a');
   }
 }
 
-// Automação de Inbox (Chat de 1º Grau)
-async function automatizarMensagemInbox(mensagem) {
-  exibirBanner('⏳ Automatizando envio no chat...');
+// Automação de Chat (Inbox 1º Grau)
+async function automatizarChat(mensagem) {
+  exibirBanner('⏳ Localizando chat ou sobreposição...');
   
-  // Aguarda caixa de texto do LinkedIn (tenta vários seletores do chat)
-  const seletoresChat = [
+  // Tenta achar a caixa de texto oficial ou a do Frederico (Overlay)
+  const seletoresCaixa = [
     '.msg-form__contenteditable',
+    '.msg-overlay-conversation-bubble [contenteditable="true"]',
     '[contenteditable="true"]',
     '.msg-form__placeholder'
   ];
 
-  let caixaTexto = null;
-  for (const sel of seletoresChat) {
-    caixaTexto = await aguardarElemento(sel, 3000);
-    if (caixaTexto) break;
-  }
-  
-  if (!caixaTexto) {
-    exibirBanner('❌ Erro: Não encontrei a caixa de texto do chat.', '#ff3b5c');
-    return;
+  let caixa = null;
+  for (const s of seletoresCaixa) {
+    caixa = await aguardarElemento(s, 6000);
+    if (caixa) break;
   }
 
-  await esperar(1000);
-  
-  // Se clicamos no placeholder, o LinkedIn foca no real
-  if (caixaTexto.classList.contains('msg-form__placeholder')) {
-     caixaTexto.click();
-     await esperar(500);
-     caixaTexto = document.querySelector('.msg-form__contenteditable');
+  if (caixa) {
+    // Se clicamos no placeholder, o LinkedIn foca no real
+    if (caixa.classList.contains('msg-form__placeholder')) {
+       caixa.click();
+       await esperar(1000);
+       caixa = document.querySelector('.msg-form__contenteditable') || document.querySelector('.msg-overlay-conversation-bubble [contenteditable="true"]');
+    }
+    
+    await esperar(1500);
+    await digitarSimulado(caixa, mensagem);
+    await focarEEnviar();
+  } else {
+    exibirBanner('❌ Erro: Não encontrei o campo de chat flutuante.', '#ff3b5c');
   }
-
-  await digitarSimulado(caixaTexto, mensagem);
-  await focarEEnviar();
 }
 
-// Automação de Conexão (Nota de 2º Grau)
+// Automação de Conexão (Nota 2º/3º Grau)
 async function automatizarConexao(mensagem) {
-  exibirBanner('⏳ Iniciando pedido de conexão...');
+  exibirBanner('⏳ Preparando pedido de conexão...');
   
-  // Tenta clicar no botão "Adicionar nota" se o modal já abriu
-  const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"]', 3000);
-  
+  const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"]', 4000);
   if (btnNota) {
     btnNota.click();
     await esperar(1000);
-    
-    const campoNota = document.querySelector('textarea[name="message"]');
-    if (campoNota) {
-      campoNota.value = mensagem;
-      campoNota.dispatchEvent(new Event('input', { bubbles: true }));
+    const textarea = document.querySelector('textarea[name="message"]');
+    if (textarea) {
+      textarea.value = mensagem;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
       await esperar(800);
-      
       const btnEnviar = document.querySelector('button[aria-label="Enviar agora"]');
       if (btnEnviar) {
         btnEnviar.click();
-        exibirBanner('✅ Pedido de conexão enviado!', '#00c896');
+        exibirBanner('✅ Pedido enviado!', '#00c896');
         await esperar(1500);
         window.close();
       }
     }
   } else {
-     // Se não abriu o modal de nota, talvez abriu o chat de mensagem direta?
-     // Fallback para inbox
-     await automatizarMensagemInbox(mensagem);
+    await automatizarChat(mensagem);
   }
 }
 
-// Sincroniza token enviado pelo CRM
-window.addEventListener('message', (event) => {
-  if (event.source !== window) return;
-  if (event.data?.type === 'LP_PROSPECTOR_TOKEN' && event.data?.token) {
-    chrome.storage.local.set({ token: event.data.token });
-  }
-});
-
-// Aguarda elemento aparecer no DOM
-async function aguardarElemento(selector, timeout = 4000) {
-  return new Promise(resolve => {
-    const el = document.querySelector(selector);
-    if (el) return resolve(el);
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector(selector);
-      if (el) { observer.disconnect(); resolve(el); }
+async function aguardarElemento(sel, timeout) {
+  return new Promise(res => {
+    const el = document.querySelector(sel);
+    if (el) return res(el);
+    const obs = new MutationObserver(() => {
+      const e = document.querySelector(sel);
+      if (e) { obs.disconnect(); res(e); }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+    obs.observe(document.body, { childList:true, subtree:true });
+    setTimeout(() => { obs.disconnect(); res(null); }, timeout);
   });
 }
 
-// Extrai e envia dados (Normalizado)
+// Execução por URL
 const params = new URLSearchParams(window.location.search);
-const lpAction = params.get('lp_action');
-const lpMsg    = params.get('lp_msg');
+const act = params.get('lp_action');
+const msg = params.get('lp_msg');
 
-// Inicia ações baseadas na URL
-if (lpMsg) {
-  const mensagem = decodeURIComponent(lpMsg);
-  if (lpAction === 'send_message') {
-    setTimeout(() => automatizarMensagemInbox(mensagem), 2000);
-  } else if (lpAction === 'connect') {
-    setTimeout(() => automatizarConexao(mensagem), 2000);
-  }
+if (msg) {
+  const m = decodeURIComponent(msg);
+  if (act === 'send_message') setTimeout(() => automatizarChat(m), 3000);
+  else if (act === 'connect') setTimeout(() => automatizarConexao(m), 3000);
 }

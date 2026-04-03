@@ -10,11 +10,6 @@ const STATUS = {
   fechado: { label: 'Fechado', color: 'var(--green)' },
   descartado: { label: 'Descartado', color: 'var(--red)' }
 }
-const TEMP = {
-  quente: { label: '🔥 Quente', color: 'var(--red)' },
-  morno: { label: '⚡ Morno', color: 'var(--orange)' },
-  frio: { label: '❄️ Frio', color: 'var(--blue-bright)' }
-}
 const GRAU = {
   '1': { label: '1º Amigo', color: '#00c896' },
   '2': { label: '2º Amigo de amigo', color: '#1d8fe8' },
@@ -27,7 +22,8 @@ const FORM_EMPTY = {
   birthday: '', connected_since: '', mutual_connections: '',
   about: '', service_interest: '', temperature: 'frio',
   notes: '', source: 'manual', connection_degree: '3',
-  current_role: '', current_company: '', instant_messaging: ''
+  current_role: '', current_company: '', instant_messaging: '',
+  score: 30, status: 'novo'
 }
 
 export default function Leads() {
@@ -45,7 +41,6 @@ export default function Leads() {
   const [gerandoMsg, setGerandoMsg] = useState(false)
   const [tipoMsg, setTipoMsg] = useState('conexao')
   const [msgGerada, setMsgGerada] = useState('')
-  const [enriquecendo, setEnriquecendo] = useState(null)
   const [toast, setToast] = useState(null)
 
   useEffect(() => { carregarLeads() }, [busca, pagina])
@@ -78,20 +73,10 @@ export default function Leads() {
   const gerarMensagem = async (lead, tipo) => {
     setGerandoMsg(true); setTipoMsg(tipo || 'conexao')
     try {
-      const res = await api.post(`/api/leads/${lead.id}/gerar-mensagem`, { tipo: tipo || 'conexao' })
+      const res = await api.post(`/api/leads/${lead.id || form.id}/gerar-mensagem`, { tipo: tipo || 'conexao' })
       setMsgGerada(res.data.mensagem)
     } catch (err) { setMsgGerada('Erro ao gerar abordagem.') }
     finally { setGerandoMsg(false) }
-  }
-
-  const enriquecerLead = async (id) => {
-    setEnriquecendo(id)
-    try {
-      const res = await api.post(`/api/leads/${id}/enriquecer`)
-      if (leadSel?.id === id) setForm({ ...form, service_interest: res.data.lead.service_interest, notes: res.data.lead.notes })
-      carregarLeads(); showToast('⚡ Enriquecido!')
-    } catch (err) { showToast('Erro ao enriquecer') }
-    finally { setEnriquecendo(null) }
   }
 
   const abrirEditar = (lead) => {
@@ -111,19 +96,15 @@ export default function Leads() {
     td: { padding: '14px 12px', borderBottom: '1px solid #1c2633', fontSize: '13px' },
     badge: (color) => ({ padding: '3px 7px', background: color + '20', border: `1px solid ${color}40`, color, fontSize: '10px', borderRadius: '3px' }),
     btnRow: (color) => ({ background: 'transparent', border: 'none', color, cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }),
-    
-    // MODAL RESTAURAÇÃO (FOTO NELSON/TANIA)
     modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
     modalBox: { background: '#0d131b', width: '850px', maxWidth: '96%', maxHeight: '94vh', overflow: 'auto', borderRadius: '4px', border: '1px solid #233142' },
     modalHeader: { padding: '12px 20px', borderBottom: '1px solid #1d8fe8', display: 'flex', alignItems: 'center', background: '#121922' },
-    sectionTitle: { color: '#1d8fe8', fontSize: '11px', fontWeight: '800', marginBottom: '15px', marginTop: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' },
+    sectionTitle: { color: '#1d8fe8', fontSize: '11px', fontWeight: '800', marginBottom: '15px', marginTop: '10px', textTransform: 'uppercase' },
     label: { color: '#8899aa', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px', display: 'block', textTransform: 'uppercase' },
     input: { width: '100%', background: '#0b1118', border: '1px solid #233142', color: '#fff', padding: '8px 12px', borderRadius: '2px', fontSize: '13px', outline: 'none' },
-    
-    // ÁREAS DE IA (AMARELO)
-    aiLabel: { color: '#ff9f0a', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' },
+    aiLabel: { color: '#ff9f0a', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' },
     aiBox: { width: '100%', background: '#0b1118', border: '1px solid #233142', color: '#fff', padding: '10px', borderRadius: '2px', fontSize: '13px', marginBottom: '15px' },
-    aiMsgBox: { border: '1px solid #1d8fe8', padding: '15px', borderRadius: '4px', minHeight: '80px', fontSize: '14px', lineHeight: '1.6' }
+    waBox: { border: '1px solid #ff9f0a', padding: '15px', borderRadius: '4px', marginTop: '15px', display: 'flex', alignItems: 'center', gap: '15px' }
   }
 
   return (
@@ -155,9 +136,7 @@ export default function Leads() {
                     <td style={S.td}>{l.company}</td>
                     <td style={S.td}><span style={S.badge(GRAU[l.connection_degree]?.color)}>{GRAU[l.connection_degree]?.label}</span></td>
                     <td style={S.td}><select style={{...S.input, width:'90px', padding:'2px'}} value={l.status} onChange={() => {}}>{Object.entries(STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
-                    <td style={S.td}>
-                       <button style={S.btnRow('#1d8fe8')} onClick={() => abrirEditar(l)}>✏ Editar</button>
-                    </td>
+                    <td style={S.td}><button style={S.btnRow('#1d8fe8')} onClick={() => abrirEditar(l)}>✏ Editar / IA</button></td>
                   </tr>
                 ))}
              </tbody>
@@ -171,8 +150,6 @@ export default function Leads() {
              <div style={S.modalHeader}>
                 <span style={{fontWeight:'bold'}}>✏ {form.name || 'Novo Lead'}</span>
                 <div style={{marginLeft:'auto', display:'flex', gap:'15px'}}>
-                   <button style={S.btnRow('#fff')} onClick={() => gerarMensagem(leadSel, tipoMsg)}>✦ IA</button>
-                   <button style={S.btnRow('#ff9f0a')} onClick={() => enriquecerLead(leadSel.id)}>⚡ Enriquecer</button>
                    <button style={S.btnRow('#00c896')} onClick={salvarLead}>✓ Salvar</button>
                    <button style={S.btnRow('#8899aa')} onClick={() => setModal(false)}>✕</button>
                 </div>
@@ -182,33 +159,28 @@ export default function Leads() {
                 <div style={S.aiLabel}>🎯 O QUE ESTE LEAD PRECISA? — PREENCHIDO PELA IA</div>
                 <textarea style={{...S.aiBox, border:'1px solid #1d8fe8', height:'50px'}} value={form.service_interest} onChange={e => setForm({...form, service_interest:e.target.value})} />
 
-                <div style={S.sectionTitle}>SOBRE — BIO DO LINKEDIN</div>
-                <textarea style={{...S.aiBox, height:'70px'}} value={form.about} onChange={e => setForm({...form, about:e.target.value})} />
-
                 <div style={S.aiLabel}>📝 NOTAS INTERNAS — DICAS DA IA</div>
                 <textarea style={{...S.aiBox, border:'1px solid #233142', height:'90px', color:'#fff'}} value={form.notes} onChange={e => setForm({...form, notes:e.target.value})} />
 
                 <div style={S.sectionTitle}>✦ MENSAGEM COM IA</div>
                 <div style={{display:'flex', gap:'15px', color:'#8899aa', fontSize:'11px', marginBottom:'15px'}}>
-                   <span onClick={() => setTipoMsg('conexao')} style={{cursor:'pointer', color:tipoMsg==='conexao'?'#1d8fe8':''}}>🔗 Conexão</span>
-                   <span onClick={() => setTipoMsg('conexao_com_comum')} style={{cursor:'pointer', color:tipoMsg==='conexao_com_comum'?'#1d8fe8':''}}>👥 c/ Comum</span>
-                   <span onClick={() => setTipoMsg('primeiro_contato')} style={{cursor:'pointer', color:tipoMsg==='primeiro_contato'?'#1d8fe8':''}}>💬 1º Contato</span>
-                   <span onClick={() => setTipoMsg('follow_up')} style={{cursor:'pointer', color:tipoMsg==='follow_up'?'#1d8fe8':''}}>🔄 Follow-up</span>
-                   <span onClick={() => setTipoMsg('whatsapp')} style={{cursor:'pointer', color:tipoMsg==='whatsapp'?'#1d8fe8':''}}>📱 WhatsApp</span>
+                   {['conexao', 'conexao_com_comum', 'primeiro_contato', 'follow_up', 'whatsapp'].map(t => (
+                     <span key={t} onClick={() => setTipoMsg(t)} style={{cursor:'pointer', color:tipoMsg===t?'#1d8fe8':''}}>
+                       {t === 'conexao' ? '🔗 Conexão' : t === 'conexao_com_comum' ? '👥 c/ Comum' : t === 'primeiro_contato' ? '💬 1º Contato' : t === 'follow_up' ? '🔄 Follow-up' : '📱 WhatsApp'}
+                     </span>
+                   ))}
                 </div>
 
                 <div style={{display:'flex', gap:'15px', marginBottom:'10px'}}>
-                   <button style={S.btnRow('#ff9f0a')} onClick={() => gerarMensagem(leadSel || form, tipoMsg)}>✦ Gerar</button>
-                   <button style={S.btnRow('#fff')} onClick={() => navigator.clipboard.writeText(msgGerada)}>📋 Copiar</button>
-                   <button style={S.btnRow('#00c896')}>📱 Enviar WhatsApp</button>
-                   <button style={S.btnRow('#1d8fe8')} onClick={() => gerarMensagem(leadSel, tipoMsg)}>🔄 Regenerar</button>
+                   <button style={S.btnRow('#ff9f0a')} onClick={() => gerarMensagem(leadSel || form, tipoMsg)} disabled={gerandoMsg}>✦ Gerar</button>
+                   <button style={S.btnRow('#fff')} onClick={() => { navigator.clipboard.writeText(msgGerada); showToast('Copiado!') }}>📋 Copiar</button>
+                   <button style={S.btnRow('#1d8fe8')} onClick={() => gerarMensagem(leadSel || form, tipoMsg)}>🔄 Regenerar</button>
                    
                    { (leadSel?.linkedin_url || form.linkedin_url) && (
-                     <button style={{...S.btnRow('#0a66c2'), background:'rgba(10,102,194,0.1)', padding:'4px 8px', borderRadius:'4px'}} onClick={() => {
+                     <button style={{...S.btnRow('#0a66c2'), background:'rgba(10,102,194,0.1)', padding:'4px 12px', border:'1px solid #0a66c2', borderRadius:'4px'}} onClick={() => {
                         const urlF = leadSel?.linkedin_url || form.linkedin_url;
                         const target = leadSel?.linkedin_id || urlF.split('/in/')[1]?.replace(/\/$/, '')
                         const deg = leadSel?.connection_degree || form.connection_degree
-                        const action = deg === '1' ? 'send_message' : 'connect'
                         const url = deg === '1'
                           ? `https://www.linkedin.com/messaging/compose/?recipient=${target}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}`
                           : `${urlF}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
@@ -217,11 +189,22 @@ export default function Leads() {
                    )}
                 </div>
 
-                <div style={S.aiMsgBox}>{msgGerada || 'Pronto para gerar abordagem...'}</div>
+                <div style={{border:'1px solid #1d8fe8', padding:'15px', borderRadius:'4px', fontSize:'14px', lineHeight:'1.5'}}>{msgGerada || 'Gere uma abordagem acima...'}</div>
+
+                {/* WHATSAPP RE-INSTANTANEADO (FOTO DO PRINT ANTERIOR) */}
+                <div style={S.waBox}>
+                   <span style={{color:'#ff9f0a', fontWeight:'bold', fontSize:'12px'}}>📱 Telefone:</span>
+                   <input style={{...S.input, width:'180px', marginBottom:0, border:'1px solid #233142'}} value={form.phone} onChange={e => setForm({...form, phone:e.target.value})} placeholder="Ex: 5541..." />
+                   <button style={{...S.btnRow('#ff9f0a'), marginLeft:'auto', background:'rgba(255,159,10,0.1)', padding:'6px 20px', borderRadius:'4px'}} onClick={() => {
+                      const num = form.phone?.replace(/\D/g, '');
+                      window.open(`https://wa.me/${num}?text=${encodeURIComponent(msgGerada)}`, '_blank');
+                   }}>Enviar</button>
+                </div>
              </div>
           </div>
         </div>
       )}
+      {toast && <div style={{position:'fixed', bottom:'30px', left:'50%', transform:'translateX(-50%)', background:'#00c896', padding:'10px 25px', borderRadius:'4px', zIndex:9999, fontWeight:'bold'}}>{toast}</div>}
     </div>
   )
 }
