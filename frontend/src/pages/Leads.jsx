@@ -161,6 +161,7 @@ export default function Leads() {
                 <tr>
                    <th style={S.th}>LEAD</th>
                    <th style={S.th}>EMPRESA / LOCAL</th>
+                   <th style={S.th}>CONTATO / ZAP</th>
                    <th style={S.th}>GRAU</th>
                    <th style={S.th}>STATUS</th>
                    <th style={S.th}>AÇÕES</th>
@@ -171,6 +172,14 @@ export default function Leads() {
                   <tr key={l.id}>
                     <td style={S.td}><b>{l.name}</b><br/><span style={{fontSize:'10px', color:'#8899aa'}}>{l.headline}</span></td>
                     <td style={S.td}>{l.company}<br/><span style={{fontSize:'11px', color:'#8899aa'}}>📍 {l.location}</span></td>
+                    <td style={S.td}>
+                       {l.phone ? (
+                         <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                           <span style={{color:'#eee', fontSize:'12px'}}>{l.phone}</span>
+                           <span style={{cursor:'pointer', color:'#00c896', fontSize:'14px'}} onClick={() => window.open(`https://wa.me/${l.phone?.replace(/\D/g,'')}`)}> 🟢</span>
+                         </div>
+                       ) : <span style={{color:'#444', fontSize:'11px'}}>sem num.</span>}
+                    </td>
                     <td style={S.td}><span style={S.badge(GRAU[l.connection_degree]?.color)}>{GRAU[l.connection_degree]?.label}</span></td>
                     <td style={S.td}>
                        <select style={{...S.input, width:'120px', padding:'3px'}} value={l.status} onChange={() => {}}>
