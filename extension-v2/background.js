@@ -1,21 +1,27 @@
-// background.js — v2.0
-const API_URL = 'https://linkedin-prospector-production.up.railway.app'
+// background.js — v5.8.3 [PERSISTENT WORKER]
+const API_URL = 'https://linkedin-prospector-production.up.railway.app';
 
-// Sincronização de Token e Chamadas de Proxy
+// 🏛️ SKILL: KEEP-ALIVE SYSTEM (Autocura v5.8)
+// Impede que o Service Worker fique 'inativo' enviando um sinal interno
+function keepAlive() { console.track = (console.track || 0) + 1; }
+setInterval(keepAlive, 20000);
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Sincronização de Login Direto (Multi-Domínio)
   if (message.type === 'SET_TOKEN' && message.token) {
     chrome.storage.local.set({ token: message.token }, () => {
-      console.log('[v2] ✅ Token sincronizado');
+      console.log('[v5.8] ✅ TOKEN DE ELITE SINCRONIZADO');
       sendResponse({ success: true });
     });
     return true;
   }
 
+  // Proxy de API Seguro com Wake-up call
   if (message.action === 'apiRequest') {
     const { method = 'PUT', path, body } = message;
     chrome.storage.local.get(['token'], async ({ token }) => {
       if (!token) {
-        sendResponse({ sucesso: false, erro: 'Token não encontrado. Faça login no app.' });
+        sendResponse({ sucesso: false, erro: 'LOGIN_REQUIRED' });
         return;
       }
       try {
@@ -30,7 +36,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const data = await res.json();
         sendResponse({ sucesso: res.ok, data, status: res.status });
       } catch (err) {
-        sendResponse({ sucesso: false, erro: 'Erro de conexão: ' + err.message });
+        sendResponse({ sucesso: false, erro: 'Conexão Offline' });
       }
     });
     return true;

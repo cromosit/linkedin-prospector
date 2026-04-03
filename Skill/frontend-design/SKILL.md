@@ -1,45 +1,40 @@
-# Frontend Design Skill
+# Frontend Design Skill (Cromosit Edition)
 
-## Objetivo
-Criar interfaces de alta qualidade visual e usabilidade. Vai além do funcional: entrega componentes e telas com design profissional, consistência visual e boa experiência de uso.
+## 🎨 Objetivo
+Criar interfaces de alta qualidade visual e usabilidade no ecossistema Cromosit. Entrega componentes e telas com design profissional, consistência visual e experiência de uso premium.
 
-## Quando usar
-- Criar componentes de UI do zero
-- Revisar e melhorar interfaces existentes
-- Implementar design system
-- Converter mockups/wireframes em código
-- Criar landing pages e páginas de produto
+## 🚀 Princípios de Design Aplicados ao Código
 
-## Princípios de design aplicados ao código
+### 1. Hierarquia Visual (Z-Pattern)
+- **Foco Único:** Um elemento principal por tela (CTA, ação primária).
+- **Tipografia:** Escala harmônica (12px, 14px, 16px, 20px, 24px, 32px, 48px).
+- **Contraste:** Mínimo WCAG AA (4.5:1). Texte contra fundo sempre legível.
 
-### Hierarquia visual
-- Um elemento principal por tela (CTA, título, ação primária)
-- Tamanhos de fonte em escala (12, 14, 16, 20, 24, 32, 48)
-- Contraste mínimo WCAG AA: 4.5:1 para texto normal
+### 2. Espaçamento (The 4px Rule)
+- **Escala de 4px:** Use múltiplos de 4 (4, 8, 12, 16, 20, 24, 32, 48, 64).
+- **Padding Consistente:** Whitespace generoso para comunicar qualidade e clareza.
 
-### Espaçamento
-- Use escala de 4px: 4, 8, 12, 16, 24, 32, 48, 64
-- Padding interno consistente por tipo de componente
-- Whitespace generoso comunica qualidade
+### 3. Cores e Profundidade
+- **Paleta:** Primária (Verde Néon/Azul Cobalto), Secundária, Neutros, Semânticas (Success, Error, Warning).
+- **Anti-Puro:** Nunca use preto puro (#000), prefira #0F0F0F ou #1A1A1A.
+- **Backgrounds:** Use #FAFAFA ou #F5F5F5 para evitar glare.
 
-### Cores
-- Defina paleta: primária, secundária, neutros, semânticas (success, error, warning)
-- Nunca use preto puro (#000): prefira #0F0F0F ou #1A1A1A
-- Backgrounds: evite branco puro (#FFF), use #FAFAFA ou #F5F5F5
+### 4. Tipografia de Elite
+- **Fontes:** Máximo 2 famílias por projeto (Ex: Inter + Roboto).
+- **Line-height:** 1.5 para corpo, 1.2 para títulos.
+- **Letter-spacing:** Negativo (-0.02em) em títulos grandes para look profissional.
 
-### Tipografia
-- Máximo 2 famílias de fonte por projeto
-- Line-height: 1.5 para corpo de texto, 1.2 para títulos
-- Letter-spacing negativo em títulos grandes fica mais profissional
+## 🛠️ Stack Recomendada
+- **Core:** React + Tailwind CSS.
+- **UX/Motion:** Framer Motion para micro-animações.
+- **Componentes:** Radix UI (Acessibilidade) + Lucide React (Ícones).
 
-## Stack recomendada
-- React + Tailwind CSS para a maioria dos projetos
-- Framer Motion para animações
-- Radix UI para componentes acessíveis base
-- Lucide React para ícones
+## 🚀 Quando Usar
+- Criar componentes de UI do zero (Extensões/Sites).
+- Revisar e melhorar interfaces existentes (Sarah/Paulo Milet).
+- Implementar Design Systems.
 
-## Output esperado
-- Código limpo, componentizado e reutilizável
-- Responsivo por padrão (mobile-first)
-- Estados cobertos: default, hover, active, disabled, loading, error
-- Comentários em decisões de design não óbvias
+## ✅ Output Esperado
+- Código limpo, componentizado e responsivo (Mobile-first).
+- Estados completos: Default, Hover, Active, Disabled, Loading, Error.
+- Comentários em decisões de design não óbvias.

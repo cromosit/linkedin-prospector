@@ -93,6 +93,11 @@ app.get('/', (req, res) => {
 // ==========================================
 const PORT = process.env.PORT || 3000;
 
+// Endpoint de Status e Versão (Cromosit Shield)
+app.get('/api/status/version', (req, res) => {
+  res.json({ requiredVersion: '5.8.5', status: 'online' });
+});
+
 app.listen(PORT, () => {
   console.log(`\n✅ Servidor LinkedIn Prospector rodando!`);
   console.log(`📡 Endereço: http://localhost:${PORT}`);
