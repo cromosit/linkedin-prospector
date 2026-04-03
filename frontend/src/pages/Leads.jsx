@@ -138,14 +138,14 @@ export default function Leads() {
            <button style={S.btnRow('#1d8fe8')} onClick={() => { setLeadSel(null); setForm(FORM_EMPTY); setModal(true) }}>＋ Novo Lead</button>
            <input style={{...S.input, width:'240px', marginBottom:0}} placeholder="Buscar leads..." value={busca} onChange={e => setBusca(e.target.value)} />
            
-           <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}}>
-              <button style={{...S.headerBtn('#8899aa'), display:'flex', border:'1px solid #444'}} onClick={() => carregarLeads()}><span>🔄</span> Atualizar</button>
-              <button style={{...S.headerBtn('#1d8fe8'), display:'flex'}} onClick={() => window.location.href='/dashboard'}><span>📊</span> Relatórios</button>
-              <button style={{...S.headerBtn('#ff9f0a'), display:'flex', boxShadow:'0 0 10px rgba(255,159,10,0.3)'}}><span>⚡</span> Enriquecer</button>
-              <button style={{...S.headerBtn('#00c896'), display:'flex'}}><span>📤</span> Exportar</button>
-              <button style={{...S.headerBtn('#8899aa'), display:'flex'}}><span>⚙️</span> Config</button>
-              <div style={{marginLeft:'10px', fontSize:'10px', color:'#1d8fe8', background:'rgba(29,143,232,0.1)', padding:'6px 12px', borderRadius:'20px', border:'2px solid #1d8fe8', fontWeight:'800'}}>🏛️ v5.7 [ULTRA]</div>
-           </div>
+               <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
+                  <button style={{...S.headerBtn('#00ffc8'), border:'2px solid #00ffc8', fontWeight:'900'}} onClick={() => carregarLeads()}><span>🔄</span> ATUALIZAR</button>
+                  <button style={{...S.headerBtn('#0088ff'), border:'2px solid #0088ff', fontWeight:'900'}} onClick={() => window.location.href='/dashboard'}><span>📊</span> RELATÓRIOS</button>
+                  <button style={{...S.headerBtn('#ff9f0a'), border:'2px solid #ff9f0a', boxShadow:'0 0 15px rgba(255,159,10,0.4)', fontWeight:'900'}}><span>⚡</span> ENRIQUECER</button>
+                  <button style={{...S.headerBtn('#00c896'), border:'2px solid #00c896', fontWeight:'900'}}><span>📤</span> EXPORTAR</button>
+                  <button style={{...S.headerBtn('#8899aa'), border:'2px solid #333', fontWeight:'900'}}><span>⚙️</span> CONFIG</button>
+                  <div style={{marginLeft:'5px', fontSize:'11px', color:'#00ffc8', background:'rgba(0,255,200,0.1)', padding:'8px 14px', borderRadius:'30px', border:'2px solid #00ffc8', fontWeight:'900', letterSpacing:'1px', boxShadow:'0 0 10px rgba(0,255,200,0.2)'}}>🏛️ v5.10.2 [ELITE]</div>
+               </div>
         </div>
 
         <div style={S.content}>
