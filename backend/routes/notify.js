@@ -4,7 +4,7 @@ const axios = require('axios');
 const auth = require('../middleware/auth');
 
 const CHATWA_URL = 'https://apichatwa.cromosit.com/api/messages/send';
-const CHATWA_TOKEN = process.env.CHATWA_TOKEN || 'HiYooAHPQI66uey1HJj0YWkYPq6BWyIB';
+const CHATWA_TOKEN = process.env.CHATWA_TOKEN;
 
 // ==========================================
 // Notifica o vendedor via WhatsApp
@@ -12,12 +12,16 @@ const CHATWA_TOKEN = process.env.CHATWA_TOKEN || 'HiYooAHPQI66uey1HJj0YWkYPq6BWy
 // ==========================================
 router.post('/notificar-vendedor', auth, async (req, res) => {
   try {
-    const { mensagem } = req.body;
-    const telefoneVendedor = process.env.VENDEDOR_WHATSAPP; // ex: 5541999999999
+    if (!CHATWA_TOKEN)
+      return res.status(503).json({ error: 'CHATWA_TOKEN não configurado no servidor.' });
 
-    if (!telefoneVendedor) {
+    const { mensagem } = req.body;
+    if (!mensagem)
+      return res.status(400).json({ error: 'Mensagem é obrigatória.' });
+
+    const telefoneVendedor = process.env.VENDEDOR_WHATSAPP;
+    if (!telefoneVendedor)
       return res.status(400).json({ error: 'Configure VENDEDOR_WHATSAPP no .env' });
-    }
 
     await axios.post(
       CHATWA_URL,

@@ -1,54 +1,99 @@
 require('dotenv').config();
 
-const express = require('express');
-const cors = require('cors');
+const express      = require('express');
+const cors         = require('cors');
+const rateLimit    = require('express-rate-limit');
 
 const app = express();
 
-// CORS = permite que o frontend acesse este backend
-// Em produção: FRONTEND_URL = https://linkedin-prospector.vercel.app (ou domínio próprio)
-// Em desenvolvimento: http://localhost:5173
-const allowedOrigins = [
-  'https://prospector.cromosit.com',
-  'https://linkedin-prospector-production.up.railway.app',
-  'http://localhost:5173',
-  'chrome-extension://*'
-].filter(Boolean);
-
+// ==========================================
+// CORS
+// ==========================================
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.startsWith('chrome-extension://') || origin.includes('cromosit.com') || origin.includes('railway.app')) {
+    if (
+      !origin ||
+      origin.startsWith('chrome-extension://') ||
+      origin.includes('cromosit.com') ||
+      origin.includes('railway.app') ||
+      origin.includes('localhost')
+    ) {
       return callback(null, true);
     }
-    callback(null, true); 
+    callback(null, true);
   },
   credentials: true
 }));
 
-app.use(express.json());
+// ==========================================
+// RATE LIMITING
+// ==========================================
+
+// Limite global: 300 req/min por IP
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições. Tente novamente em instantes.' }
+});
+
+// Limite para rotas de autenticação: 20 req/min por IP (previne brute-force)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login. Aguarde 1 minuto.' }
+});
+
+// Limite para rotas de IA: 30 req/min por IP (previne abuso de créditos OpenAI)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições de IA. Aguarde um momento.' }
+});
+
+app.use(globalLimiter);
+app.use(express.json({ limit: '1mb' }));
+
+// ==========================================
+// MIDDLEWARE DE LOGGING
+// ==========================================
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms    = Date.now() - start;
+    const color = res.statusCode >= 500 ? '\x1b[31m' : res.statusCode >= 400 ? '\x1b[33m' : '\x1b[32m';
+    const reset = '\x1b[0m';
+    console.log(`${color}[${new Date().toISOString()}] ${req.method} ${req.path} → ${res.statusCode} (${ms}ms)${reset}`);
+  });
+  next();
+});
 
 // ==========================================
 // ROTAS DO SISTEMA
 // ==========================================
-app.use('/auth', require('./routes/auth'));
-app.use('/api/leads', require('./routes/leads'));
-app.use('/api', require('./routes/notify'));
+app.use('/auth',      authLimiter, require('./routes/auth'));
+app.use('/api/leads', aiLimiter,   require('./routes/leads'));
+app.use('/api',                    require('./routes/notify'));
 
 // ==========================================
 // ROTA DE SAÚDE
 // ==========================================
 app.get('/health', (req, res) => {
   res.json({
-    status: 'online',
+    status:    'online',
     timestamp: new Date().toISOString(),
-    versao: '1.0.0',
-    sistema: 'LinkedIn Prospector — Cromosit IT'
+    versao:    '2.0.0',
+    sistema:   'LinkedIn Prospector — Cromosit IT'
   });
 });
 
 // ==========================================
 // ROTA DE PING — mantém Railway + Supabase ativos
-// Chamada pelo GitHub Actions a cada 3 dias
 // ==========================================
 app.get('/ping', async (req, res) => {
   try {
@@ -61,27 +106,39 @@ app.get('/ping', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PADRÃO
+// ENDPOINT DE STATUS E VERSÃO
+// ==========================================
+app.get('/api/status/version', (req, res) => {
+  res.json({ requiredVersion: '5.8.5', status: 'online' });
+});
+
+// ==========================================
+// ROTA PADRÃO — lista endpoints disponíveis
 // ==========================================
 app.get('/', (req, res) => {
   res.json({
-    mensagem: 'LinkedIn Prospector API — Cromosit IT',
-    versao: '1.0.0',
+    mensagem:  'LinkedIn Prospector API — Cromosit IT',
+    versao:    '2.0.0',
     endpoints: {
-      saude: 'GET /health',
-      loginLinkedIn: 'GET /auth/linkedin',
+      saude:          'GET /health',
+      ping:           'GET /ping',
+      loginLinkedIn:  'GET /auth/linkedin',
       callbackLinkedIn: 'GET /auth/linkedin/callback',
-      meuPerfil: 'GET /auth/me',
+      meuPerfil:      'GET /auth/me',
       leads: {
-        listar: 'GET /api/leads',
-        buscar: 'GET /api/leads/:id',
-        criar: 'POST /api/leads',
-        importarMassa: 'POST /api/leads/bulk',
-        atualizar: 'PUT /api/leads/:id',
-        gerarMensagem: 'POST /api/leads/:id/gerar-mensagem',
-        enviarWhatsapp: 'POST /api/leads/:id/enviar-whatsapp',
+        listar:             'GET  /api/leads',
+        buscar:             'GET  /api/leads/:id',
+        criar:              'POST /api/leads',
+        importarMassa:      'POST /api/leads/bulk',
+        atualizar:          'PUT  /api/leads/:id',
+        excluir:            'DELETE /api/leads/:id',
+        excluirEmMassa:     'DELETE /api/leads/bulk-delete',
+        exportCSV:          'GET  /api/leads/export/csv',
+        gerarMensagem:      'POST /api/leads/:id/gerar-mensagem',
+        enriquecer:         'POST /api/leads/:id/enriquecer',
+        enviarWhatsapp:     'POST /api/leads/:id/enviar-whatsapp',
         registrarAtividade: 'POST /api/leads/:id/atividades',
-        dashboard: 'GET /api/leads/stats/dashboard'
+        dashboard:          'GET  /api/leads/stats/dashboard'
       },
       notificar: 'POST /api/notificar-vendedor'
     }
@@ -89,18 +146,30 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
+// TRATAMENTO DE ERROS GLOBAL
+// ==========================================
+app.use((err, req, res, next) => {
+  console.error(`\x1b[31m[ERRO GLOBAL] ${err.message}\x1b[0m`, err.stack);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Erro interno do servidor.'
+      : err.message
+  });
+});
+
+// 404 para rotas não encontradas
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada.' });
+});
+
+// ==========================================
 // INICIA O SERVIDOR
 // ==========================================
 const PORT = process.env.PORT || 3000;
 
-// Endpoint de Status e Versão (Cromosit Shield)
-app.get('/api/status/version', (req, res) => {
-  res.json({ requiredVersion: '5.8.5', status: 'online' });
-});
-
 app.listen(PORT, () => {
-  console.log(`\n✅ Servidor LinkedIn Prospector rodando!`);
-  console.log(`📡 Endereço: http://localhost:${PORT}`);
+  console.log(`\n✅ LinkedIn Prospector v2.0 rodando!`);
+  console.log(`📡 http://localhost:${PORT}`);
   console.log(`🔗 Login LinkedIn: http://localhost:${PORT}/auth/linkedin`);
   console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}\n`);
 });
