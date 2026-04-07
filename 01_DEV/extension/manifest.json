@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "[DEV] LinkedIn Prospector - V1.3.3",
+  "version": "1.3.3",
+  "description": "🏛️ Cromosit IT — CRM Completo: Bulk Delete + Histórico + Auto-Status (localhost:3000)",
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "http://localhost:3000/*",
+    "http://localhost:5173/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:5173/*",
+      "http://localhost:3000/*"
+    ]
+  },
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["sync-engine.js", "content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

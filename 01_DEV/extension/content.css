@@ -1,0 +1,54 @@
+/* content.css — DESIGN v3.8.5 MASTER — CROMOSIT IT */
+#linkedin-prospector-sidebar {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 320px;
+  height: 95vh;
+  background: #0f172a;
+  color: white;
+  z-index: 999999;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+}
+
+.prospector-header {
+  padding: 15px;
+  background: #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.prospector-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.prospector-item {
+  padding: 10px;
+  border-bottom: 1px solid #334155;
+  font-size: 13px;
+}
+
+.prospector-btn-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  font-weight: bold;
+}
+
+.prospector-btn-primary:disabled {
+  background: #64748b;
+  cursor: not-allowed;
+}
