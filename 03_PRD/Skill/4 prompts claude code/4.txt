@@ -1,0 +1,4 @@
+Delegue a execução
+
+Construa um dashboard de tarefas com uma interface web local. Eu devo conseguir adicionar, editar e excluir tarefas com níveis de prioridade.
+Configure um cron job de hora em hora - se a lista de tarefas não estiver vazia, trabalhe nelas de forma autônoma, começando pela maior prioridade. Registre o que foi feito e marque como concluída. Armazene as tarefas em tasks.jsone registre toda a atividade em tasks.log.

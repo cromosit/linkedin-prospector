@@ -1,0 +1,4 @@
+Seu claude nunca mais vai se esquecer
+
+Crie um sistema de memória persistente para você. Crie um diretório /memory com arquivos organizados por categoria: decisions.md (decisões), people.md (pessoas), preferences.md (preferências) e user.md(usuário).
+Escreva um arquivo CLAUDE.md que te instrua a ler esses arquivos no início de cada sessão e a atualizá-los ao final.

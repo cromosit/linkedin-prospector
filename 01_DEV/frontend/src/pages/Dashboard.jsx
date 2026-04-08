@@ -1,136 +1,330 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import api from '../api'
 
-export default function Dashboard() {
-  const [stats, setStats] = useState({
-    total: 0,
-    porStatus: {},
-    porTemperatura: {},
-    porOrigem: {},
-    porGrau: {}
-  })
-  const [loading, setLoading] = useState(true)
+// ==========================================
+// CONFIGURAÇÕES DE DISPLAY
+// ==========================================
+const STATUS_CFG = {
+  novo:          { label: 'Novos',       color: 'var(--blue-bright)' },
+  contatado:     { label: 'Contatados',  color: 'var(--yellow)' },
+  respondeu:     { label: 'Responderam', color: 'var(--orange)' },
+  em_negociacao: { label: 'Negociando',  color: 'var(--orange)' },
+  fechado:       { label: 'Fechados',    color: 'var(--green)' },
+  descartado:    { label: 'Descartados', color: 'var(--red)' }
+}
 
-  useEffect(() => {
-    carregarStats()
-  }, [])
+const TEMP_CFG = {
+  quente: { label: '🔴 Quente', color: '#ff3b5c' },
+  morno:  { label: '🟡 Morno',  color: '#ffd60a' },
+  frio:   { label: '⚪ Frio',   color: '#8899aa' }
+}
+
+const GRAU_CFG = {
+  '1': { label: '🟢 1º Grau (direto)',     color: 'var(--green)' },
+  '2': { label: '🔵 2º Grau (em comum)',   color: 'var(--blue-bright)' },
+  '3': { label: '⚪ 3º Grau (fora da rede)', color: 'var(--text3)' }
+}
+
+const FONTE_LABELS = {
+  chrome_extension: 'Extensão Chrome',
+  importacao:       'Importação',
+  manual:           'Manual',
+  linkedin_login:   'Login LinkedIn'
+}
+
+// ==========================================
+// COMPONENTES AUXILIARES
+// ==========================================
+function BarraProgresso({ label, valor, total, color, sub }) {
+  const pct = total > 0 ? Math.round((valor / total) * 100) : 0
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '12px' }}>
+        <span style={{ color: 'var(--text2)' }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>
+          {valor} <span style={{ color: 'var(--text3)', fontSize: '11px' }}>({pct}%)</span>
+        </span>
+      </div>
+      <div style={{ height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '3px', transition: 'width 0.8s ease' }} />
+      </div>
+    </div>
+  )
+}
+
+function PainelCard({ title, children }) {
+  return (
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '22px 24px', borderRadius: '2px' }}>
+      <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '18px', color: 'var(--text)', letterSpacing: '0.02em' }}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+// ==========================================
+// DASHBOARD PRINCIPAL
+// ==========================================
+export default function Dashboard() {
+  const navigate        = useNavigate()
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [ultimaAtual, setUltimaAtual] = useState(null)
+
+  useEffect(() => { carregarStats() }, [])
 
   const carregarStats = async () => {
+    setLoading(true)
     try {
       const res = await api.get('/api/leads/stats/dashboard')
       setStats(res.data)
-    } catch (err) { console.error('Erro dashboard:', err) }
-    finally { setLoading(false) }
+      setUltimaAtual(new Date())
+    } catch (err) {
+      console.error('Erro ao carregar stats:', err)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const total      = stats?.total || 0
+  const fechados   = stats?.porStatus?.fechado || 0
+  const contatados = stats?.porStatus?.contatado || 0
+  const taxaConversao = total > 0 ? Math.round((fechados / total) * 100) : 0
+  const taxaContato   = total > 0 ? Math.round((contatados / total) * 100) : 0
+  const quentes    = stats?.porTemperatura?.quente || 0
 
   const S = {
-    layout: { display: 'flex', minHeight: '100vh', background: '#0b1118', color: '#fff' },
-    main: { flex: 1, padding: '30px 40px', overflow: 'auto' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '40px' },
-    card: (bg) => ({ background: bg || '#121922', padding: '25px', borderRadius: '4px', border: '1px solid #233142', position: 'relative', overflow: 'hidden' }),
-    kpiValue: { fontSize: '32px', fontWeight: '900', color: '#00ffc8', marginBottom: '5px' },
-    kpiLabel: { fontSize: '11px', color: '#8899aa', fontWeight: 'bold', textTransform: 'uppercase' },
-    
-    chartGrid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' },
-    chartBox: { background: '#121922', padding: '25px', borderRadius: '4px', border: '1px solid #233142' },
-    title: { fontSize: '14px', fontWeight: '900', color: '#1d8fe8', marginBottom: '25px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '10px' },
-    
-    bar: (w, color) => ({ width: w || '0%', height: '8px', background: color || '#1d8fe8', borderRadius: '10px', boxShadow: `0 0 10px ${color}40` }),
-    statusRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }
-  }
+    layout:   { display: 'flex', minHeight: '100vh', background: 'var(--bg)' },
+    main:     { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' },
+    header:   { padding: '24px 32px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' },
+    title:    { fontSize: '22px', fontWeight: '700', letterSpacing: '-0.03em' },
+    subtitle: { fontSize: '12px', color: 'var(--text2)', marginTop: '3px' },
+    content:  { padding: '24px 32px', flex: 1 },
 
-  if (loading) return <div style={S.layout}><b>Carregando Painel de Elite...</b></div>
+    statsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: '14px',
+      marginBottom: '24px'
+    },
+    statCard: {
+      background: 'var(--bg2)',
+      border: '1px solid var(--border)',
+      padding: '18px 22px',
+      animation: 'fadeIn 0.4s ease',
+      borderRadius: '2px'
+    },
+    statLabel: { fontSize: '10px', color: 'var(--text3)', fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' },
+    statValue: { fontSize: '30px', fontWeight: '700', letterSpacing: '-0.04em', fontFamily: 'var(--mono)' },
+    statSub:   { fontSize: '11px', color: 'var(--text2)', marginTop: '4px' },
+
+    gridPaineis: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+      gap: '14px'
+    },
+
+    btnPrimary: {
+      padding: '9px 20px',
+      background: 'var(--blue)',
+      border: 'none',
+      color: '#fff',
+      fontSize: '13px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      borderRadius: '3px'
+    },
+    btnSec: {
+      padding: '9px 16px',
+      background: 'transparent',
+      border: '1px solid var(--border)',
+      color: 'var(--text2)',
+      fontSize: '12px',
+      cursor: 'pointer',
+      borderRadius: '3px'
+    },
+    empty: { padding: '30px', textAlign: 'center', color: 'var(--text3)', fontSize: '13px' }
+  }
 
   return (
     <div style={S.layout}>
       <Sidebar />
       <div style={S.main}>
-        <div style={{...S.title, fontSize:'20px', color:'#fff', marginBottom:'30px'}}>🛡️ CENTRO DE COMANDO BI <span style={{fontSize:'12px', color:'#00ffc8', background:'#00ffc810', padding:'4px 12px', borderRadius:'20px'}}>v11.0 ELITE</span></div>
 
-        {/* KPIs GIGANTES */}
-        <div style={S.grid}>
-           <div style={S.card()}>
-              <div style={S.kpiValue}>{stats.total}</div>
-              <div style={S.kpiLabel}>Base Total de Leads</div>
-              <div style={{position:'absolute', right:'-10px', top:'20px', opacity:0.1, fontSize:'60px'}}>👥</div>
-           </div>
-           <div style={S.card()}>
-              <div style={S.kpiValue}>{stats.porStatus['contatado'] || 0}</div>
-              <div style={S.kpiLabel}>Disparos ChatWA (Sucesso)</div>
-              <div style={{position:'absolute', right:'-10px', top:'20px', opacity:0.1, fontSize:'60px'}}>🚀</div>
-           </div>
-           <div style={S.card()}>
-              <div style={S.kpiValue}>{Math.round(((stats.porStatus['contatado'] || 0) / (stats.total || 1)) * 100)}%</div>
-              <div style={S.kpiLabel}>Taxa de Conversão LinkedIn ➡️ Zap</div>
-              <div style={{position:'absolute', right:'-10px', top:'20px', opacity:0.1, fontSize:'60px'}}>⚡</div>
-           </div>
-           <div style={S.card()}>
-              <div style={S.kpiValue}>{stats.porStatus['qualificado'] || 0}</div>
-              <div style={{...S.kpiLabel, color:'#00c896'}}>Taxa de Interesse Real</div>
-              <div style={{position:'absolute', right:'-10px', top:'20px', opacity:0.1, fontSize:'60px'}}>🤝</div>
-           </div>
+        {/* CABEÇALHO */}
+        <div style={S.header}>
+          <div>
+            <h1 style={S.title}>Dashboard</h1>
+            <p style={S.subtitle}>
+              Visão geral da prospecção
+              {ultimaAtual && (
+                <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--text3)' }}>
+                  · Atualizado às {ultimaAtual.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button style={S.btnSec} onClick={carregarStats} disabled={loading}>
+              {loading ? '⏳' : '🔄'} Atualizar
+            </button>
+            <button style={S.btnPrimary} onClick={() => navigate('/leads')}>
+              + Gerenciar Leads
+            </button>
+          </div>
         </div>
 
-        {/* GRÁFICOS DE CONVERSÃO (FUNIL ALV) */}
-        <div style={{...S.chartBox, marginBottom:'30px'}}>
-           <div style={S.title}>🛡️ EFICIÊNCIA DO FUNIL (RATIO DE CONVERSÃO)</div>
-           <div style={{display:'flex', gap:'5px', alignItems:'flex-end', height:'100px'}}>
-              {['novo', 'qualificado', 'contatado', 'fechado'].map(st => {
-                 const count = stats.porStatus[st] || 0
-                 const h = Math.round((count / (stats.total || 1)) * 100)
-                 return (
-                   <div key={st} style={{flex:1, textAlign:'center'}}>
-                      <div style={{fontSize:'10px', color:'#00ffc8', marginBottom:'5px'}}>{h}%</div>
-                      <div style={{background: st === 'novo' ? '#1d8fe8' : '#00c896', height:`${h}px`, borderRadius:'3px 3px 0 0', minHeight:'5px'}} />
-                      <div style={{fontSize:'9px', marginTop:'5px', color:'#8899aa'}}>{st.toUpperCase()}</div>
-                   </div>
-                 )
-              })}
-           </div>
-        </div>
+        <div style={S.content}>
 
-        {/* GRÁFICOS DE DECISÃO */}
-        <div style={S.chartGrid}>
-           <div style={S.chartBox}>
-              <div style={S.title}>📍 STATUS DO FUNIL DE VENDAS</div>
-              {Object.entries(stats.porStatus).map(([status, count]) => (
-                <div key={status} style={{marginBottom:'20px'}}>
-                   <div style={S.statusRow}>
-                      <span style={{fontSize:'12px', fontWeight:'700'}}>{status.toUpperCase()}</span>
-                      <span style={{fontSize:'12px', color:'#8899aa'}}>{count} leads ({Math.round((count/stats.total)*100)}%)</span>
-                   </div>
-                   <div style={{background:'#0b1118', height:'8px', borderRadius:'10px'}}>
-                      <div style={S.bar(`${(count/stats.total)*100}%`, status === 'novo' ? '#1d8fe8' : status === 'contatado' ? '#00ffc8' : '#ff9f0a')} />
-                   </div>
-                </div>
-              ))}
-           </div>
-
-           <div style={S.chartBox}>
-              <div style={S.title}>⚖️ TEMPERATURA DOS LEADS</div>
-              <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
-                 {['quente', 'morno', 'frio'].map(t => {
-                   const count = stats.porTemperatura[t] || 0
-                   const perc = Math.round((count / stats.total) * 100) || 0
-                   return (
-                     <div key={t} style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                        <div style={{width:'80px', fontSize:'11px', color:'#8899aa'}}>{t.toUpperCase()}</div>
-                        <div style={{flex:1, background:'#0b1118', height:'25px', borderRadius:'3px', position:'relative', overflow:'hidden'}}>
-                           <div style={{width:`${perc}%`, height:'100%', background: t==='quente'?'#ff3b5c':t==='morno'?'#ff9f0a':'#1d8fe8', opacity:0.8}} />
-                           <span style={{position:'absolute', right:'10px', top:'4px', fontSize:'11px', fontWeight:'bold'}}>{count}</span>
-                        </div>
-                     </div>
-                   )
-                 })}
+          {/* CARDS DE MÉTRICAS */}
+          <div style={S.statsGrid}>
+            {[
+              { label: 'Total de Leads',     value: loading ? '—' : total,           sub: 'todos os canais',        color: 'var(--text)' },
+              { label: 'Fechados',           value: loading ? '—' : fechados,         sub: 'conversões confirmadas', color: 'var(--green)' },
+              { label: 'Tx. de Conversão',  value: loading ? '—' : `${taxaConversao}%`, sub: 'fechados / total',   color: 'var(--orange)' },
+              { label: 'Tx. de Contato',    value: loading ? '—' : `${taxaContato}%`,  sub: 'contatados / total',  color: 'var(--yellow)' },
+              { label: 'Leads Quentes',      value: loading ? '—' : quentes,          sub: 'prioridade máxima',     color: '#ff3b5c' },
+            ].map((card, i) => (
+              <div key={i} style={{ ...S.statCard, animationDelay: `${i * 0.07}s` }}>
+                <div style={S.statLabel}>{card.label}</div>
+                <div style={{ ...S.statValue, color: card.color }}>{card.value}</div>
+                <div style={S.statSub}>{card.sub}</div>
               </div>
-           </div>
-        </div>
+            ))}
+          </div>
 
-        {/* RODAPÉ DE ALV */}
-        <div style={{marginTop:'40px', background:'#121922', padding:'20px', borderRadius:'4px', border:'1px solid #1d8fe850', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-           <div style={{fontSize:'12px', color:'#8899aa'}}>Relatório Gerencial gerado em <b>{new Date().toLocaleString()}</b></div>
-           <button style={{background:'#1d8fe8', color:'#fff', border:'none', padding:'8px 20px', borderRadius:'3px', fontWeight:'bold', cursor:'pointer'}} onClick={() => window.location.href='/leads'}>⬅ Voltar para Operação Leads</button>
+          {/* PAINÉIS */}
+          <div style={S.gridPaineis}>
+
+            {/* Pipeline por Status */}
+            <PainelCard title="Pipeline por Status">
+              {loading ? (
+                <div style={S.empty}>Carregando...</div>
+              ) : total === 0 ? (
+                <div style={S.empty}>
+                  Nenhum lead ainda.{' '}
+                  <span
+                    style={{ color: 'var(--blue-bright)', cursor: 'pointer' }}
+                    onClick={() => navigate('/leads')}
+                  >
+                    Adicionar →
+                  </span>
+                </div>
+              ) : (
+                Object.entries(STATUS_CFG).map(([key, cfg]) => (
+                  <BarraProgresso
+                    key={key}
+                    label={cfg.label}
+                    valor={stats?.porStatus?.[key] || 0}
+                    total={total}
+                    color={cfg.color}
+                  />
+                ))
+              )}
+            </PainelCard>
+
+            {/* Por Temperatura */}
+            <PainelCard title="Por Temperatura">
+              {loading ? (
+                <div style={S.empty}>Carregando...</div>
+              ) : total === 0 ? (
+                <div style={S.empty}>Nenhum lead ainda.</div>
+              ) : (
+                Object.entries(TEMP_CFG).map(([key, cfg]) => (
+                  <BarraProgresso
+                    key={key}
+                    label={cfg.label}
+                    valor={stats?.porTemperatura?.[key] || 0}
+                    total={total}
+                    color={cfg.color}
+                  />
+                ))
+              )}
+            </PainelCard>
+
+            {/* Por Grau de Conexão */}
+            <PainelCard title="Por Grau de Conexão">
+              {loading ? (
+                <div style={S.empty}>Carregando...</div>
+              ) : total === 0 ? (
+                <div style={S.empty}>Nenhum lead ainda.</div>
+              ) : (
+                Object.entries(GRAU_CFG).map(([key, cfg]) => (
+                  <BarraProgresso
+                    key={key}
+                    label={cfg.label}
+                    valor={stats?.porGrau?.[key] || 0}
+                    total={total}
+                    color={cfg.color}
+                  />
+                ))
+              )}
+            </PainelCard>
+
+            {/* Por Fonte / Origem */}
+            <PainelCard title="Por Fonte de Captação">
+              {loading ? (
+                <div style={S.empty}>Carregando...</div>
+              ) : total === 0 ? (
+                <div style={S.empty}>Nenhum lead ainda.</div>
+              ) : Object.entries(stats?.porOrigem || {}).length === 0 ? (
+                <div style={S.empty}>Sem dados de origem.</div>
+              ) : (
+                Object.entries(stats?.porOrigem || {})
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([key, val]) => (
+                    <BarraProgresso
+                      key={key}
+                      label={FONTE_LABELS[key] || key}
+                      valor={val}
+                      total={total}
+                      color="var(--blue-bright)"
+                    />
+                  ))
+              )}
+            </PainelCard>
+
+          </div>
+
+          {/* RODAPÉ COM ATALHOS */}
+          <div style={{
+            marginTop: '24px',
+            padding: '16px 22px',
+            background: 'var(--bg2)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            flexWrap: 'wrap'
+          }}>
+            <span style={{ fontSize: '12px', color: 'var(--text2)' }}>Atalhos rápidos:</span>
+            {[
+              { label: '+ Novo Lead',         action: () => navigate('/leads'),          color: 'var(--blue)' },
+              { label: '📤 Exportar CSV',      action: () => navigate('/leads'),          color: 'var(--green)' },
+              { label: '🔄 Atualizar Stats',   action: carregarStats,                    color: 'var(--text3)' }
+            ].map((a, i) => (
+              <button
+                key={i}
+                onClick={a.action}
+                style={{
+                  padding: '6px 14px',
+                  background: 'transparent',
+                  border: `1px solid ${a.color}50`,
+                  color: a.color,
+                  fontSize: '12px',
+                  borderRadius: '3px',
+                  cursor: 'pointer'
+                }}
+              >
+                {a.label}
+              </button>
+            ))}
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text3)' }}>
+              LinkedIn Prospector v2.0 — Cromosit IT
+            </span>
+          </div>
+
         </div>
       </div>
     </div>

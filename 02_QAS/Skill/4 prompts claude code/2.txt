@@ -1,0 +1,5 @@
+Mantenha a responsabilidade sobre suas decisões
+
+Crie um sistema de registro de decisões. Sempre que eu descrever uma decisão que estou tomando, registre-a em decisions.csv com: data, decisão, raciocínio, resultado esperado e uma data de revisão para daqui a 30 dias.
+Configure um cron job que verifique diariamente se alguma decisão atingiu a data de revisão e adicione a etiqueta "REVIEW DUE" (Revisão
+Pendente). Crie um script review.sh que exiba apenas esses itens etiquetados.

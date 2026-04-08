@@ -1,0 +1,27 @@
+# Dependências — nunca salvar no GitHub (são baixadas via npm install)
+node_modules/
+
+# Segredos — NUNCA salvar no GitHub
+.env
+*.env
+.env.local
+.env.production
+
+# Build (gerado automaticamente)
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Cache
+.cache/

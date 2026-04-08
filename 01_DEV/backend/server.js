@@ -1,88 +1,177 @@
 require('dotenv').config();
 
-const express = require('express');
-const cors = require('cors');
+const express      = require('express');
+const cors         = require('cors');
+const rateLimit    = require('express-rate-limit');
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'chrome-extension://*'
-].filter(Boolean);
-
+// ==========================================
+// CORS
+// ==========================================
 app.use(cors({
-  origin: true, // PERMISSAO TOTAL PARA DEV: Permite que qualquer porta local (5173, 5174, etc) fale com o backend
+  origin: (origin, callback) => {
+    if (
+      !origin ||
+      origin.startsWith('chrome-extension://') ||
+      origin.includes('cromosit.com') ||
+      origin.includes('railway.app') ||
+      origin.includes('localhost')
+    ) {
+      return callback(null, true);
+    }
+    callback(null, true);
+  },
   credentials: true
 }));
 
-app.use(express.json());
+// ==========================================
+// RATE LIMITING
+// ==========================================
+
+// Limite global: 300 req/min por IP
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições. Tente novamente em instantes.' }
+});
+
+// Limite para rotas de autenticação: 20 req/min por IP (previne brute-force)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login. Aguarde 1 minuto.' }
+});
+
+// Limite para rotas de IA: 30 req/min por IP (previne abuso de créditos OpenAI)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições de IA. Aguarde um momento.' }
+});
+
+app.use(globalLimiter);
+app.use(express.json({ limit: '1mb' }));
 
 // ==========================================
-// ROTA DE TESTE QA FORÇADA (INJETADA v20.5)
+// MIDDLEWARE DE LOGGING
 // ==========================================
-app.post('/qa-force-test', async (req, res) => {
-  console.log('🛡️ QA_FORCE_TEST: Disparando motores em modo VIP...');
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms    = Date.now() - start;
+    const color = res.statusCode >= 500 ? '\x1b[31m' : res.statusCode >= 400 ? '\x1b[33m' : '\x1b[32m';
+    const reset = '\x1b[0m';
+    console.log(`${color}[${new Date().toISOString()}] ${req.method} ${req.path} → ${res.statusCode} (${ms}ms)${reset}`);
+  });
+  next();
+});
+
+// ==========================================
+// ROTAS DO SISTEMA
+// ==========================================
+app.use('/auth',      authLimiter, require('./routes/auth'));
+app.use('/api/leads', aiLimiter,   require('./routes/leads'));
+app.use('/api',                    require('./routes/notify'));
+
+// ==========================================
+// ROTA DE SAÚDE
+// ==========================================
+app.get('/health', (req, res) => {
+  res.json({
+    status:    'online',
+    timestamp: new Date().toISOString(),
+    versao:    '2.0.0',
+    sistema:   'LinkedIn Prospector — Cromosit IT'
+  });
+});
+
+// ==========================================
+// ROTA DE PING — mantém Railway + Supabase ativos
+// ==========================================
+app.get('/ping', async (req, res) => {
   try {
     const supabase = require('./config/supabase');
-    const agora = new Date().toISOString();
-    
-    // 🔥 DINÂMICO: Busca o primeiro usuário real (VOCÊ!) para o bypass
-    const { data: users } = await supabase.from('users').select('id').limit(1);
-    const userId = users && users.length > 0 ? users[0].id : null;
-
-    if (!userId) {
-      console.error('⚠️ Nenhum usuário encontrado no banco para o teste.');
-      return res.status(500).json({ error: 'Falta criar usuário no sistema.' });
-    }
-
-    const { data: fila, error } = await supabase.from('followup_queue')
-      .select('*, leads(*)')
-      .eq('status', 'pendente')
-      .lte('scheduled_for', agora);
-
-    if (error) {
-      console.error('❌ Erro Supabase:', error.message);
-      return res.status(500).json({ error: error.message });
-    }
-    
-    if (!fila.length) {
-      console.log('⚠️ Fila vazia para agora.');
-      return res.json({ message: 'Nenhum follow-up pendente. Fila vazia, motorista!' });
-    }
-
-    // 🚀 CHAMA O PROCESSADOR DE FOLLOWUPS QUE CRIAMOS NO LEADS.JS
-    // Importamos a lógica ou simplesmente executamos aqui para simplificar o teste
-    console.log(`🚀 Processando ${fila.length} leads para o usuário ${userId}...`);
-    
-    // Por enquanto, apenas avisamos o sucesso. Para rodar o motor real via backend:
-    res.json({ message: '🔥 MOTORES DISPARADOS VIA SERVER.JS!', total_na_fila: fila.length, user_simulado: userId });
+    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    res.json({ status: 'ok', db: 'online', users: count, ts: new Date().toISOString() });
   } catch (err) {
-    console.error('❌ Erro Fatal:', err.message);
-    res.status(500).json({ error: err.message });
+    res.json({ status: 'ok', db: 'error', message: err.message });
   }
 });
 
 // ==========================================
-// ROTAS DO SISTEMA - PADRONIZADAS v3.8.5 MASTER
+// ENDPOINT DE STATUS E VERSÃO
 // ==========================================
-app.use('/auth', require('./routes/auth'));
-app.use('/leads', require('./routes/leads')); // <-- SINCRONIZADO: Agora aceita /leads direto!
-app.use('/notify', require('./routes/notify'));
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'online', timestamp: new Date().toISOString(), versao: '1.0.0' });
+app.get('/api/status/version', (req, res) => {
+  res.json({ requiredVersion: '5.8.5', status: 'online' });
 });
 
+// ==========================================
+// ROTA PADRÃO — lista endpoints disponíveis
+// ==========================================
+app.get('/', (req, res) => {
+  res.json({
+    mensagem:  'LinkedIn Prospector API — Cromosit IT',
+    versao:    '2.0.0',
+    endpoints: {
+      saude:          'GET /health',
+      ping:           'GET /ping',
+      loginLinkedIn:  'GET /auth/linkedin',
+      callbackLinkedIn: 'GET /auth/linkedin/callback',
+      meuPerfil:      'GET /auth/me',
+      leads: {
+        listar:             'GET  /api/leads',
+        buscar:             'GET  /api/leads/:id',
+        criar:              'POST /api/leads',
+        importarMassa:      'POST /api/leads/bulk',
+        atualizar:          'PUT  /api/leads/:id',
+        excluir:            'DELETE /api/leads/:id',
+        excluirEmMassa:     'DELETE /api/leads/bulk-delete',
+        exportCSV:          'GET  /api/leads/export/csv',
+        gerarMensagem:      'POST /api/leads/:id/gerar-mensagem',
+        enriquecer:         'POST /api/leads/:id/enriquecer',
+        enviarWhatsapp:     'POST /api/leads/:id/enviar-whatsapp',
+        registrarAtividade: 'POST /api/leads/:id/atividades',
+        dashboard:          'GET  /api/leads/stats/dashboard'
+      },
+      notificar: 'POST /api/notificar-vendedor'
+    }
+  });
+});
+
+// ==========================================
+// TRATAMENTO DE ERROS GLOBAL
+// ==========================================
+app.use((err, req, res, next) => {
+  console.error(`\x1b[31m[ERRO GLOBAL] ${err.message}\x1b[0m`, err.stack);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Erro interno do servidor.'
+      : err.message
+  });
+});
+
+// 404 para rotas não encontradas
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada.' });
+});
+
+// ==========================================
+// INICIA O SERVIDOR
+// ==========================================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`\n#################################################`);
-  console.log(`✅ MOTOR 01_DEV (CROMOSIT IT) LIGADO COM SUCESSO!`);
-  console.log(`📡 PORTA: http://localhost:${PORT}`);
-  console.log(`📍 API: http://localhost:${PORT}/api/leads`);
-  console.log(`🌍 MODO: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`#################################################\n`);
+  console.log(`\n✅ LinkedIn Prospector v2.0 rodando!`);
+  console.log(`📡 http://localhost:${PORT}`);
+  console.log(`🔗 Login LinkedIn: http://localhost:${PORT}/auth/linkedin`);
+  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}\n`);
 });
 
 module.exports = app;

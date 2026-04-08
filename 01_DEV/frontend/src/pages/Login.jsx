@@ -42,10 +42,7 @@ export default function Login() {
         <h1 style={S.title}>Prospecção<br />inteligente.</h1>
         <p style={S.subtitle}>Capture, organize e converta leads do LinkedIn com IA.</p>
         <button style={S.btn}
-          onClick={() => {
-            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-            window.location.href = `${apiBase}/auth/linkedin`;
-          }}
+          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/linkedin`}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--blue-bright)'}
           onMouseLeave={e => e.currentTarget.style.background = 'var(--blue)'}
         >

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-16">
+    <title>🏛️ TASKMASTER — LinkedIn Prospector Autônomo</title>
+    <style>
+        :root { --neon-blue: #1d8fe8; --neon-green: #00c896; --neon-orange: #ff9f0a; --neon-red: #ff3b5c; --bg: #0b111a; }
+        body { background: var(--bg); color: #eef1f5; font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
+        .container { max-width: 900px; margin: 0 auto; background: rgba(255,255,255,0.03); padding: 30px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        h1 { font-weight: 900; letter-spacing: -1px; margin-bottom: 30px; display: flex; align-items: center; gap: 15px; }
+        h1 span { font-size: 10px; background: var(--neon-blue); padding: 4px 10px; border-radius: 20px; }
+        .form-row { display: grid; grid-template-columns: 1fr 150px 100px; gap: 15px; margin-bottom: 30px; }
+        input, select, button { background: #1a222d; border: 1px solid #333; color: white; padding: 12px 15px; border-radius: 10px; outline: none; }
+        input:focus { border-color: var(--neon-blue); }
+        button { background: var(--neon-blue); font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); transform: translateY(-2px); }
+        .task-list { list-style: none; padding: 0; }
+        .task-item { background: rgba(255,255,255,0.02); margin-bottom: 12px; padding: 18px; border-radius: 12px; display: grid; grid-template-columns: 20px 1fr 100px 80px; align-items: center; gap: 20px; border-left: 5px solid #444; }
+        .task-item.High { border-left-color: var(--neon-red); }
+        .task-item.Medium { border-left-color: var(--neon-orange); }
+        .task-item.Low { border-left-color: var(--neon-green); }
+        .priority-badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-align: center; }
+        .High .priority-badge { background: rgba(255,59,92,0.1); color: var(--neon-red); }
+        .Medium .priority-badge { background: rgba(255,159,10,0.1); color: var(--neon-orange); }
+        .Low .priority-badge { background: rgba(0,200,150,0.1); color: var(--neon-green); }
+        .delete-btn { color: #666; cursor: pointer; font-size: 12px; border: none; background: none; }
+        .delete-btn:hover { color: var(--neon-red); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ TASKMASTER <span>v1.0 AUTÔNOMO</span></h1>
+        
+        <div class="form-row">
+            <input type="text" id="taskDesc" placeholder="O que eu devo fazer, Samuel?">
+            <select id="taskPrio">
+                <option value="High">Prioridade ALTA (Agora)</option>
+                <option value="Medium">Prioridade MÉDIA (Logo)</option>
+                <option value="Low">Prioridade BAIXA (Fila)</option>
+            </select>
+            <button onclick="addTask()">＋ Adicionar</button>
+        </div>
+
+        <div id="taskList" class="task-list">
+             <!-- Tarefas virão via JS (Simulação Local) -->
+        </div>
+
+        <div style="margin-top:40px; padding:20px; background:rgba(0,0,0,0.2); border-radius:10px; font-size:12px; color:#888;">
+            💡 <b>Como funciona:</b> As tarefas acima são salvas no <code>tasks.json</code>. De hora em hora, eu (o robô) venho aqui e executo a de maior prioridade. O log é salvo no <code>tasks.log</code>.
+        </div>
+    </div>
+
+    <script>
+        // Simulação da Interface de Gestão (Em produção falaria com o tasks.json via Node)
+        let tasks = [];
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = tasks.sort((a,b) => {
+                const map = { High: 0, Medium: 1, Low: 2 };
+                return map[a.prio] - map[b.prio];
+            }).map((t, idx) => `
+                <div class="task-item ${t.prio}">
+                    <div style="color:#444">#${idx+1}</div>
+                    <div style="font-weight:700">${t.desc}</div>
+                    <div class="priority-badge">${t.prio}</div>
+                    <button class="delete-btn" onclick="deleteTask(${idx})">🗑️ Excluir</button>
+                </div>
+            `).join('');
+        }
+
+        function addTask() {
+            const desc = document.getElementById('taskDesc').value;
+            const prio = document.getElementById('taskPrio').value;
+            if(!desc) return;
+            tasks.push({ desc, prio, status: 'PENDING' });
+            document.getElementById('taskDesc').value = '';
+            renderTasks();
+            console.log('Samuel, adicionei a tarefa ao cérebro autônomo!');
+        }
+
+        function deleteTask(idx) {
+            tasks.splice(idx, 1);
+            renderTasks();
+        }
+    </script>
+</body>
+</html>

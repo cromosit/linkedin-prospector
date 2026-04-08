@@ -1,0 +1,5 @@
+Limpe sua caixa de entrada
+
+Crie um cron job de hora em hora que escaneie minha caixa de entrada do Gmail e organize os novos e-mails em: URGENTE / PRECISA DE RESPOSTA / APENAS PARA INFORMAÇÃO (FYI) / LIXO. Use etiquetas automáticas baseadas no meu histórico.
+Salve rascunhos de resposta para os e-mails URGENTES e que
+PRECISAM DE RESPOSTA — adaptando o tom de voz aos meus últimos 20 e-mails enviados. Nunca envie automaticamente. Armazene o status em emails_processed.json e registre o log em inbox_manager.log.

@@ -1,0 +1,171 @@
+<svg width="100%" viewBox="0 0 680 820" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+<style>
+text { font-family: Arial, sans-serif; fill: #1a1a1a; }
+.th { font-size: 14px; font-weight: 600; }
+.ts { font-size: 12px; fill: #555; }
+.arr { stroke: #888; stroke-width: 1.2; fill: none; }
+</style>
+</defs>
+
+<!-- FUNDO -->
+<rect width="680" height="820" fill="#ffffff"/>
+
+<!-- TÍTULO -->
+<text class="th" x="340" y="28" text-anchor="middle" font-size="15" fill="#1a1a1a">LinkedIn Prospector — Arquitetura v9.0</text>
+<text class="ts" x="340" y="46" text-anchor="middle" fill="#666">Cromosit IT · Em Produção</text>
+
+<!-- CAMADA 1: CAPTURA -->
+<text class="ts" x="40" y="78" font-weight="600" fill="#444">Captura</text>
+<line x1="40" y1="82" x2="640" y2="82" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="90" width="140" height="54" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="th" x="110" y="113" text-anchor="middle" dominant-baseline="central" fill="#0C447C">LinkedIn</text>
+<text class="ts" x="110" y="131" text-anchor="middle" dominant-baseline="central" fill="#185FA5">linkedin.com</text>
+
+<rect x="220" y="90" width="160" height="54" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="th" x="300" y="113" text-anchor="middle" dominant-baseline="central" fill="#3C3489">Extensão Chrome</text>
+<text class="ts" x="300" y="131" text-anchor="middle" dominant-baseline="central" fill="#534AB7">content.js · popup.js · background.js</text>
+
+<rect x="420" y="90" width="140" height="54" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text class="th" x="490" y="113" text-anchor="middle" dominant-baseline="central" fill="#444441">app_bridge.js</text>
+<text class="ts" x="490" y="131" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">Sincroniza token JWT</text>
+
+<line x1="180" y1="117" x2="218" y2="117" stroke="#185FA5" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="380" y1="117" x2="418" y2="117" stroke="#888780" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<!-- CAMADA 2: AUTENTICAÇÃO -->
+<text class="ts" x="40" y="178" font-weight="600" fill="#444">Autenticação</text>
+<line x1="40" y1="182" x2="640" y2="182" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="190" width="160" height="54" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="th" x="120" y="213" text-anchor="middle" dominant-baseline="central" fill="#0C447C">LinkedIn OAuth</text>
+<text class="ts" x="120" y="231" text-anchor="middle" dominant-baseline="central" fill="#185FA5">OpenID Connect</text>
+
+<rect x="240" y="190" width="140" height="54" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="th" x="310" y="213" text-anchor="middle" dominant-baseline="central" fill="#085041">JWT</text>
+<text class="ts" x="310" y="231" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">7 dias · todas as rotas</text>
+
+<rect x="420" y="190" width="200" height="54" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="th" x="520" y="213" text-anchor="middle" dominant-baseline="central" fill="#3C3489">CRM Web</text>
+<text class="ts" x="520" y="231" text-anchor="middle" dominant-baseline="central" fill="#534AB7">prospector.cromosit.com · Vercel</text>
+
+<line x1="200" y1="217" x2="238" y2="217" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="380" y1="217" x2="418" y2="217" stroke="#534AB7" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="300" y1="144" x2="300" y2="188" stroke="#888" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<!-- CAMADA 3: BACKEND -->
+<text class="ts" x="40" y="278" font-weight="600" fill="#444">Backend · Railway</text>
+<line x1="40" y1="282" x2="640" y2="282" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="290" width="600" height="120" rx="12" fill="none" stroke="#ccc" stroke-width="0.5" stroke-dasharray="6 3"/>
+<text class="ts" x="56" y="308" fill="#888">linkedin-prospector-production.up.railway.app</text>
+
+<rect x="56" y="314" width="110" height="80" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text class="th" x="111" y="349" text-anchor="middle" dominant-baseline="central" fill="#712B13">server.js</text>
+<text class="ts" x="111" y="367" text-anchor="middle" dominant-baseline="central" fill="#993C1D">Express · CORS</text>
+
+<rect x="186" y="314" width="100" height="80" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="th" x="236" y="344" text-anchor="middle" dominant-baseline="central" fill="#085041">auth.js</text>
+<text class="ts" x="236" y="362" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">OAuth</text>
+<text class="ts" x="236" y="378" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">callback</text>
+
+<rect x="306" y="314" width="100" height="80" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="th" x="356" y="344" text-anchor="middle" dominant-baseline="central" fill="#0C447C">leads.js</text>
+<text class="ts" x="356" y="362" text-anchor="middle" dominant-baseline="central" fill="#185FA5">12 rotas</text>
+<text class="ts" x="356" y="378" text-anchor="middle" dominant-baseline="central" fill="#185FA5">CRUD + IA</text>
+
+<rect x="426" y="314" width="100" height="80" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="th" x="476" y="344" text-anchor="middle" dominant-baseline="central" fill="#633806">notify.js</text>
+<text class="ts" x="476" y="362" text-anchor="middle" dominant-baseline="central" fill="#854F0B">Notifica</text>
+<text class="ts" x="476" y="378" text-anchor="middle" dominant-baseline="central" fill="#854F0B">vendedor</text>
+
+<rect x="546" y="314" width="80" height="80" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text class="th" x="586" y="344" text-anchor="middle" dominant-baseline="central" fill="#27500A">cadencia</text>
+<text class="ts" x="586" y="362" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">.js</text>
+<text class="ts" x="586" y="378" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">D0/3/7/14</text>
+
+<line x1="166" y1="354" x2="184" y2="354" stroke="#993C1D" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="286" y1="354" x2="304" y2="354" stroke="#185FA5" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="406" y1="354" x2="424" y2="354" stroke="#BA7517" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="526" y1="354" x2="544" y2="354" stroke="#3B6D11" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="520" y1="244" x2="400" y2="288" stroke="#534AB7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="300" y1="144" x2="111" y2="288" stroke="#534AB7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<!-- CAMADA 4: DADOS E IA -->
+<text class="ts" x="40" y="438" font-weight="600" fill="#444">Dados · IA · Comunicação</text>
+<line x1="40" y1="442" x2="640" y2="442" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="450" width="150" height="70" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="th" x="115" y="478" text-anchor="middle" dominant-baseline="central" fill="#085041">Supabase</text>
+<text class="ts" x="115" y="496" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">PostgreSQL · 3 tabelas</text>
+<text class="ts" x="115" y="510" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">leads · users · activities</text>
+
+<rect x="220" y="450" width="150" height="70" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="th" x="295" y="478" text-anchor="middle" dominant-baseline="central" fill="#3C3489">OpenAI</text>
+<text class="ts" x="295" y="496" text-anchor="middle" dominant-baseline="central" fill="#534AB7">GPT-4o-mini</text>
+<text class="ts" x="295" y="510" text-anchor="middle" dominant-baseline="central" fill="#534AB7">Mensagem + enriquecimento</text>
+
+<rect x="400" y="450" width="150" height="70" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+<text class="th" x="475" y="478" text-anchor="middle" dominant-baseline="central" fill="#27500A">ChatWA</text>
+<text class="ts" x="475" y="496" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">apichatwa.cromosit.com</text>
+<text class="ts" x="475" y="510" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">WhatsApp API própria</text>
+
+<rect x="580" y="450" width="90" height="70" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text class="th" x="625" y="478" text-anchor="middle" dominant-baseline="central" fill="#444441">GitHub</text>
+<text class="ts" x="625" y="496" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">cromosit/</text>
+<text class="ts" x="625" y="510" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">linkedin-pro</text>
+
+<line x1="111" y1="410" x2="111" y2="448" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="356" y1="410" x2="295" y2="448" stroke="#534AB7" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="476" y1="410" x2="476" y2="448" stroke="#3B6D11" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<!-- CAMADA 5: STATUS -->
+<text class="ts" x="40" y="558" font-weight="600" fill="#444">Status · Gaps identificados</text>
+<line x1="40" y1="562" x2="640" y2="562" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="570" width="180" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="th" x="130" y="594" text-anchor="middle" dominant-baseline="central" fill="#085041">Funcionando</text>
+<text class="ts" x="130" y="612" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">Login · Captura · IA · WhatsApp</text>
+
+<rect x="240" y="570" width="180" height="60" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="th" x="330" y="590" text-anchor="middle" dominant-baseline="central" fill="#633806">Bugs ativos</text>
+<text class="ts" x="330" y="608" text-anchor="middle" dominant-baseline="central" fill="#854F0B">Tel/email N/A · Status não</text>
+<text class="ts" x="330" y="622" text-anchor="middle" dominant-baseline="central" fill="#854F0B">atualiza · Histórico off</text>
+
+<rect x="440" y="570" width="200" height="60" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text class="th" x="540" y="590" text-anchor="middle" dominant-baseline="central" fill="#712B13">Pendente</text>
+<text class="ts" x="540" y="608" text-anchor="middle" dominant-baseline="central" fill="#993C1D">Relatórios · Follow-up auto</text>
+<text class="ts" x="540" y="622" text-anchor="middle" dominant-baseline="central" fill="#993C1D">Integração funil ChatWA</text>
+
+<!-- ROADMAP -->
+<text class="ts" x="40" y="668" font-weight="600" fill="#444">Roadmap</text>
+<line x1="40" y1="672" x2="640" y2="672" stroke="#ddd" stroke-width="0.5"/>
+
+<rect x="40" y="680" width="130" height="54" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="th" x="105" y="703" text-anchor="middle" dominant-baseline="central" fill="#085041">v9.5 · Agora</text>
+<text class="ts" x="105" y="721" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">Relatórios básicos</text>
+
+<line x1="170" y1="707" x2="188" y2="707" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="190" y="680" width="130" height="54" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="th" x="255" y="703" text-anchor="middle" dominant-baseline="central" fill="#0C447C">v10 · Abr/26</text>
+<text class="ts" x="255" y="721" text-anchor="middle" dominant-baseline="central" fill="#185FA5">Follow-up + ChatWA</text>
+
+<line x1="320" y1="707" x2="338" y2="707" stroke="#185FA5" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="340" y="680" width="130" height="54" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="th" x="405" y="703" text-anchor="middle" dominant-baseline="central" fill="#3C3489">v11 · Mai/26</text>
+<text class="ts" x="405" y="721" text-anchor="middle" dominant-baseline="central" fill="#534AB7">Playwright auto</text>
+
+<line x1="470" y1="707" x2="488" y2="707" stroke="#534AB7" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="490" y="680" width="150" height="54" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="th" x="565" y="703" text-anchor="middle" dominant-baseline="central" fill="#633806">v12 · Jul/26</text>
+<text class="ts" x="565" y="721" text-anchor="middle" dominant-baseline="central" fill="#854F0B">SaaS · Multi-usuário</text>
+
+<text class="ts" x="340" y="790" text-anchor="middle" fill="#888">Deploy: Railway (backend) · Vercel (frontend) · git push → auto-deploy ~2min</text>
+</svg>

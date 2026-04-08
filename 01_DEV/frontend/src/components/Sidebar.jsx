@@ -26,8 +26,6 @@ export default function Sidebar() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '⬡' },
     { path: '/leads', label: 'Leads', icon: '◈' },
-    { path: '/cadastro-leads', label: 'Cadastro de Leads', icon: '💎' },
-    { path: '/relatorios', label: 'Relatórios', icon: '📈' },
   ]
 
   return (
@@ -36,10 +34,7 @@ export default function Sidebar() {
         <div style={S.logoBox}>LP</div>
         <div style={S.logoText}>Prospector</div>
       </div>
-      <div style={S.status}>
-        <div style={S.statusDot} />
-        {import.meta.env.VITE_API_URL?.includes('localhost') ? 'API online · Local (DEV)' : 'API online · Cloud (PRD)'}
-      </div>
+      <div style={S.status}><div style={S.statusDot} />API online · Railway</div>
       <div style={S.nav}>
         <div style={S.sectionLabel}>Menu</div>
         {navItems.map(item => (

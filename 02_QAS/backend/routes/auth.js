@@ -12,9 +12,8 @@ router.get('/linkedin', (req, res) => {
   linkedinAuthUrl.searchParams.set('response_type', 'code');
   linkedinAuthUrl.searchParams.set('client_id', process.env.LINKEDIN_CLIENT_ID);
   
-  // 🏛️ LinkedIn Developers SYNC (v5.7.2 ULTRA)
-  // Esta URL DEVE ser IGUAL à que está no portal de desenvolvedores
-  linkedinAuthUrl.searchParams.set('redirect_uri', 'https://linkedin-prospector-production.up.railway.app/auth/linkedin/callback');
+  // Esta URL DEVE ser IGUAL à que está no portal de desenvolvedores LinkedIn
+  linkedinAuthUrl.searchParams.set('redirect_uri', process.env.LINKEDIN_REDIRECT_URI);
   
   linkedinAuthUrl.searchParams.set('scope', 'openid profile email');
   const state = Math.random().toString(36).substring(7);
