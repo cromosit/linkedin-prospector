@@ -120,10 +120,31 @@ export default function Pipeline() {
               </button>
             </div>
           </div>
-          <button onClick={adicionarEtapa} style={{ padding: '8px 15px', background: 'var(--blue-bright)', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>＋ NOVA ETAPA</button>
+          <button 
+            onClick={adicionarEtapa} 
+            disabled={!activePipeline}
+            style={{ 
+              padding: '8px 15px', 
+              background: activePipeline ? 'var(--blue-bright)' : '#223344', 
+              border: 'none', 
+              color: activePipeline ? '#fff' : '#667788', 
+              borderRadius: '4px', 
+              cursor: activePipeline ? 'pointer' : 'not-allowed', 
+              fontWeight: 'bold' 
+            }}
+          >
+            ＋ NOVA ETAPA
+          </button>
         </div>
 
         <div style={S.kanban}>
+          {!activePipeline && (
+            <div style={{ ...S.empty, margin: '40px auto', width: '300px', opacity: 1 }}>
+              <h2 style={{ fontSize: '16px', color: 'var(--blue-bright)' }}>Nenhum Funil Ativo</h2>
+              <p style={{ fontSize: '12px', marginTop: '10px' }}>Selecione um funil no menu acima ou crie um novo para começar.</p>
+              <button onClick={criarFunil} style={{ marginTop: '20px', padding: '10px 20px', background: 'var(--blue-bright)', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>CRIAR MEU PRIMEIRO FUNIL</button>
+            </div>
+          )}
           {activePipeline?.pipeline_stages?.sort((a,b) => a.position - b.position).map(stage => {
             const leadsNaEtapa = leads.filter(l => l.pipeline_stage_id === stage.id)
             return (

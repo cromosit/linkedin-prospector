@@ -18,47 +18,51 @@
 // EXTRAI PERFIL INDIVIDUAL COMPLETO
 // ==========================================
 async function extrairPerfilIndividualCompleto() {
-  const dados = { name: '', headline: '', location: '', company: '', linkedin_url: window.location.href.split('?')[0], source: 'chrome_extension' }
+  const dados = { name: '', headline: '', location: '', company: '', current_role: '', current_company: '', linkedin_url: window.location.href.split('?')[0], source: 'chrome_extension' }
 
   try {
-    // 1. NOME (Modal ou Página)
-    const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
-    if (modal) {
-      const rawText = modal.innerText || '';
-      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      const profileOfIdx = lines.findIndex(l => l.toLowerCase().includes('perfil de') || l.toLowerCase().includes("'s profile"));
-      if (profileOfIdx !== -1) dados.name = lines[profileOfIdx].replace(/perfil de|'s profile/gi, '').trim();
-    }
-
-    if (!dados.name) {
-      const nomeEl = document.querySelector('.text-heading-xlarge, h1.text-heading-xlarge, main h1, .ph5 h1, h1')
-      if (nomeEl) {
-        let txt = (nomeEl.innerText || nomeEl.textContent || '').trim()
-        dados.name = txt.split('\n')[0].replace(/·\s*[123][ºostndrd]+/gi, '').replace(/\s+[123][ºostndrd]+/gi, '').trim()
-      }
+    // 1. NOME (Multicamadas)
+    const nomeEl = document.querySelector('.text-heading-xlarge, h1.text-heading-xlarge, main h1, .ph5 h1, [class*="text-heading-xlarge"], h1')
+    if (nomeEl) {
+      let txt = (nomeEl.innerText || nomeEl.textContent || '').trim()
+      dados.name = txt.split('\n')[0].replace(/·\s*[123][ºostndrd]+/gi, '').replace(/\s+[123][ºostndrd]+/gi, '').trim()
     }
     
     if (!dados.name) {
       const title = document.title;
       if (title && title.includes('|')) dados.name = title.split('|')[0].split('-')[0].trim();
     }
-  } catch(e) { console.warn('Erro ao extrair nome:', e) }
+  } catch(e) { console.warn('Erro nome:', e) }
 
   try {
-    // 2. HEADLINE / CARGO
-    const headlineEl = document.querySelector('.text-body-medium.break-words, .pv-text-details__left-panel .text-body-medium, .ph5 .text-body-medium')
+    // 2. HEADLINE (Multicamadas)
+    const headlineEl = document.querySelector('.text-body-medium.break-words, .pv-text-details__left-panel .text-body-medium, .ph5 .text-body-medium, [class*="text-body-medium"]')
     if (headlineEl) dados.headline = headlineEl.innerText.trim()
   } catch(e) {}
 
   try {
-    // 3. LOCALIZAÇÃO
-    const locEl = document.querySelector('.pv-text-details__left-panel .pb2 span.text-body-small, .ph5 .mt2 span.text-body-small')
+    // 3. LOCALIZAÇÃO (Multicamadas + Aspirador de Texto)
+    const locEl = document.querySelector('.pv-text-details__left-panel .pb2 span.text-body-small, .ph5 .mt2 span.text-body-small, [class*="text-body-small"]')
     if (locEl) dados.location = locEl.innerText.trim()
+    
+    // Fallback: Busca por estrutura de "Cidade, Estado" ou "Brasil" no topo
+    if (!dados.location || dados.location.length < 3) {
+      const topCard = document.querySelector('.pv-top-card, main section:first-child')
+      if (topCard) {
+        const text = topCard.innerText || ''
+        const lines = text.split('\n').map(l => l.trim())
+        const locIndex = lines.findIndex(l => l.includes(', Brazil') || l.includes(', Brasil') || l.includes('Área de') || l.includes('Greater'))
+        if (locIndex !== -1) dados.location = lines[locIndex]
+      }
+    }
   } catch(e) {}
 
   try {
-    // 4. EMPRESA (Experiência)
-    dados.company = extrairEmpresaDaExperiencia()
+    // 4. EXPERIÊNCIA ATUAL (Foco Total)
+    const exp = extrairExperienciaAtual()
+    dados.current_role = exp.role
+    dados.current_company = exp.company
+    dados.company = exp.company || extrairEmpresaDaExperiencia()
   } catch(e) {}
 
   try {
@@ -73,7 +77,7 @@ async function extrairPerfilIndividualCompleto() {
   } catch(e) {}
 
   try {
-    // 7. DADOS SOCIAIS (Conexões/Seguidores)
+    // 7. DADOS SOCIAIS
     const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•]/g, '•')
     const mutualMatch = bodyTxt.match(/(\d+)\s+conex[õo]es? em comum/i)
     if (mutualMatch) dados.mutual_connections = mutualMatch[0]
@@ -86,12 +90,12 @@ async function extrairPerfilIndividualCompleto() {
   } catch(e) {}
 
   try {
-    // 8. INFOS DE CONTATO (Aspirador)
+    // 8. INFOS DE CONTATO
     extrairInfoContato(dados)
   } catch(e) {}
 
   try {
-    // 9. ID (Ajustado para /ov)
+    // 9. ID
     const pathParts = window.location.pathname.split('/')
     const inIdx = pathParts.indexOf('in')
     dados.linkedin_id = (inIdx !== -1 && pathParts[inIdx + 1]) ? pathParts[inIdx + 1] : ''
@@ -157,36 +161,44 @@ function extrairSobre() {
 }
 
 // ==========================================
-// EXTRAI CARGO E EMPRESA ATUAIS (REAL)
-// ==========================================
-function extrairExperienciaAtual() {
-  const root = document.querySelector('#experience')?.parentElement || document.querySelector('.pv-profile-section--experience-section')?.parentElement
+// EXTRAI CARGO E EMPRESA ATUAISfunction extrairExperienciaAtual() {
+  let root = document.querySelector('#experience')?.parentElement || 
+             document.querySelector('.pv-profile-section--experience-section')?.parentElement;
+  
+  // Se não achar pelo ID/Classe, busca por texto "Experiência" ou "Experience"
+  if (!root) {
+    const headers = Array.from(document.querySelectorAll('h2, h3, span')).filter(el => {
+      const txt = el.innerText?.trim().toLowerCase();
+      return txt === 'experiência' || txt === 'experience' || txt === 'experiencias';
+    });
+    if (headers.length > 0) {
+      root = headers[0].closest('section') || headers[0].parentElement?.parentElement;
+    }
+  }
+
   if (!root) return { role: '', company: '' }
 
-  const expNode = root.querySelector('ul.pvs-list > li')
+  // Busca o primeiro item da lista de experiência
+  const expNode = root.querySelector('li.pvs-list__paged-list-item, li.pvs-list__item, .experience-item, li');
   if (!expNode) return { role: '', company: '' }
 
-  // O LinkedIn tem dois layouts para experiência: 
-  // 1. Cargo único na empresa: primeiro t-bold = Cargo, primeiro t-normal = Empresa
-  // 2. Múltiplos cargos na mesma empresa: primeiro t-bold = Empresa, cargos ficam aninhados em ul > li
-  
-  const textNodes = Array.from(expNode.querySelectorAll('.t-bold span[aria-hidden="true"], .t-normal span[aria-hidden="true"]'))
+  const textNodes = Array.from(expNode.querySelectorAll('.t-bold span[aria-hidden="true"], .t-bold, strong'))
     .map(el => el.innerText?.trim())
-    .filter(t => t && !t.match(/^[0-9]+ a anos|^[0-9]+ anos?|^[0-9]+ meses?/)) // ignora tempo de empresa
+    .filter(t => t && t.length > 1 && !t.includes('ano') && !t.includes('mês') && !t.match(/^[0-9]/));
 
   let role = ''
   let company = ''
 
-  if (textNodes.length >= 2) {
-    const isMultiRole = expNode.querySelector('ul.pvs-list > li') !== null
-    if (isMultiRole) {
-      company = textNodes[0] || '' // 1o textNode
-      // o cargo estará no primeiro .t-bold da sublist
-      const subRoleEl = expNode.querySelector('ul.pvs-list > li .t-bold span[aria-hidden="true"]')
-      role = subRoleEl?.innerText?.trim() || ''
+  if (textNodes.length >= 1) {
+    const subList = expNode.querySelector('ul');
+    if (subList) {
+      company = textNodes[0]; 
+      const subRoleEl = subList.querySelector('.t-bold span[aria-hidden="true"], .t-bold, strong');
+      role = subRoleEl?.innerText?.trim() || '';
     } else {
-      role = textNodes[0] || ''
-      company = (textNodes[1] || '').split('·')[0].trim() // Remove "... · Tempo Mínimo"
+      role = textNodes[0];
+      const companyEl = expNode.querySelector('.t-normal span[aria-hidden="true"], .t-normal, span:not(.t-bold)');
+      company = companyEl?.innerText?.split('·')[0].trim() || '';
     }
   }
 

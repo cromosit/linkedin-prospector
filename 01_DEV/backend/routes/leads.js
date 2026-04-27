@@ -767,32 +767,20 @@ router.post('/:id/enviar-whatsapp', async (req, res) => {
       { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHATWA_TOKEN}` } }
     );
 
-    // Lógica de Cadência (Sprint 2): 
-    // Se for o primeiro contato (step 0), agendar step 1 para daqui a 3 dias.
-    const hoje = new Date();
-    const proximoFollowup = new Date();
-    proximoFollowup.setDate(hoje.getDate() + 3);
-
-    await supabase.from('leads').update({
-      status:           'contatado',
-      contacted_at:     hoje.toISOString(),
-      updated_at:       hoje.toISOString(),
-      next_followup_at: proximoFollowup.toISOString(),
-      cadence_step:     1
-    }).eq('id', req.params.id);
+    // Lógica de Cadência Centralizada (Sprint 2):
+    const CadenceService = require('../services/cadenceService');
+    await CadenceService.agendarProximoPasso(req.params.id, req.user.userId, lead.cadence_step || 0);
 
     await supabase.from('lead_activities').insert({
       lead_id:     req.params.id,
       user_id:     req.user.userId,
       type:        'whatsapp_enviado',
-      description: `WhatsApp enviado (Step 0). Próximo follow-up agendado para ${proximoFollowup.toLocaleDateString('pt-BR')}`
+      description: `WhatsApp enviado. Cadência atualizada e próxima tarefa agendada.`
     });
 
     res.json({ 
-      message: 'Mensagem enviada e follow-up agendado!', 
-      numero, 
-      proximo_passo: 'Dia 3',
-      data_agendada: proximoFollowup 
+      message: 'Mensagem enviada e follow-up agendado na sua lista de tarefas!', 
+      numero
     });
   } catch (err) {
     console.error('Erro WhatsApp:', err.message, err.response?.data);

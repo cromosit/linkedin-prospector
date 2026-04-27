@@ -64,13 +64,18 @@ router.patch('/:id/complete', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Registra como atividade no lead
+    // Registra como atividade no lead e dispara próxima cadência
     if (data.lead_id) {
+      const { data: lead } = await supabase.from('leads').select('cadence_step').eq('id', data.lead_id).single();
+      
+      const CadenceService = require('../services/cadenceService');
+      await CadenceService.agendarProximoPasso(data.lead_id, req.user.userId, lead?.cadence_step || 0);
+
       await supabase.from('lead_activities').insert({
         lead_id: data.lead_id,
         user_id: req.user.userId,
         type: 'tarefa_concluida',
-        description: `Tarefa finalizada: ${data.title}`
+        description: `Tarefa finalizada: ${data.title}. Próximo passo da cadência agendado.`
       });
     }
 

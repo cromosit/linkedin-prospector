@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import api from '../api'
 import Sidebar from '../components/Sidebar'
 
 export default function Relatorios() {
@@ -81,10 +81,7 @@ export default function Relatorios() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:3000/api/leads/stats/dashboard', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/leads/stats/dashboard');
       setStats(res.data);
     } catch (err) {
       console.error('Erro ao buscar relatórios:', err);
@@ -95,9 +92,7 @@ export default function Relatorios() {
 
   const exportCsv = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:3000/api/leads', { 
-         headers: { Authorization: `Bearer ${token}` },
+      const res = await api.get('/api/leads', { 
          params: { limit: 5000 }
       });
       

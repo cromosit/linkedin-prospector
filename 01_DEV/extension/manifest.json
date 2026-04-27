@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Prospector — Cromosit IT",
-  "version": "3.2.9",
+  "version": "3.3.0",
   "description": "Capture leads do LinkedIn em 1 clique — individual ou em massa",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
