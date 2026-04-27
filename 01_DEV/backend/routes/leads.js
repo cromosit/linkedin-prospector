@@ -789,8 +789,40 @@ router.post('/:id/enviar-whatsapp', async (req, res) => {
 });
 
 // ==========================================
-// ROTA 11: Registrar atividade
+// ROTA 10.5: Registrar contato via LinkedIn
 // ==========================================
+router.post('/:id/registrar-contato-linkedin', async (req, res) => {
+  try {
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('assigned_to', req.user.userId)
+      .single();
+
+    if (error || !lead)
+      return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const { mensagem } = req.body;
+
+    // Lógica de Cadência Centralizada (Sprint 2)
+    const CadenceService = require('../services/cadenceService');
+    await CadenceService.agendarProximoPasso(req.params.id, req.user.userId, lead.cadence_step || 0);
+
+    await supabase.from('lead_activities').insert({
+      lead_id:     req.params.id,
+      user_id:     req.user.userId,
+      type:        'linkedin_msg_enviada',
+      description: `Mensagem enviada via Inbox LinkedIn. Próximo follow-up agendado.`
+    });
+
+    res.json({ message: 'Contato via LinkedIn registrado e follow-up agendado!' });
+  } catch (err) {
+    console.error('Erro ao registrar contato LinkedIn:', err.message);
+    res.status(500).json({ error: 'Erro ao registrar contato' });
+  }
+});
+
 router.post('/:id/atividades', async (req, res) => {
   try {
     const { type, description } = req.body;

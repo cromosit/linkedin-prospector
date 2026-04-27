@@ -47,11 +47,20 @@ const CadenceService = {
 
       if (taskError) throw taskError;
 
-      // 2. Atualiza o passo da cadência no lead
-      await supabase.from('leads').update({
+      // 2. Atualiza o passo da cadência no lead e o status de contato
+      const updateData = {
         cadence_step: nextStep,
-        next_followup_at: dueDate.toISOString()
-      }).eq('id', leadId);
+        next_followup_at: dueDate.toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Se for o primeiro contato, muda o status e marca a data
+      if (nextStep === 1) {
+        updateData.status = 'contatado';
+        updateData.contacted_at = new Date().toISOString();
+      }
+
+      await supabase.from('leads').update(updateData).eq('id', leadId);
 
       console.log(`✅ [CADENCIA] Passo ${nextStep} agendado para lead ${leadId} em ${dueDate.toLocaleDateString()}`);
       

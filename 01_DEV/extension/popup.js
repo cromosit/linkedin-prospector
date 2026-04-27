@@ -533,23 +533,11 @@ els.btnLinkedInMsg?.addEventListener('click', async () => {
   chrome.tabs.sendMessage(tab.id, { action: 'enviarMensagemLinkedIn', texto: mensagem }, (response) => {
     if (response && response.sucesso) {
       chrome.storage.local.get('token', ({ token }) => {
-        // 1. Registra atividade
-        fetch(`${API_URL}/api/leads/${leadIdCapturado}/atividades`, {
+        // Notifica o servidor para atualizar status e agendar follow-up automaticamente
+        fetch(`${API_URL}/api/leads/${leadIdCapturado}/registrar-contato-linkedin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ type: 'linkedin_msg_enviada', description: `Mensagem enviada no LinkedIn: "${mensagem.substring(0, 100)}..."` })
-        })
-        
-        // 2. Atualiza Status e Agenda Follow-up
-        const proximo = new Date(); proximo.setDate(proximo.getDate() + 3);
-        fetch(`${API_URL}/api/leads/${leadIdCapturado}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ 
-            status: 'contatado', 
-            contacted_at: new Date().toISOString(),
-            next_followup_at: proximo.toISOString()
-          })
+          body: JSON.stringify({ mensagem })
         })
       })
     } else {
