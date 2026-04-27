@@ -1,3 +1,15 @@
+// ==========================================
+// TESTE DE CONEXÃO (Grito Visual)
+// ==========================================
+(function() {
+  const banner = document.createElement('div');
+  banner.id = 'lp-test-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#0088ff;color:white;text-align:center;z-index:100000;font-size:12px;padding:4px;font-weight:bold;';
+  banner.innerText = '🚀 LinkedIn Prospector: Ativo e Pronto!';
+  document.body.prepend(banner);
+  setTimeout(() => banner.remove(), 4000);
+})();
+
 // content.js — LinkedIn Prospector v7
 // Extração completa: empresa da Experiência, localização correta,
 // informações de contato, sobre, e dados para IA preencher campos
@@ -6,85 +18,84 @@
 // EXTRAI PERFIL INDIVIDUAL COMPLETO
 // ==========================================
 async function extrairPerfilIndividualCompleto() {
-  const dados = {}
+  const dados = { name: '', headline: '', location: '', company: '', linkedin_url: window.location.href.split('?')[0], source: 'chrome_extension' }
 
-  // NOME — filtra badges e graus
-  const nomeSelectors = ['h1.text-heading-xlarge','h1.inline.t-24','.pv-text-details__left-panel h1','.ph5 h1','main h1']
-  for (const sel of nomeSelectors) {
-    const el = document.querySelector(sel)
-    const txt = el?.innerText?.trim()
-    if (txt && txt.length > 1 && txt.length < 80 && !txt.includes('•') && !txt.includes('º') && !txt.match(/^\d/)) {
-      dados.name = txt; break
+  try {
+    // 1. NOME (Modal ou Página)
+    const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
+    if (modal) {
+      const rawText = modal.innerText || '';
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const profileOfIdx = lines.findIndex(l => l.toLowerCase().includes('perfil de') || l.toLowerCase().includes("'s profile"));
+      if (profileOfIdx !== -1) dados.name = lines[profileOfIdx].replace(/perfil de|'s profile/gi, '').trim();
     }
-  }
 
-  // HEADLINE / CARGO
-  const headlineSelectors = ['.text-body-medium.break-words','.pv-text-details__left-panel .text-body-medium','.ph5 .text-body-medium']
-  for (const sel of headlineSelectors) {
-    const el = document.querySelector(sel)
-    const txt = el?.innerText?.trim()
-    if (txt && txt.length > 2 && !txt.includes('•') && !txt.includes('º')) { dados.headline = txt; break }
-  }
-
-  // LOCALIZAÇÃO — pega apenas localização real, filtra nomes de pessoas
-  const locationSelectors = [
-    '.pv-text-details__left-panel .pb2 span.text-body-small',
-    '.ph5 .mt2 span.text-body-small',
-    '.pv-top-card--list .pv-top-card--list-bullet span'
-  ]
-  for (const sel of locationSelectors) {
-    const els = document.querySelectorAll(sel)
-    for (const el of els) {
-      const txt = el?.innerText?.trim()
-      // Localização real tem vírgula com estado/país, não nomes de pessoas
-      if (txt && txt.length > 3 && txt.length < 60 &&
-          !txt.includes('conexões') && !txt.includes('seguidores') &&
-          (txt.includes(',') || txt.includes('Brasil') || txt.includes('Brazil') ||
-           txt.match(/[A-Z]{2}$/) || txt.includes('São Paulo') || txt.includes('Curitiba') ||
-           txt.includes('Rio') || txt.includes('Minas'))) {
-        dados.location = txt; break
+    if (!dados.name) {
+      const nomeEl = document.querySelector('.text-heading-xlarge, h1.text-heading-xlarge, main h1, .ph5 h1, h1')
+      if (nomeEl) {
+        let txt = (nomeEl.innerText || nomeEl.textContent || '').trim()
+        dados.name = txt.split('\n')[0].replace(/·\s*[123][ºostndrd]+/gi, '').replace(/\s+[123][ºostndrd]+/gi, '').trim()
       }
     }
-    if (dados.location) break
-  }
+    
+    if (!dados.name) {
+      const title = document.title;
+      if (title && title.includes('|')) dados.name = title.split('|')[0].split('-')[0].trim();
+    }
+  } catch(e) { console.warn('Erro ao extrair nome:', e) }
 
-  // EMPRESA — da seção de Experiência (mais confiável que headline)
-  dados.company = extrairEmpresaDaExperiencia()
+  try {
+    // 2. HEADLINE / CARGO
+    const headlineEl = document.querySelector('.text-body-medium.break-words, .pv-text-details__left-panel .text-body-medium, .ph5 .text-body-medium')
+    if (headlineEl) dados.headline = headlineEl.innerText.trim()
+  } catch(e) {}
 
-  // FOTO
-  const fotoSelectors = ['.pv-top-card-profile-picture__image--show','img.pv-top-card-profile-picture__image','img[class*="profile-picture"]']
-  for (const sel of fotoSelectors) {
-    const el = document.querySelector(sel)
-    if (el?.src && !el.src.includes('ghost') && el.src.startsWith('https')) { dados.profile_picture = el.src; break }
-  }
+  try {
+    // 3. LOCALIZAÇÃO
+    const locEl = document.querySelector('.pv-text-details__left-panel .pb2 span.text-body-small, .ph5 .mt2 span.text-body-small')
+    if (locEl) dados.location = locEl.innerText.trim()
+  } catch(e) {}
 
-  // GRAU DE CONEXÃO — normaliza bullet Unicode antes de verificar
-  // LinkedIn usa: • (U+2022), · (U+00B7), ⋅ (U+22C5) etc.
-  const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•]/g, '•')
-  if (/•\s*1[\u00baoa]/.test(bodyTxt) || bodyTxt.includes(' 1st ') || bodyTxt.includes('· 1º')) dados.connection_degree = '1'
-  else if (/•\s*2[\u00baoa]/.test(bodyTxt) || bodyTxt.includes(' 2nd ') || bodyTxt.includes('· 2º')) dados.connection_degree = '2'
-  else dados.connection_degree = '3'
+  try {
+    // 4. EMPRESA (Experiência)
+    dados.company = extrairEmpresaDaExperiencia()
+  } catch(e) {}
 
-  // CONEXÕES EM COMUM
-  const mutualMatch = bodyTxt.match(/(\d+)\s+conex[õo]es? em comum/i)
-  if (mutualMatch) dados.mutual_connections = mutualMatch[0]
+  try {
+    // 5. FOTO
+    const fotoEl = document.querySelector('.pv-top-card-profile-picture__image--show, img.pv-top-card-profile-picture__image, img[class*="profile-picture"]')
+    if (fotoEl?.src && !fotoEl.src.includes('ghost')) dados.profile_picture = fotoEl.src
+  } catch(e) {}
 
-  // SEGUIDORES
-  const segMatch = bodyTxt.match(/([\d.,]+)\s+seguidores?/i)
-  if (segMatch) dados.followers = segMatch[0]
+  try {
+    // 6. SOBRE / BIO
+    dados.about = extrairSobre()
+  } catch(e) {}
 
-  // SOBRE (bio completa)
-  dados.about = extrairSobre()
+  try {
+    // 7. DADOS SOCIAIS (Conexões/Seguidores)
+    const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•]/g, '•')
+    const mutualMatch = bodyTxt.match(/(\d+)\s+conex[õo]es? em comum/i)
+    if (mutualMatch) dados.mutual_connections = mutualMatch[0]
+    
+    const segMatch = bodyTxt.match(/([\d.,]+)\s+seguidores?/i)
+    if (segMatch) dados.followers = segMatch[0]
 
-  // INFORMAÇÕES DE CONTATO (visíveis se o painel estiver aberto)
-  extrairInfoContato(dados)
+    dados.connection_degree = bodyTxt.includes('• 1º') || bodyTxt.includes('• 1st') ? '1' : bodyTxt.includes('• 2º') || bodyTxt.includes('• 2nd') ? '2' : '3'
+    dados.temperature = dados.connection_degree === '1' ? 'quente' : 'frio'
+  } catch(e) {}
 
-  // URL e ID
-  dados.linkedin_url = window.location.href.split('?')[0]
-  const urlMatch = window.location.pathname.match(/\/in\/([^/]+)/)
-  dados.linkedin_id = urlMatch ? urlMatch[1] : ''
-  dados.temperature = dados.connection_degree === '1' ? 'quente' : dados.connection_degree === '2' ? 'morno' : 'frio'
-  dados.source = 'chrome_extension'
+  try {
+    // 8. INFOS DE CONTATO (Aspirador)
+    extrairInfoContato(dados)
+  } catch(e) {}
+
+  try {
+    // 9. ID (Ajustado para /ov)
+    const pathParts = window.location.pathname.split('/')
+    const inIdx = pathParts.indexOf('in')
+    dados.linkedin_id = (inIdx !== -1 && pathParts[inIdx + 1]) ? pathParts[inIdx + 1] : ''
+  } catch(e) {}
 
   return dados
 }
@@ -254,114 +265,127 @@ function extrairInfoContato(dados) {
   // LOCALIZAÇÃO da página para inferir DDD
   const locPage = document.querySelector('.pv-top-card--list li:last-child, .pv-text-details__left-panel .t-normal')?.innerText?.trim() || dados.location || ''
 
-  // Email via href
-  const emailEl = document.querySelector('a[href^="mailto:"]')
-  if (emailEl) dados.email = emailEl.href.replace('mailto:', '').trim()
+  // 1. MODO INFALÍVEL: Busca por Links (a tags) em todo o documento
+  const links = document.querySelectorAll('a');
+  links.forEach(a => {
+    const href = a.href || '';
+    if (href.startsWith('mailto:') && !dados.email) dados.email = href.replace('mailto:', '').trim();
+    if (href.startsWith('tel:') && !dados.phone) dados.phone = normalizarTelefone(href.replace('tel:', '').trim(), locPage);
+    // Website (evita links internos do linkedin)
+    if (href.startsWith('http') && !href.includes('linkedin.com') && !dados.website) {
+      // Checa se o elemento pai ou o próprio link parece ser um site de contato
+      if (a.closest('.pv-contact-info, .artdeco-modal__content') || a.getAttribute('data-field') === 'website_url') {
+        dados.website = href;
+      }
+    }
+  });
 
-  // Telefone via tel: link
-  const phoneEl = document.querySelector('a[href^="tel:"]')
-  if (phoneEl) dados.phone = normalizarTelefone(phoneEl.href.replace('tel:', '').trim(), locPage || dados.location)
-
-  // Website
-  const websiteEl = document.querySelector('a[data-field="website_url"]') ||
-                    document.querySelector('section.pv-contact-info a[href*="http"]:not([href*="linkedin"])')
-  if (websiteEl) dados.website = websiteEl.href
-
-  // Modal de contato: pega o texto bruto de TUDO dentro do modal para evitar falhas de estrutura HTML
-  const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info')
+  // 2. MODO ASPIRADOR: Varre todo o texto do modal de contatos
+  const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
   if (modal) {
-    // Extração baseada em buscar a linha-título e extrair a linha logo abaixo,
-    // que é a estrutura padrão que o LinkedIn sempre exibe no innerText (Linha 1: Título | Linha 2: Valor)
-    const rawText = modal.innerText || ''
-    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l)
-    const lowerLines = lines.map(l => l.toLowerCase())
+    const rawText = modal.innerText || '';
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lowerLines = lines.map(l => l.toLowerCase());
 
-    // 1. E-mail (via Index ou Regex caso esteja na mesma linha)
-    const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/)
-    if (emailMatch && !dados.email) dados.email = emailMatch[1]
-
-    // 2. Telefone/Celular
-    const phoneIdx = lowerLines.findIndex(l => l === 'telefone' || l === 'phone' || l.includes('celular'))
-    if (phoneIdx !== -1 && lines[phoneIdx + 1] && !dados.phone) {
-      const foneNorm = normalizarTelefone(lines[phoneIdx + 1].replace(/\(.*?\)/g, ''), locPage || dados.location)
-      if (foneNorm) dados.phone = foneNorm
+    // NOME (Caso a extração principal falhe e o modal esteja aberto)
+    const profileOfIdx = lowerLines.findIndex(l => l.includes('perfil de') || l.includes("'s profile"));
+    if (profileOfIdx !== -1 && !dados.name) {
+      dados.name = lines[profileOfIdx].replace(/perfil de|'s profile/gi, '').trim();
     }
 
-    // 3. Aniversário
-    const bdIdx = lowerLines.findIndex(l => l.includes('aniversário') || l.includes('aniversario') || l.includes('nascimento') || l.includes('birthday'))
-    if (bdIdx !== -1 && lines[bdIdx + 1] && !dados.birthday) {
-      dados.birthday = lines[bdIdx + 1]
-    }
+    // 3. MODO CIRÚRGICO: Busca exata pelas etiquetas (labels) do modal
+    for (let i = 0; i < lowerLines.length; i++) {
+      const linha = lowerLines[i];
+      const proximaLinha = lines[i+1] || '';
 
-    // 4. Conexão desde
-    const connIdx = lowerLines.findIndex(l => l.includes('conexão desde') || l.includes('conexao') || l.includes('membro desde') || l.includes('conectado') || l.includes('connected'))
-    if (connIdx !== -1 && lines[connIdx + 1] && !dados.connected_since) {
-      dados.connected_since = lines[connIdx + 1]
-    }
+      // LinkedIn Profile URL (no modal)
+      if (linha.includes('perfil de') || linha.includes("'s profile")) {
+        // Pega a URL que deve estar logo abaixo ou na mesma linha
+        const urlMatch = rawText.match(/linkedin\.com\/in\/[a-zA-Z0-9-.]+/);
+        if (urlMatch && !dados.linkedin_url) dados.linkedin_url = 'https://' + urlMatch[0];
+      }
+      
+      // Telefone
+      if (linha === 'telefone' || linha === 'phone' || linha === 'celular') {
+        if (proximaLinha && !dados.phone) {
+          dados.phone = normalizarTelefone(proximaLinha, locPage);
+        }
+      }
 
-    // 5. Website
-    const siteIdx = lowerLines.findIndex(l => l === 'site' || l === 'website' || l === 'blog')
-    if (siteIdx !== -1 && lines[siteIdx + 1] && !dados.website) {
-      dados.website = lines[siteIdx + 1].split(' ')[0]
+      // E-mail
+      if (linha === 'e-mail' || linha === 'email' || linha === 'correio eletrônico') {
+        if (proximaLinha && !dados.email) {
+          dados.email = proximaLinha.trim().toLowerCase();
+        }
+      }
+
+      // Aniversário
+      if (linha === 'aniversário' || linha === 'birthday' || linha === 'data de nascimento') {
+        if (proximaLinha && !dados.birthday) {
+          dados.birthday = proximaLinha.trim();
+        }
+      }
+
+      // Conexão desde
+      if (linha.includes('conexão desde') || linha.includes('connected since')) {
+        if (proximaLinha && !dados.connected_since) {
+          dados.connected_since = proximaLinha.trim();
+        }
+      }
     }
   }
 
-
-  // Fallback: contactItems estilo antigo do LinkedIn
-  const contactItems = document.querySelectorAll('.pv-contact-info__contact-type, .ci-vanity-url, section.pv-contact-info section')
-  contactItems.forEach(item => {
-    const header = item.querySelector('h3')?.innerText?.toLowerCase() || ''
-    const valueEl = item.querySelector('a, span.t-14, span.t-black')
-    const value = valueEl?.innerText?.trim() || valueEl?.href || ''
-
-    if ((header.includes('email') || header.includes('e-mail')) && !dados.email && value) {
-      dados.email = value.replace('mailto:', '')
-    }
-    if ((header.includes('telefone') || header.includes('phone') || header.includes('celular') || header.includes('mobile')) && !dados.phone && value) {
-      const foneNorm = normalizarTelefone(value.replace(/\(.*?\)/g, '').trim(), locPage || dados.location)
-      if (foneNorm) dados.phone = foneNorm
-    }
-    if ((header.includes('website') || header.includes('site') || header.includes('blog')) && !dados.website && value) {
-      dados.website = value
-    }
-    if ((header.includes('aniversário') || header.includes('aniversario') || header.includes('birthday') || header.includes('nascimento')) && value) {
-      dados.birthday = value
-    }
-    if ((header.includes('conectado') || header.includes('conexão desde') || header.includes('conexao') || header.includes('connected') || header.includes('membro desde')) && value) {
-      dados.connected_since = value
-    }
-    if (header.includes('twitter') || header.includes('x.com')) {
-      dados.twitter = value
-    }
-  })
+  return dados
 }
 
 // ==========================================
 // ABRE MODAL DE CONTATO E EXTRAI DADOS
 // ==========================================
 async function abrirEExtrairContato() {
-  // Textos possíveis do botão de contato (PT e EN)
-  const textosBotao = [
-    'informações de contato', 'contact info', 'ver informações de contato',
-    'dados de contato', 'ver dados de contato', 'informacoes de contato'
-  ]
+  exibirBannerAcao('⏳ Analisando perfil (Modo de Segurança Ativo)...', '#00c896')
+  
+  // 1. SIMULA COMPORTAMENTO HUMANO (Scroll até o botão)
   const botoesContato = Array.from(document.querySelectorAll('a, button, span')).filter(el => {
-    const txt = el.innerText?.trim().toLowerCase()
-    return textosBotao.some(t => txt === t || txt?.includes(t))
-  })
+    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+    return txt.includes('informações de contato') || txt.includes('contact info') || txt.includes('dados de contato');
+  });
 
   if (botoesContato.length > 0) {
-    botoesContato[0].click()
-    await esperar(1800) // aguarda modal abrir
+    botoesContato[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await esperar(1500);
+    botoesContato[0].click();
+    // Espera modal abrir (mais tempo para segurança)
+    await esperar(5000);
+  } else {
+    // Se não achou botão, tenta scroll geral
+    window.scrollBy({ top: 300, behavior: 'smooth' });
+    await esperar(2000);
   }
 
-  const dados = await extrairPerfilIndividualCompleto()
+  // Tenta extrair. Se falhar, tenta uma busca bruta no HTML
+  let dados = await extrairPerfilIndividualCompleto();
+  
+  if (!dados.phone || !dados.email) {
+    console.log('🕵️‍♂️ Brute force extraction initiated...');
+    const html = document.body.innerHTML;
+    const phoneMatch = html.match(/\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/);
+    if (phoneMatch && !dados.phone) {
+      dados.phone = normalizarTelefone(phoneMatch[0], dados.location);
+    }
+    const emailMatch = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !dados.email) {
+      dados.email = emailMatch[0].toLowerCase();
+    }
+  }
 
-  // Fecha o modal se foi aberto
+  // Fecha o modal
   const fecharBtn = document.querySelector('[aria-label="Fechar"], [aria-label="Close"], .artdeco-modal__dismiss')
-  if (fecharBtn) fecharBtn.click()
+  if (fecharBtn) {
+    await esperar(1000);
+    fecharBtn.click();
+  }
 
-  return dados
+  return dados;
 }
 
 // ==========================================
@@ -383,32 +407,88 @@ async function enviarMensagemLinkedIn(texto) {
 
     const camposTexto = [
       '.msg-form__contenteditable',
-      '[data-placeholder="Escreva uma mensagem..."]',
-      '[data-placeholder="Write a message..."]',
+      '.msg-convo-wrapper [contenteditable="true"]',
+      '[contenteditable="true"]',
+      '[role="textbox"]',
       '.msg-form__msg-content-container [contenteditable]',
-      '[role="textbox"]'
+      '[data-placeholder*="mensagem"], [data-placeholder*="message"]'
     ]
 
     let campo = null
-    for (const sel of camposTexto) { campo = document.querySelector(sel); if (campo) break }
-    if (!campo) { await esperar(1500); for (const sel of camposTexto) { campo = document.querySelector(sel); if (campo) break } }
-    if (!campo) return { sucesso: false, erro: 'Campo de mensagem não encontrado. Tente novamente.' }
+    // Busca RADICAL: pega tudo que for editável e visível
+    const possiveis = Array.from(document.querySelectorAll('[contenteditable="true"]')).filter(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+
+    // Se achou vários, tenta filtrar pelos que estão no container de mensagens
+    campo = possiveis.find(el => el.closest('.msg-form__contenteditable, .msg-convo-wrapper, .messaging-thread')) || possiveis[0];
+
+    if (!campo) {
+      // Fallback final: tenta os seletores clássicos
+      for (const sel of camposTexto) {
+        const el = document.querySelector(sel);
+        if (el && el.getBoundingClientRect().width > 0) { campo = el; break; }
+      }
+    }
+
+    if (!campo) return { sucesso: false, erro: 'Não consegui encontrar a caixa de texto. Tente abrir o chat manualmente primeiro.' }
 
     campo.focus()
+    await esperar(500)
+    campo.click()
     await esperar(300)
-
-    // Insere o texto
+    
+    // Insere o texto e força o LinkedIn a reconhecer a mudança
     campo.innerHTML = ''
     document.execCommand('insertText', false, texto)
-    campo.dispatchEvent(new Event('input', { bubbles: true }))
-    await esperar(300)
+    
+    // Dispara múltiplos eventos para "despertar" os listeners do React/LinkedIn
+    const eventos = ['input', 'change', 'blur', 'keyup']
+    eventos.forEach(ev => {
+      campo.dispatchEvent(new Event(ev, { bubbles: true, cancelable: true }))
+    })
 
     if (!campo.innerText?.trim()) {
       campo.innerText = texto
       campo.dispatchEvent(new Event('input', { bubbles: true }))
     }
 
-    return { sucesso: true, mensagem: 'Mensagem inserida no chat! Revise e clique Enviar.' }
+    // --- NOVIDADE: Envio Automático (v5 - Força Bruta e Enter) ---
+    await esperar(1500) // Aumentado para garantir carregamento
+    
+    const buscarBotao = () => {
+      return document.querySelector('.msg-form__send-button') || 
+             document.querySelector('button[type="submit"].msg-form__send-button') ||
+             document.querySelector('button[aria-label*="Enviar"], button[aria-label*="Send"]') ||
+             Array.from(document.querySelectorAll('button')).find(el => {
+               const t = el.innerText?.trim().toLowerCase()
+               const al = el.getAttribute('aria-label')?.toLowerCase() || ''
+               return t === 'enviar' || t === 'send' || al.includes('enviar') || al.includes('send')
+             })
+    }
+
+    // 1. TENTA VIA TECLA ENTER (Fallback rápido)
+    campo.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    campo.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+
+    let btnEnviar = buscarBotao()
+    
+    if (btnEnviar) {
+      btnEnviar.disabled = false
+      btnEnviar.removeAttribute('disabled')
+      
+      // Simula um clique humano completo
+      const evs = ['mousedown', 'mouseup', 'click']
+      evs.forEach(tipo => {
+        btnEnviar.dispatchEvent(new MouseEvent(tipo, { view: window, bubbles: true, cancelable: true }))
+      })
+      
+      console.log('✅ Tentativa de envio v5 concluída!');
+      return { sucesso: true, mensagem: '🚀 Mensagem disparada!' }
+    }
+
+    return { sucesso: true, mensagem: 'Mensagem inserida! (Botão enviar não encontrado)' }
   } catch (err) {
     return { sucesso: false, erro: err.message }
   }
@@ -420,125 +500,67 @@ async function enviarMensagemLinkedIn(texto) {
 function extrairListaDeBusca() {
   const leads = []
   const vistos = new Set()
-  const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent']
-  const todosLinks = document.querySelectorAll('a[href*="/in/"]')
+  
+  // ALVO: Varre a página em busca de qualquer item que pareça um resultado de pessoa
+  // Procuramos links que apontam para perfis "/in/"
+  const links = Array.from(document.querySelectorAll('a[href*="/in/"]')).filter(a => {
+    const href = a.href || ''
+    return href.includes('/in/') && !href.includes('/in/ACoAA') && !href.includes('miniProfile')
+  })
 
-  todosLinks.forEach(link => {
+  links.forEach(link => {
     try {
-      const href = link.href || ''
-      if (!href.includes('/in/')) return
+      const href = new URL(link.href).pathname
       const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/)
       if (!match) return
       const linkedin_id = match[1]
+      
       if (vistos.has(linkedin_id)) return
-      if (blacklist.some(b => linkedin_id.includes(b))) return
-      if (linkedin_id.length < 3) return
       vistos.add(linkedin_id)
 
-      const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' }
-      // Sobe até encontrar o card raiz do resultado de busca
-      let card = link
-      for (let i = 0; i < 12; i++) {
-        card = card.parentElement
-        if (!card || card.tagName === 'BODY') break
-        // Para no primeiro container grande que contenha o nome E mais dados
-        if (card.querySelectorAll('a[href*="/in/"]').length === 1 &&
-            (card.className?.includes('result') || card.className?.includes('entity') ||
-             card.className?.includes('reusable') || card.className?.includes('search') ||
-             card.tagName === 'LI')) break
+      // Sobe o DOM para achar o container do card (geralmente uma li ou div com borda)
+      let card = link.closest('li, .reusable-search__result-container, .entity-result') || link.parentElement?.parentElement?.parentElement
+      if (!card) return
+
+      const lead = { 
+        linkedin_id, 
+        linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, 
+        source: 'chrome_extension' 
       }
-      if (!card || card.tagName === 'BODY') card = link.parentElement?.parentElement?.parentElement
-
-      const texto = card?.innerText || document.body.innerText || ''
-
-      // NOME
-      if (!lead.name) {
-        const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span')
-        const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim()
-        if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 &&
-            !nomeTexto.includes('•') && !nomeTexto.includes('·') && !nomeTexto.includes('º')) {
-          lead.name = nomeTexto
-        }
+      
+      // EXTRAÇÃO AGRESSIVA: Pega o primeiro texto em negrito como Nome
+      const nomeEl = card.querySelector('.entity-result__title-text, .t-bold, h3, span[aria-hidden="true"]')
+      let nomeFinal = nomeEl?.innerText?.split('\n')[0].replace(/·\s*[123][ºostndrd]+/gi, '').trim()
+      
+      // Se o link já tem o nome (comum no LinkedIn), usa ele
+      if (!nomeFinal || nomeFinal.length < 2) {
+        nomeFinal = link.innerText?.trim()?.split('\n')[0]
       }
+      
+      lead.name = nomeFinal
 
-      // FOTO
-      if (!lead.profile_picture && card) {
-        const img = card.querySelector('img')
-        if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') &&
-            (img.src.includes('media') || img.src.includes('profile'))) {
-          lead.profile_picture = img.src
-        }
+      // Cargo: Pega o primeiro texto secundário
+      const cargoEl = card.querySelector('.entity-result__primary-subtitle, .t-14.t-black.t-normal')
+      if (cargoEl) lead.headline = cargoEl.innerText.trim()
+
+      // Localização
+      const locEl = card.querySelector('.entity-result__secondary-subtitle, .t-12.t-black--light.t-normal')
+      if (locEl) lead.location = locEl.innerText.trim()
+
+      // Foto
+      const imgEl = card.querySelector('img')
+      if (imgEl?.src && !imgEl.src.includes('ghost')) lead.profile_picture = imgEl.src
+
+      // Grau
+      const texto = card.innerText || ''
+      if (texto.includes('1º') || texto.includes('1st')) lead.connection_degree = '1'
+      else if (texto.includes('2º') || texto.includes('2nd')) lead.connection_degree = '2'
+      else lead.connection_degree = '3'
+
+      if (lead.name && lead.name.length > 2 && !lead.name.toLowerCase().includes('linkedin')) {
+        leads.push(lead)
       }
-
-      // HEADLINE — seletores modernos do LinkedIn 2024
-      if (!lead.headline && card) {
-        const headlineSelectors = [
-          '.entity-result__primary-subtitle',
-          '.search-entity-result__primary-subtitle',
-          '[class*="primary-subtitle"]',
-          '[class*="subtitle--top"]',
-          '.t-14.t-normal.t-black',
-          '[class*="headline"]',
-          '[class*="lockup__subtitle"]',
-          '.t-14.t-black'
-        ]
-        for (const sel of headlineSelectors) {
-          const el = card.querySelector(sel)
-          const t = el?.innerText?.trim()
-          if (t && t.length > 3 && t.length < 300 &&
-              !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
-              !t.match(/^[\u2022\u00b7]/) && !t.match(/^\d/) && !t.includes('grau')) {
-            lead.headline = t; break
-          }
-        }
-      }
-
-      // GRAU DE CONEXÃO
-      if (!lead.connection_degree) {
-        const t = texto.replace(/[\u00b7\u22c5\u2219]/g, '\u2022')
-        if (/\u2022\s*1[\u00bao\u00b0]/.test(t) || t.includes('1st')) lead.connection_degree = '1'
-        else if (/\u2022\s*2[\u00bao\u00b0]/.test(t) || t.includes('2nd')) lead.connection_degree = '2'
-        else if (/\u2022\s*3[\u00bao\u00b0]/.test(t) || t.includes('3rd') || t.includes('3\u00ba e +')) lead.connection_degree = '3'
-      }
-
-      // CONEXÕES EM COMUM
-      if (!lead.mutual_connections) {
-        const m = texto.match(/(\d+)\s+conex[\u00f5o]es? em comum/i)
-        if (m) lead.mutual_connections = m[0]
-      }
-
-      // LOCALIZAÇÃO — apenas seletor CSS específico, sem fallback por texto livre
-      // (texto livre capturava cidades erradas de outros cards ou conexões em comum)
-      if (!lead.location && card) {
-        const locSelectors = [
-          '.entity-result__secondary-subtitle',
-          '[class*="secondary-subtitle"]',
-          '[class*="subline-level-2"]',
-          '.t-12.t-black--light.t-normal'
-        ]
-        for (const sel of locSelectors) {
-          const locEl = card.querySelector(sel)
-          const lt = locEl?.innerText?.trim()
-          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum') && !lt.match(/^\d/)) {
-            lead.location = lt; break
-          }
-        }
-      }
-
-      if (!lead.name || lead.name.length < 2) return
-      if (lead.name.toLowerCase().includes('linkedin')) return
-      if (lead.name.includes('•') || lead.name.includes('º')) return
-
-      if (lead.headline && !lead.company) {
-        if (lead.headline.includes(' · ')) lead.company = lead.headline.split(' · ').pop().trim()
-        else if (lead.headline.includes(' na ')) lead.company = lead.headline.split(' na ').pop().split('|')[0].trim()
-        else if (lead.headline.includes(' at ')) lead.company = lead.headline.split(' at ').pop().split('|')[0].trim()
-      }
-
-      lead.connection_degree = lead.connection_degree || '3'
-      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio'
-      leads.push(lead)
-    } catch(e) {}
+    } catch(e) { /* silent fail for individual items */ }
   })
 
   return leads
@@ -667,16 +689,24 @@ async function verificarAcaoPendenteURL() {
       })
       if (btnNota && msg) {
         btnNota.click()
-        await esperar(800)
+        await esperar(1000)
         const textarea = document.querySelector('#custom-message, textarea[name="message"], .send-invite__custom-message')
         if (textarea) {
           textarea.value = decodeURIComponent(msg)
           textarea.dispatchEvent(new Event('input', { bubbles: true }))
           textarea.dispatchEvent(new Event('change', { bubbles: true }))
+          
+          await esperar(800)
+          // Clica no botão Enviar Convite
+          const btnEnviarConvite = Array.from(document.querySelectorAll('button')).find(b => {
+            const t = b.innerText?.trim().toLowerCase()
+            return t.includes('enviar') || t.includes('send') || t.includes('enviar agora')
+          })
+          if (btnEnviarConvite) btnEnviarConvite.click()
         }
       }
       // Notifica o usuário via banner
-      exibirBannerAcao('✅ Convite de conexão pronto! Revise a nota e clique Enviar.', '#00c896')
+      exibirBannerAcao('🚀 Convite de conexão enviado automaticamente!', '#1d8fe8')
     } else {
       exibirBannerAcao('⚠️ Botão "Conectar" não encontrado. Talvez já sejam conectados.', '#ff6b35')
     }
@@ -709,23 +739,43 @@ if (window.location.href.includes('/in/') && window.location.search.includes('lp
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'detectarPagina') {
-    const tipo = detectarTipoPagina()
-    let preview = null
-    if (tipo === 'perfil') { extrairPerfilIndividualCompleto().then(dados => { sendResponse({ tipo, preview: { name: dados.name } }) }) }
-    else if (tipo === 'busca') { const leads = extrairListaDeBusca(); sendResponse({ tipo, preview: { total: leads.length } }) }
-    else sendResponse({ tipo, preview: null })
+    const url = window.location.href;
+    const isPerfil = url.includes('/in/') || !!document.querySelector('.pv-top-card') || !!document.querySelector('.pv-profile-section');
+    const isBusca = url.includes('/search/results/people/') || !!document.querySelector('.search-results-container');
+    
+    sendResponse({ 
+      tipo: isPerfil ? 'perfil' : isBusca ? 'busca' : 'outro',
+      url: url
+    });
     return true
   }
   if (request.action === 'extrairPerfil') {
-    abrirEExtrairContato().then(dados => sendResponse({ sucesso: true, dados }))
+    abrirEExtrairContato()
+      .then(dados => sendResponse({ sucesso: true, dados }))
+      .catch(e => {
+        console.error('🔥 Erro Crítico no content script:', e);
+        exibirBannerAcao('❌ Erro na extração. Consulte o console (F12).', '#ff3b5c');
+        sendResponse({ sucesso: false, erro: e.toString() });
+      })
     return true
   }
   if (request.action === 'extrairBusca') {
     const leads = extrairListaDeBusca()
     sendResponse({ sucesso: true, leads, total: leads.length })
+    return true
+  }
+  if (request.action === 'extrairPerfil') {
+    extrairPerfilIndividualCompleto().then(dados => sendResponse({ dados }))
+    return true
+  }
+  if (request.action === 'extrairCompleto') {
+    abrirEExtrairContato().then(dados => sendResponse({ dados }))
+    return true
   }
   if (request.action === 'enviarMensagemLinkedIn') {
-    enviarMensagemLinkedIn(request.texto).then(resultado => sendResponse(resultado))
+    enviarMensagemLinkedIn(request.texto)
+      .then(resultado => sendResponse(resultado))
+      .catch(e => sendResponse({ sucesso: false, erro: e.toString() }))
     return true
   }
   return true

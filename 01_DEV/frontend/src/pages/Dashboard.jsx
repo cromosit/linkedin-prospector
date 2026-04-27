@@ -72,12 +72,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [ultimaAtual, setUltimaAtual] = useState(null)
 
-  useEffect(() => { carregarStats() }, [])
+  useEffect(() => { 
+    carregarStats() 
+    // Auto-refresh a cada 30 segundos para tempo real
+    const interval = setInterval(carregarStats, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const carregarStats = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/api/leads/stats/dashboard')
+      const res = await api.get('/api/stats/summary')
       setStats(res.data)
       setUltimaAtual(new Date())
     } catch (err) {
@@ -87,12 +92,11 @@ export default function Dashboard() {
     }
   }
 
-  const total      = stats?.total || 0
-  const fechados   = stats?.porStatus?.fechado || 0
-  const contatados = stats?.porStatus?.contatado || 0
-  const taxaConversao = total > 0 ? Math.round((fechados / total) * 100) : 0
-  const taxaContato   = total > 0 ? Math.round((contatados / total) * 100) : 0
-  const quentes    = stats?.porTemperatura?.quente || 0
+  const total         = stats?.leads_total || 0
+  const leadsHoje     = stats?.leads_hoje || 0
+  const tarefas       = stats?.tarefas_pendentes || 0
+  const taxaConversao = stats?.taxa_conversao || '0%'
+  const funil         = stats?.funil || {}
 
   const S = {
     layout:   { display: 'flex', minHeight: '100vh', background: 'var(--bg)' },
@@ -165,7 +169,39 @@ export default function Dashboard() {
               )}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ 
+              background: 'rgba(59, 130, 246, 0.1)', 
+              padding: '8px 12px', 
+              borderRadius: '6px', 
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: '700' }}>TOKEN EXTENSÃO:</span>
+              <code style={{ fontSize: '10px', color: '#94a3b8', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {localStorage.getItem('token')}
+              </code>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(localStorage.getItem('token'));
+                  alert('Token copiado! Cole na extensão.');
+                }}
+                style={{ 
+                  background: '#3b82f6', 
+                  border: 'none', 
+                  color: '#fff', 
+                  fontSize: '10px', 
+                  padding: '4px 8px', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer',
+                  fontWeight: '700'
+                }}
+              >
+                COPIAR
+              </button>
+            </div>
             <button style={S.btnSec} onClick={carregarStats} disabled={loading}>
               {loading ? '⏳' : '🔄'} Atualizar
             </button>
@@ -180,11 +216,10 @@ export default function Dashboard() {
           {/* CARDS DE MÉTRICAS */}
           <div style={S.statsGrid}>
             {[
-              { label: 'Total de Leads',     value: loading ? '—' : total,           sub: 'todos os canais',        color: 'var(--text)' },
-              { label: 'Fechados',           value: loading ? '—' : fechados,         sub: 'conversões confirmadas', color: 'var(--green)' },
-              { label: 'Tx. de Conversão',  value: loading ? '—' : `${taxaConversao}%`, sub: 'fechados / total',   color: 'var(--orange)' },
-              { label: 'Tx. de Contato',    value: loading ? '—' : `${taxaContato}%`,  sub: 'contatados / total',  color: 'var(--yellow)' },
-              { label: 'Leads Quentes',      value: loading ? '—' : quentes,          sub: 'prioridade máxima',     color: '#ff3b5c' },
+              { label: 'Total de Leads',     value: loading ? '—' : total,           sub: 'base completa',          color: 'var(--text)' },
+              { label: 'Capturados Hoje',    value: loading ? '—' : leadsHoje,       sub: 'velocidade de captura', color: 'var(--blue-bright)' },
+              { label: 'Taxa de Conversão',  value: loading ? '—' : taxaConversao,   sub: 'leads vs contatados',   color: 'var(--green)' },
+              { label: 'Tarefas Pendentes',  value: loading ? '—' : tarefas,          sub: 'follow-ups agendados',  color: 'var(--orange)' },
             ].map((card, i) => (
               <div key={i} style={{ ...S.statCard, animationDelay: `${i * 0.07}s` }}>
                 <div style={S.statLabel}>{card.label}</div>
@@ -198,7 +233,7 @@ export default function Dashboard() {
           <div style={S.gridPaineis}>
 
             {/* Pipeline por Status */}
-            <PainelCard title="Pipeline por Status">
+            <PainelCard title="Pipeline por Status (Funil Real)">
               {loading ? (
                 <div style={S.empty}>Carregando...</div>
               ) : total === 0 ? (
@@ -216,7 +251,7 @@ export default function Dashboard() {
                   <BarraProgresso
                     key={key}
                     label={cfg.label}
-                    valor={stats?.porStatus?.[key] || 0}
+                    valor={funil[key] || 0}
                     total={total}
                     color={cfg.color}
                   />

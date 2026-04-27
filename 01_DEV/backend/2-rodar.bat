@@ -13,7 +13,7 @@ if not exist node_modules (
     npm install
 )
 
-echo  Backend rodando em: http://localhost:3000
+echo  Backend rodando em: http://localhost:3001
 echo  Pressione CTRL+C para parar
 echo.
 

@@ -3,6 +3,9 @@ require('dotenv').config();
 const express      = require('express');
 const cors         = require('cors');
 const rateLimit    = require('express-rate-limit');
+const jwt          = require('jsonwebtoken');
+
+const JWT_SECRET   = process.env.JWT_SECRET || 'cromosit_master_key_2026';
 
 const app = express();
 
@@ -76,9 +79,24 @@ app.use((req, res, next) => {
 // ==========================================
 // ROTAS DO SISTEMA
 // ==========================================
-app.use('/auth',      authLimiter, require('./routes/auth'));
-app.use('/api/leads', aiLimiter,   require('./routes/leads'));
-app.use('/api',                    require('./routes/notify'));
+const authRoutes = require('./routes/auth');
+const leadRoutes = require('./routes/leads');
+const statRoutes = require('./routes/stats');
+const notifyRoutes = require('./routes/notify');
+const unipileRoutes = require('./routes/unipile');
+const campaignRoutes = require('./routes/campaigns');
+const taskRoutes = require('./routes/tasks');
+const pipelineRoutes = require('./routes/pipelines');
+
+// Uso das rotas
+app.use('/auth', authLimiter, authRoutes);
+app.use('/api/leads', aiLimiter, leadRoutes);
+app.use('/api/stats', statRoutes);
+app.use('/api/notify', notifyRoutes);
+app.use('/api/unipile', unipileRoutes);
+app.use('/api/campaigns', campaignRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/pipelines', pipelineRoutes);
 
 // ==========================================
 // ROTA DE SAÚDE
@@ -104,6 +122,39 @@ app.get('/ping', async (req, res) => {
     res.json({ status: 'ok', db: 'error', message: err.message });
   }
 });
+
+// ==========================================
+// WORKER DE FOLLOW-UP (Sprint 2)
+// Verifica leads que precisam de contato hoje
+// ==========================================
+async function executarWorkerFollowup() {
+  console.log('🔍 [WORKER] Iniciando verificação de follow-ups pendentes...');
+  try {
+    const supabase = require('./config/supabase');
+    const hoje = new Date().toISOString();
+    
+    // Busca leads com data de follow-up vencida ou para hoje
+    const { data: pendentes, error, count } = await supabase
+      .from('leads')
+      .select('id, name, cadence_step')
+      .eq('status', 'contatado')
+      .lte('next_followup_at', hoje);
+
+    if (error) throw error;
+
+    if (count > 0) {
+      console.log(`⚠️ [WORKER] Encontrados ${count} leads aguardando follow-up!`);
+      pendentes.forEach(l => {
+        console.log(`   - Lead: ${l.name} (Step: ${l.cadence_step})`);
+      });
+      // DICA: Aqui poderíamos disparar um e-mail ou WhatsApp para o vendedor
+    } else {
+      console.log('✅ [WORKER] Nenhum follow-up pendente para agora.');
+    }
+  } catch (err) {
+    console.error('❌ [WORKER] Erro ao processar follow-ups:', err.message);
+  }
+}
 
 // ==========================================
 // ENDPOINT DE STATUS E VERSÃO
@@ -146,6 +197,26 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
+// LOGIN MANUAL (CROMOSIT MASTER)
+// ==========================================
+const MASTER_ID = '550e8400-e29b-41d4-a716-446655440000';
+
+// app.post('/auth/login', async (req, res) => {
+//   const { email, password } = req.body;
+// 
+//   if (email === 'samuel.betim@hotmail.com' || email === 'contato@cromosit.com') {
+//     if (password === 'cromosit2026' || password === '6f9c2d1b...') {
+//       const token = jwt.sign({ userId: MASTER_ID, email }, JWT_SECRET, { expiresIn: '7d' });
+//       return res.json({ 
+//         token, 
+//         user: { userId: MASTER_ID, email, name: 'Samuel (Master)' } 
+//       });
+//     }
+//   }
+//   res.status(401).json({ error: 'Credenciais inválidas' });
+// });
+
+// ==========================================
 // TRATAMENTO DE ERROS GLOBAL
 // ==========================================
 app.use((err, req, res, next) => {
@@ -172,6 +243,10 @@ app.listen(PORT, () => {
   console.log(`📡 http://localhost:${PORT}`);
   console.log(`🔗 Login LinkedIn: http://localhost:${PORT}/auth/linkedin`);
   console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}\n`);
+
+  // Sprint 2: Inicia o vigilante de follow-up
+  executarWorkerFollowup();
+  setInterval(executarWorkerFollowup, 1000 * 60 * 60 * 12);
 });
 
 module.exports = app;

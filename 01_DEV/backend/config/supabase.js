@@ -1,10 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Cria a conexão com o banco de dados Supabase
-// Supabase é como um banco de dados online que você acessa pela internet
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_KEY não definidos no .env');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = supabase;

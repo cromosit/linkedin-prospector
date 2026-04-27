@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Prospector — Cromosit IT",
-  "version": "3.1.0",
+  "version": "3.2.9",
   "description": "Capture leads do LinkedIn em 1 clique — individual ou em massa",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://linkedin-prospector-production.up.railway.app/*",
-    "https://prospector.cromosit.com/*"
+    "https://prospector.cromosit.com/*",
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -31,7 +32,13 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://prospector.cromosit.com/*"],
+      "matches": [
+        "https://prospector.cromosit.com/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
       "js": ["app_bridge.js"],
       "run_at": "document_idle"
     }

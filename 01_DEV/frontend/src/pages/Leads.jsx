@@ -33,7 +33,8 @@ const FORM_EMPTY = {
   about: '', service_interest: '', temperature: 'morno',
   notes: '', source: 'manual', connection_degree: '3',
   current_role: '', current_company: '', instant_messaging: '',
-  score: 30, status: 'novo'
+  group_name: '',
+  score: 30, status: 'novo', legal_basis: 'Legítimo Interesse'
 }
 
 const LIMIT = 20
@@ -50,16 +51,29 @@ export default function Leads() {
   const [totalLeads, setTotalLeads] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
 
+  const formatAging = (date) => {
+    if (!date) return null;
+    const diff = new Date() - new Date(date);
+    const mins = Math.floor(diff / (1000 * 60));
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+  }
+
   // Filtros
   const [filtroStatus, setFiltroStatus]   = useState('')
   const [filtroTemp, setFiltroTemp]       = useState('')
   const [filtroGrau, setFiltroGrau]       = useState('')
   const [exportando, setExportando]       = useState(false)
+  const [selecionados, setSelecionados]   = useState([])
 
   // Modal / Form
   const [modal, setModal]           = useState(false)
   const [leadSel, setLeadSel]       = useState(null)
   const [form, setForm]             = useState(FORM_EMPTY)
+  const [atividades, setAtividades] = useState([])
   const [salvando, setSalvando]     = useState(false)
   const [gerandoMsg, setGerandoMsg] = useState(false)
   const [tipoMsg, setTipoMsg]       = useState('conexao')
@@ -119,6 +133,18 @@ export default function Leads() {
     }
   }
 
+  const purgaLGPD = async () => {
+    if (!leadSel || !window.confirm(`⚠️ AÇÃO LGPD: Você confirma a remoção PERMANENTE de todos os dados sensíveis de "${leadSel.name}" conforme Art. 18 da LGPD? Esta ação será registrada para fins de auditoria.`)) return
+    try {
+      await api.post(`/api/leads/${leadSel.id}/lgpd-purge`)
+      setModal(false)
+      carregarLeads()
+      showToast('⚖️ Dados expurgados em conformidade com a LGPD')
+    } catch (err) {
+      showToast('❌ Erro na ação LGPD', 'error')
+    }
+  }
+
   const excluirLead = async () => {
     if (!leadSel || !window.confirm(`Excluir "${leadSel.name}"?`)) return
     try {
@@ -129,6 +155,32 @@ export default function Leads() {
     } catch (err) {
       showToast('❌ Erro ao excluir', 'error')
     }
+  }
+
+  const excluirSelecionados = async () => {
+    if (selecionados.length === 0) return
+    if (!window.confirm(`Excluir ${selecionados.length} leads selecionados?`)) return
+    
+    setLoading(true)
+    try {
+      await api.delete('/api/leads/bulk-delete', { data: { ids: selecionados } })
+      setSelecionados([])
+      showToast(`✅ ${selecionados.length} leads excluídos!`)
+      carregarLeads()
+    } catch (err) {
+      showToast('❌ Erro na exclusão em massa', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleSelecao = (id) => {
+    setSelecionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const toggleTodos = () => {
+    if (selecionados.length === leads.length) setSelecionados([])
+    else setSelecionados(leads.map(l => l.id))
   }
 
   // Atualiza status direto na tabela (salva no backend)
@@ -204,11 +256,46 @@ export default function Leads() {
   }
 
   // ─── MODAL ───────────────────────────────────
-  const abrirEditar = (lead) => {
+  const abrirEditar = async (lead) => {
     setLeadSel(lead)
-    setForm({ ...FORM_EMPTY, ...lead })
+    
+    // Higieniza para evitar erro de 'value prop on input should not be null'
+    const cleanForm = { ...FORM_EMPTY }
+    Object.keys(FORM_EMPTY).forEach(key => {
+      cleanForm[key] = (lead[key] !== null && lead[key] !== undefined) ? lead[key] : ''
+    })
+    
+    setForm(cleanForm)
     setMsgGerada(lead.ai_message || '')
+    setAtividades(lead.lead_activities || [])
+    
+    // Sugestão estratégica: 1º grau = 1º Contato | 2º ou 3º = Conectar
+    setTipoMsg(lead.connection_degree === '1' ? 'primeiro_contato' : 'conexao')
+    
     setModal(true)
+
+    // Busca dados completos (incluindo atividades atualizadas)
+    try {
+      const res = await api.get(`/api/leads/${lead.id}`)
+      if (res.data.lead) {
+        setLeadSel(res.data.lead)
+        setForm({ ...FORM_EMPTY, ...res.data.lead })
+        setAtividades(res.data.lead.lead_activities || [])
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const logLinkedInAction = async () => {
+    if (!leadSel) return
+    try {
+      await api.post(`/api/leads/${leadSel.id}/atividades`, {
+        type: 'linkedin_aberto',
+        description: 'Clique no botão "Enviar no LinkedIn" (abriu chat)'
+      })
+      // Recarrega as atividades no modal para aparecer na hora
+      const res = await api.get(`/api/leads/${leadSel.id}`)
+      setAtividades(res.data.lead.lead_activities || [])
+    } catch (err) { console.error(err) }
   }
 
   const abrirNovo = () => {
@@ -256,6 +343,15 @@ export default function Leads() {
           </h3>
 
           <button style={S.btnPrimary('#1d8fe8')} onClick={abrirNovo}>＋ Novo Lead</button>
+
+          {selecionados.length > 0 && (
+            <button 
+              style={{ ...S.btnPrimary('#ff3b5c'), background: '#ff3b5c20' }} 
+              onClick={excluirSelecionados}
+            >
+              🗑 Excluir ({selecionados.length})
+            </button>
+          )}
 
           <input
             style={{ ...S.input, width: '200px', marginBottom: 0 }}
@@ -316,11 +412,20 @@ export default function Leads() {
             <table style={S.table}>
               <thead>
                 <tr>
+                  <th style={{ ...S.th, width: '30px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={leads.length > 0 && selecionados.length === leads.length} 
+                      onChange={toggleTodos}
+                    />
+                  </th>
                   <th style={S.th}>LEAD</th>
+                  <th style={S.th}>GRUPO</th>
                   <th style={S.th}>EMPRESA / LOCAL</th>
                   <th style={S.th}>CONTATO</th>
                   <th style={S.th}>GRAU</th>
                   <th style={S.th}>TEMP</th>
+                  <th style={S.th}>FOLLOW-UP</th>
                   <th style={S.th}>STATUS</th>
                   <th style={S.th}>SCORE</th>
                   <th style={S.th}>AÇÕES</th>
@@ -332,9 +437,41 @@ export default function Leads() {
                     onMouseEnter={e => e.currentTarget.style.background = '#0d1521'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
+                    <td style={{ ...S.td, width: '30px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selecionados.includes(l.id)} 
+                        onChange={() => toggleSelecao(l.id)}
+                      />
+                    </td>
                     <td style={S.td}>
-                      <div style={{ fontWeight: '600', fontSize: '13px' }}>{l.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ fontWeight: '600', fontSize: '13px' }}>{l.name}</div>
+                        {formatAging(l.stage_entered_at || l.created_at) && (
+                          <span style={{ 
+                            fontSize: '9px', 
+                            background: '#1c2633', 
+                            padding: '1px 4px', 
+                            borderRadius: '2px', 
+                            color: '#8899aa', 
+                            border: '1px solid #233142',
+                            fontFamily: 'var(--mono)'
+                          }}>
+                            ⏱️ {formatAging(l.stage_entered_at || l.created_at)}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '11px', color: '#8899aa', marginTop: '2px' }}>{l.current_role || l.headline}</div>
+                    </td>
+                    <td style={S.td}>
+                      <div style={{ 
+                        fontSize: '11px', 
+                        color: l.group_name ? 'var(--blue-bright)' : '#334455',
+                        fontWeight: '600',
+                        textTransform: 'uppercase'
+                      }}>
+                        {l.group_name || '—'}
+                      </div>
                     </td>
                     <td style={S.td}>
                       <div style={{ fontSize: '13px' }}>{l.current_company || l.company || '—'}</div>
@@ -362,6 +499,20 @@ export default function Leads() {
                       <span style={S.badge(TEMPERATURA[l.temperature]?.color || '#8899aa')}>
                         {TEMPERATURA[l.temperature]?.label || l.temperature || '—'}
                       </span>
+                    </td>
+                    <td style={S.td}>
+                      {l.next_followup_at ? (
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: new Date(l.next_followup_at) < new Date() ? '#ff3b5c' : '#8899aa',
+                          fontWeight: new Date(l.next_followup_at) < new Date() ? 'bold' : 'normal'
+                        }}>
+                          📅 {new Date(l.next_followup_at).toLocaleDateString('pt-BR')}
+                          {new Date(l.next_followup_at) < new Date() && ' ⚠️'}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#334455', fontSize: '11px' }}>—</span>
+                      )}
                     </td>
                     <td style={S.td}>
                       {/* Select que salva no backend ao mudar */}
@@ -445,11 +596,61 @@ export default function Leads() {
               {leadSel && (
                 <button style={S.headerBtn('#ff3b5c')} onClick={excluirLead}>🗑 Excluir</button>
               )}
+              {leadSel && (
+                <button 
+                  style={{ ...S.headerBtn('#fff'), background: 'var(--red)', fontWeight: 'bold' }} 
+                  onClick={purgaLGPD}
+                  title="Expurgar dados conforme Art. 18 da LGPD"
+                >
+                  ⚖️ Ação LGPD
+                </button>
+              )}
               <button style={{ ...S.headerBtn('#8899aa'), background: 'transparent' }} onClick={() => setModal(false)}>✕</button>
             </div>
 
             {/* Corpo */}
             <div style={S.modalBody}>
+
+              {/* HISTÓRICO / TIMELINE */}
+              <div style={S.sectionTitle('#8899aa')}>📜 HISTÓRICO DE ATIVIDADES</div>
+              <div style={{ 
+                background: '#0b1118', 
+                borderRadius: '4px', 
+                border: '1px solid #1c2633',
+                maxHeight: '200px',
+                overflow: 'auto',
+                padding: '10px'
+              }}>
+                {atividades && atividades.length > 0 ? (
+                  atividades
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                    .map(at => (
+                    <div key={at.id} style={{ 
+                      padding: '8px 0', 
+                      borderBottom: '1px solid #1c2633',
+                      display: 'flex',
+                      gap: '12px',
+                      fontSize: '12px'
+                    }}>
+                      <span style={{ color: '#8899aa', whiteSpace: 'nowrap', fontFamily: 'var(--mono)' }}>
+                        {new Date(at.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span style={{ 
+                        color: at.type === 'whatsapp_enviado' ? '#00c896' : at.type === 'lead_capturado' ? '#1d8fe8' : '#fff',
+                        fontWeight: 'bold',
+                        minWidth: '100px'
+                      }}>
+                        {at.type.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                      <span style={{ color: '#aaa' }}>{at.description}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ color: '#556677', textAlign: 'center', padding: '10px', fontSize: '12px' }}>
+                    Nenhuma atividade registrada ainda.
+                  </div>
+                )}
+              </div>
 
               {/* IDENTIFICAÇÃO */}
               <div style={S.sectionTitle()}>👤 IDENTIFICAÇÃO</div>
@@ -478,6 +679,10 @@ export default function Leads() {
                   <label style={S.label}>EMPRESA (Headline)</label>
                   <input style={S.input} value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
                 </div>
+                <div>
+                  <label style={{ ...S.label, color: 'var(--blue-bright)' }}>🏷️ GRUPO / CLASSIFICAÇÃO</label>
+                  <input style={{ ...S.input, borderColor: 'var(--blue-bright)40' }} value={form.group_name} onChange={e => setForm({ ...form, group_name: e.target.value })} placeholder="Ex: Pesquisa SAP MM" />
+                </div>
               </div>
 
               {/* STATUS / CLASSIFICAÇÃO */}
@@ -504,6 +709,19 @@ export default function Leads() {
                 <div>
                   <label style={S.label}>SCORE (0–100)</label>
                   <input style={S.input} type="number" min="0" max="100" value={form.score} onChange={e => setForm({ ...form, score: e.target.value })} />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ ...S.label, color: 'var(--green)' }}>🛡️ BASE LEGAL (LGPD)</label>
+                  <select 
+                    style={{ ...S.input, padding: '8px', borderColor: 'var(--green)40' }} 
+                    value={form.legal_basis} 
+                    onChange={e => setForm({ ...form, legal_basis: e.target.value })}
+                  >
+                    <option value="Legítimo Interesse">Legítimo Interesse (B2B Prospecting)</option>
+                    <option value="Consentimento">Consentimento do Titular</option>
+                    <option value="Execução de Contrato">Execução de Contrato</option>
+                    <option value="Cumprimento de Obrigação Legal">Cumprimento de Obrigação Legal</option>
+                  </select>
                 </div>
               </div>
 
@@ -616,9 +834,10 @@ export default function Leads() {
                   <button
                     style={S.headerBtn('#0a66c2')}
                     onClick={() => {
+                      logLinkedInAction()
                       const target = form.linkedin_id || form.linkedin_url?.split('/in/')[1]?.split('/')[0]
                       const url = form.connection_degree === '1'
-                        ? `https://www.linkedin.com/messaging/compose/?recipient=${target}&lp_msg=${encodeURIComponent(msgGerada)}`
+                        ? `https://www.linkedin.com/messaging/compose/?recipient=${target}&body=${encodeURIComponent(msgGerada)}&lp_msg=${encodeURIComponent(msgGerada)}`
                         : `${form.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
                       window.open(url, '_blank')
                     }}
@@ -628,20 +847,28 @@ export default function Leads() {
                 )}
               </div>
 
-              {/* Caixa da mensagem */}
-              <div style={{
-                padding: '16px',
-                border: '1px solid #1d8fe820',
-                borderRadius: '4px',
-                background: '#0b1118',
-                minHeight: '100px',
-                lineHeight: '1.7',
-                fontSize: '14px',
-                color: msgGerada ? '#e8edf2' : '#4a5e70',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {msgGerada || 'Selecione o tipo e clique em "Gerar Mensagem"...'}
-              </div>
+              {/* Caixa da mensagem editável */}
+              <textarea
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid #1d8fe840',
+                  borderRadius: '4px',
+                  background: '#0b1118',
+                  minHeight: '120px',
+                  lineHeight: '1.7',
+                  fontSize: '14px',
+                  color: '#e8edf2',
+                  resize: 'vertical',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  display: 'block',
+                  marginBottom: '12px'
+                }}
+                value={msgGerada}
+                onChange={e => setMsgGerada(e.target.value)}
+                placeholder="Selecione o tipo e clique em 'Gerar Mensagem' ou escreva aqui..."
+              />
 
               {/* WHATSAPP */}
               <div style={S.sectionTitle('#00c896')}>📱 WHATSAPP</div>

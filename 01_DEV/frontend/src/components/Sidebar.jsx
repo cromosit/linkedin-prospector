@@ -26,6 +26,10 @@ export default function Sidebar() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '⬡' },
     { path: '/leads', label: 'Leads', icon: '◈' },
+    { path: '/pipeline', label: 'Pipeline', icon: '📊' },
+    { path: '/campaigns', label: 'Campanhas', icon: '📁' },
+    { path: '/tasks', label: 'Tarefas', icon: '📅' },
+    { path: '/integrations', label: 'Integrações', icon: '⚙️' },
   ]
 
   return (
@@ -34,7 +38,10 @@ export default function Sidebar() {
         <div style={S.logoBox}>LP</div>
         <div style={S.logoText}>Prospector</div>
       </div>
-      <div style={S.status}><div style={S.statusDot} />API online · Railway</div>
+      <div style={S.status}>
+        <div style={S.statusDot} />
+        {window.location.hostname === 'localhost' ? 'API Local · DEV' : 'API online · Railway'}
+      </div>
       <div style={S.nav}>
         <div style={S.sectionLabel}>Menu</div>
         {navItems.map(item => (

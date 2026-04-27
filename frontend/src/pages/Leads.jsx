@@ -346,6 +346,22 @@ export default function Leads() {
                           ? <a href={l.linkedin_url} target="_blank" rel="noreferrer" title="LinkedIn" style={{ fontSize: '16px', color: '#0a66c2' }}>🔗</a>
                           : <span style={{ color: '#333', fontSize: '16px' }}>🔗</span>
                         }
+                        {l.linkedin_url && (
+                          <button 
+                            title="Disparar Mensagem LinkedIn" 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: 0 }}
+                            onClick={() => {
+                              const target = l.linkedin_id || l.linkedin_url?.split('/in/')[1]?.split('/')[0]
+                              const msg = l.ai_message || "Olá!" // Fallback
+                              const url = l.connection_degree === '1'
+                                ? `https://www.linkedin.com/messaging/thread/${target}/?lp_action=message&lp_msg=${encodeURIComponent(msg)}`
+                                : `${l.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msg)}`
+                              window.open(url, '_blank')
+                            }}
+                          >
+                            🚀
+                          </button>
+                        )}
                         {l.phone
                           ? <a href={`https://wa.me/${l.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title={l.phone} style={{ fontSize: '16px' }}>💬</a>
                           : <span style={{ color: '#333', fontSize: '16px' }}>💬</span>

@@ -1,7 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Leads from './pages/Leads'
+import Pipeline from './pages/Pipeline'
+import Campaigns from './pages/Campaigns'
+import Tasks from './pages/Tasks'
+import Integrations from './pages/Integrations'
 import AuthCallback from './pages/AuthCallback'
 
 const globalStyles = `
@@ -44,9 +49,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/auth/sucesso" element={<AuthCallback />} />
         <Route path="/dashboard" element={<RotaProtegida><Dashboard /></RotaProtegida>} />
         <Route path="/leads" element={<RotaProtegida><Leads /></RotaProtegida>} />
+        <Route path="/pipeline" element={<RotaProtegida><Pipeline /></RotaProtegida>} />
+        <Route path="/campaigns" element={<RotaProtegida><Campaigns /></RotaProtegida>} />
+        <Route path="/tasks" element={<RotaProtegida><Tasks /></RotaProtegida>} />
+        <Route path="/integrations" element={<RotaProtegida><Integrations /></RotaProtegida>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -125,11 +125,65 @@ router.get('/stats/dashboard', async (req, res) => {
 });
 
 // ==========================================
+// ROTA: Relatório de Performance (Sprint 2)
+// Retorna KPIs de funil e captura por data
+// ==========================================
+router.get('/stats/performance', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { days = 30 } = req.query;
+    
+    // Calcula a data de início (ex: 30 dias atrás)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    // 1. Busca todos os leads do período
+    const { data: leads, error } = await supabase
+      .from('leads')
+      .select('status, temperature, created_at, source')
+      .eq('assigned_to', userId)
+      .gte('created_at', startDate.toISOString());
+
+    if (error) throw error;
+
+    // 2. Processa métricas temporais (captura diária)
+    const porDia = leads.reduce((acc, lead) => {
+      const dia = new Date(lead.created_at).toISOString().split('T')[0];
+      acc[dia] = (acc[dia] || 0) + 1;
+      return acc;
+    }, {});
+
+    // 3. Processa funil de conversão
+    const total = leads.length;
+    const ganhos = leads.filter(l => l.status === 'fechado').length;
+    const perdidos = leads.filter(l => l.status === 'descartado').length;
+    const ativos = total - ganhos - perdidos;
+
+    res.json({
+      periodo: { dias: days, inicio: startDate },
+      metricas: {
+        total_capturado: total,
+        total_fechado:   ganhos,
+        total_descartado: perdidos,
+        taxa_conversao: total > 0 ? ((ganhos / total) * 100).toFixed(1) + '%' : '0%',
+        taxa_perda:     total > 0 ? ((perdidos / total) * 100).toFixed(1) + '%' : '0%'
+      },
+      grafico_captura: porDia
+    });
+  } catch (err) {
+    console.error('Erro no relatório de performance:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
 // ROTA 3: Importar em massa
 // ==========================================
 router.post('/bulk', async (req, res) => {
   try {
     const { leads } = req.body;
+    console.log('📦 [BULK] Tentando importar', leads?.length, 'leads para o usuário:', req.user.userId);
+    
     if (!Array.isArray(leads) || leads.length === 0)
       return res.status(400).json({ error: 'Envie um array de leads' });
 
@@ -145,6 +199,8 @@ router.post('/bulk', async (req, res) => {
       status:      STATUS_VALIDOS.includes(lead.status)     ? lead.status     : 'novo',
       temperature: TEMPERATURA_VALIDA.includes(lead.temperature) ? lead.temperature : 'frio',
       source:      sanitizeString(lead.source, 50) || 'importacao',
+      group_name:  sanitizeString(lead.group_name || req.body.group_name, 100),
+      campaign_id: lead.campaign_id || req.body.campaign_id || null, // Novo campo!
       assigned_to: req.user.userId
     }));
 
@@ -153,6 +209,15 @@ router.post('/bulk', async (req, res) => {
       .upsert(leadsComUsuario, { onConflict: 'linkedin_id' })
       .select();
     if (error) throw error;
+
+    // Registra atividade para cada lead novo/atualizado
+    const atividadesBulk = data.map(l => ({
+      lead_id:     l.id,
+      user_id:     req.user.userId,
+      type:        'lead_capturado',
+      description: `Lead capturado/sincronizado via extensão ou importação`
+    }));
+    await supabase.from('lead_activities').insert(atividadesBulk);
 
     // Enriquece com IA em background (não bloqueia a resposta)
     enriquecerLeadsComIA(data, req.user.userId).catch(e =>
@@ -299,6 +364,8 @@ router.post('/', async (req, res) => {
         mutual_connections: sanitizeString(mutual_connections, 100),
         connection_degree:  GRAU_VALIDO.includes(connection_degree) ? connection_degree : '3',
         source:             sanitizeString(source, 50),
+        group_name:         sanitizeString(req.body.group_name, 100),
+        campaign_id:        req.body.campaign_id || null, // Novo campo!
         temperature:        TEMPERATURA_VALIDA.includes(temperature) ? temperature : 'frio',
         notes:              sanitizeString(notes, 2000),
         service_interest:   sanitizeString(service_interest, 1000),
@@ -310,6 +377,13 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    await supabase.from('lead_activities').insert({
+      lead_id:     lead.id,
+      user_id:     req.user.userId,
+      type:        'lead_capturado',
+      description: `Lead capturado via ${source || 'manual'}`
+    });
 
     // Sincroniza com n8n em background (se configurado)
     if (process.env.N8N_WEBHOOK_URL) {
@@ -355,6 +429,25 @@ router.get('/:id', async (req, res) => {
 });
 
 // ==========================================
+// ROTA: Verificar se lead existe (pelo linkedin_id)
+// ==========================================
+router.get('/check/:linkedin_id', async (req, res) => {
+  try {
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('linkedin_id', req.params.linkedin_id)
+      .eq('assigned_to', req.user.userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    res.json({ exists: !!lead, lead: lead || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
 // ROTA 6: Atualizar lead
 // ==========================================
 router.put('/:id', async (req, res) => {
@@ -365,10 +458,18 @@ router.put('/:id', async (req, res) => {
       'location','email','phone','website','about','birthday',
       'connected_since','mutual_connections','connection_degree',
       'source','temperature','notes','service_interest','score',
-      'status','profile_picture','linkedin_url','instant_messaging'
+      'status','profile_picture','linkedin_url','group_name','campaign_id',
+      'contacted_at', 'next_followup_at', 'pipeline_id', 'pipeline_stage_id',
+      'stage_entered_at'
     ];
 
     const updates = { updated_at: new Date().toISOString() };
+    
+    // Se mudar o status ou a etapa, reinicia o cronômetro de tempo na fase
+    if (req.body.status || req.body.pipeline_stage_id) {
+      updates.stage_entered_at = new Date().toISOString();
+    }
+
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         if (key === 'status' && !STATUS_VALIDOS.includes(req.body[key])) continue;
@@ -386,11 +487,25 @@ router.put('/:id', async (req, res) => {
       .from('leads')
       .update(updates)
       .eq('id', req.params.id)
-      .eq('assigned_to', req.user.userId) // garante isolamento por usuário
+      .eq('assigned_to', req.user.userId)
       .select()
       .single();
 
     if (error) throw error;
+
+    // [AUTOMAÇÃO] Cria tarefa de follow-up se houver agendamento
+    if (req.body.next_followup_at) {
+      try {
+        await supabase.from('tasks').insert({
+          user_id: req.user.userId,
+          lead_id: req.params.id,
+          title: `📞 Follow-up: ${lead.name}`,
+          due_date: req.body.next_followup_at,
+          status: 'pendente',
+          priority: 'alta'
+        });
+      } catch (e) { console.error('Erro ao criar tarefa auto:', e.message); }
+    }
 
     res.json({ message: 'Lead atualizado com sucesso', lead });
   } catch (err) {
@@ -427,6 +542,44 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ==========================================
+// ROTA: Expurgar Lead (Ação LGPD Art. 18)
+// ==========================================
+router.post('/:id/lgpd-purge', async (req, res) => {
+  try {
+    // 1. Limpa dados sensíveis (Anonimização)
+    const { error: updateError } = await supabase
+      .from('leads')
+      .update({
+        name: 'USUÁRIO ANONIMIZADO (LGPD)',
+        email: null,
+        phone: null,
+        linkedin_url: null,
+        profile_picture: null,
+        notes: 'DADOS EXPURGADOS CONFORME ART. 18 DA LGPD.',
+        status: 'descartado',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id);
+
+    if (updateError) throw updateError;
+
+    // 2. Registra o Log de Auditoria
+    await supabase
+      .from('lgpd_logs')
+      .insert({
+        user_id: req.user.userId,
+        lead_id: req.params.id,
+        action: 'exclusao_lgpd',
+        description: `Executada exclusão permanente de dados sensíveis conforme Art. 18 da LGPD pelo usuário ${req.user.userId}.`
+      });
+
+    res.json({ message: 'Dados expurgados com sucesso em conformidade com a LGPD.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Falha na ação LGPD: ' + err.message });
+  }
+});
+
+// ==========================================
 // ROTA 8: Gerar mensagem com IA
 // ==========================================
 router.post('/:id/gerar-mensagem', async (req, res) => {
@@ -447,11 +600,11 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
     const { tipo = 'conexao', contexto = '' } = req.body;
 
     const tipoDescricao = {
-      'conexao':             'pedido de conexão curto (máx 300 caracteres)',
-      'primeiro_contato':    'primeira mensagem após conectar (máx 500 caracteres)',
-      'conexao_com_comum':   'pedido de conexão mencionando conexão em comum (máx 300 caracteres)',
-      'follow_up':           'follow-up para lead que não respondeu (máx 400 caracteres)',
-      'whatsapp':            'mensagem de WhatsApp direta (máx 500 caracteres)'
+      'conexao':             'pedido de conexão CIRÚRGICO (máx 140 caracteres)',
+      'primeiro_contato':    'primeira mensagem DIRETA (máx 250 caracteres)',
+      'conexao_com_comum':   'pedido de conexão menc. comum CURTO (máx 160 caracteres)',
+      'follow_up':           'follow-up RÁPIDO (máx 200 caracteres)',
+      'whatsapp':            'mensagem de WhatsApp EXTREMAMENTE CURTA (máx 150 caracteres, foco em 2 frases)'
     };
 
     const grauLabel = lead.connection_degree === '1'
@@ -470,18 +623,21 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
     const isConsultor     = ['consultor','consultant','especialista','analyst','analista'].some(c => cargo.includes(c));
 
     let anguloEstrategico = '';
-    if (hasTechOrDev) {
-      anguloEstrategico = `Este lead lidera ou trabalha com ENGENHARIA DE SOFTWARE/TI (${cargo}) na empresa ${empresa}.\n\nABORDAGEM: IT OUTSOURCING E CONSULTORIA DE DESENVOLVIMENTO\n1. A Cromosit IT tem base de profissionais de TI (desenvolvedores, arquitetos, engenheiros de dados) prontos para alocação.\n2. Seja um parceiro na construção de arquiteturas escaláveis.\nREGRAS OBRIGATORIAS: NUNCA mencione "consultoria SAP" para este lead.`;
+    const servicosCromosit = `
+    - SERVIÇO 1: Plataforma Corporativa de Treinamento (LMS/Capacitação).
+    - SERVIÇO 2: Alocação de Profissionais SAP e TI (Body Shop / Hunting).
+    - SERVIÇO 3: Treinamento Especializado SAP e Soft Skills.
+    - SERVIÇO 4: Consultoria SAP (Implementação/Suporte).
+    - SERVIÇO 5: Automação RPA e Inteligência Artificial (Eficiência).`;
+
+    if (hasTechOrDev || isDecisionMaker) {
+      anguloEstrategico = `Foco em SERVIÇO 2 (Alocação/Body Shop) ou SERVIÇO 5 (RPA/IA) para eficiência operacional. Cargo: ${cargo}.`;
     } else if (isRecrutador) {
-      anguloEstrategico = `Este lead é RECRUTADOR/TALENT ACQUISITION (${cargo}) na empresa ${empresa}.\n\nABORDAGEM DE PARCERIA COMERCIAL com DUPLO VALOR:\n1. ALOCACAO DE PROFISSIONAIS: A Cromosit IT tem base de profissionais certificados e disponíveis.\n2. CAPACITACAO CORPORATIVA: Oferecemos plataforma de treinamento.\nREGRAS OBRIGATORIAS: NUNCA ofereça treinamento para ele pessoalmente. Seja B2B.`;
-    } else if (isEcossistemaSAP) {
-      anguloEstrategico = `IMPORTANTE: Este lead trabalha na ${empresa} (ecossistema SAP). Abordagem de PARCERIA: posicione-se como parceiro de treinamento para OS CLIENTES dele.`;
-    } else if (isDecisionMaker) {
-      anguloEstrategico = `Este lead é TOMADOR DE DECISAO (${cargo}) na empresa ${empresa}. Foque em como Cromosit IT resolve eficiência operacional e alocação de recursos.`;
-    } else if (isConsultor) {
-      anguloEstrategico = `Este lead é CONSULTOR. Abordagem de REDE PROFISSIONAL: network e projetos conjuntos.`;
+      anguloEstrategico = `Foco em SERVIÇO 1 (Plataforma de Treinamento) ou SERVIÇO 2 (Hunting de Nicho SAP). Cargo: ${cargo}.`;
+    } else if (isEcossistemaSAP || isConsultor) {
+      anguloEstrategico = `Foco em SERVIÇO 3 (Treinamento SAP) ou SERVIÇO 4 (Consultoria SAP). Cargo: ${cargo}.`;
     } else {
-      anguloEstrategico = `Abordagem B2B respeitando o cargo exato do lead (${cargo}).`;
+      anguloEstrategico = `Identificar qual destes serviços atende melhor a empresa ${empresa}: ${servicosCromosit}`;
     }
 
     const prompt = `Você é um especialista sênior em prospecção B2B da Cromosit IT (alocação de times de TI e consultoria).
@@ -500,11 +656,11 @@ ${lead.about ? `- Bio: ${lead.about.substring(0, 300)}` : ''}
 ${contexto ? `- Contexto adicional: ${sanitizeString(contexto, 300)}` : ''}
 
 Regras OBRIGATÓRIAS:
-1. Seja EXTREMAMENTE ESPECÍFICO ao cargo e perfil do lead.
-2. NUNCA cite siglas (MM, SD, HCM, FI) se não estiverem no perfil.
-3. Termine com CTA rápido e direto.
-4. Evite clichês ("espero que esteja bem").
-5. Tom executivo e natural. Respeite o limite de caracteres.
+1. BREVIDADE TOTAL: No máximo 3 frases/linhas (estilo executivo).
+2. Sem "Espero que esteja bem" ou clichês de abertura. Vá direto ao ponto.
+3. Use o cargo do lead (${lead.current_role}) como gancho estratégico.
+4. CTA (Chamada para ação) deve ser uma pergunta curta no final.
+5. Se for WhatsApp, use tom de conversa rápida. Se for LinkedIn, tom profissional-direto.
 
 Retorne APENAS a mensagem.`.trim();
 
@@ -611,20 +767,33 @@ router.post('/:id/enviar-whatsapp', async (req, res) => {
       { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHATWA_TOKEN}` } }
     );
 
+    // Lógica de Cadência (Sprint 2): 
+    // Se for o primeiro contato (step 0), agendar step 1 para daqui a 3 dias.
+    const hoje = new Date();
+    const proximoFollowup = new Date();
+    proximoFollowup.setDate(hoje.getDate() + 3);
+
     await supabase.from('leads').update({
-      status:       'contatado',
-      contacted_at: new Date().toISOString(),
-      updated_at:   new Date().toISOString()
+      status:           'contatado',
+      contacted_at:     hoje.toISOString(),
+      updated_at:       hoje.toISOString(),
+      next_followup_at: proximoFollowup.toISOString(),
+      cadence_step:     1
     }).eq('id', req.params.id);
 
     await supabase.from('lead_activities').insert({
       lead_id:     req.params.id,
       user_id:     req.user.userId,
       type:        'whatsapp_enviado',
-      description: `WhatsApp enviado para ${numero}: "${mensagem.substring(0, 80)}..."`
+      description: `WhatsApp enviado (Step 0). Próximo follow-up agendado para ${proximoFollowup.toLocaleDateString('pt-BR')}`
     });
 
-    res.json({ message: 'Mensagem enviada via WhatsApp!', numero, messageId: response.data?.messageId });
+    res.json({ 
+      message: 'Mensagem enviada e follow-up agendado!', 
+      numero, 
+      proximo_passo: 'Dia 3',
+      data_agendada: proximoFollowup 
+    });
   } catch (err) {
     console.error('Erro WhatsApp:', err.message, err.response?.data);
     res.status(500).json({ error: 'Erro ao enviar WhatsApp', detalhe: err.response?.data || err.message });
@@ -709,6 +878,14 @@ Responda APENAS este JSON (sem markdown, sem explicações):
   if (parsed.score !== undefined) updates.score = Math.min(100, Math.max(0, parseInt(parsed.score) || 0));
 
   await supabase.from('leads').update(updates).eq('id', lead.id);
+
+  await supabase.from('lead_activities').insert({
+    lead_id:     lead.id,
+    user_id:     lead.assigned_to,
+    type:        'ia_analise_concluida',
+    description: `IA analisou perfil: Score ${parsed.score}/100 | Interesse: ${parsed.service_interest?.substring(0, 100)}...`
+  });
+
   console.log(`✅ IA enriqueceu lead: ${lead.name} (score: ${parsed.score})`);
 }
 

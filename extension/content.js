@@ -702,8 +702,8 @@ function exibirBannerAcao(texto, cor) {
   setTimeout(() => banner.remove(), 6000)
 }
 
-// Executa verificação de ação pendente se estiver em perfil do LinkedIn
-if (window.location.href.includes('/in/') && window.location.search.includes('lp_action')) {
+// Executa verificação de ação pendente se estiver em perfil do LinkedIn ou página de mensagens
+if ((window.location.href.includes('/in/') || window.location.href.includes('/messaging/')) && window.location.search.includes('lp_action')) {
   verificarAcaoPendenteURL()
 }
 

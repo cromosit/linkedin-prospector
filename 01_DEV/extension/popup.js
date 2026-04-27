@@ -1,6 +1,6 @@
 // popup.js v6 — com botão enviar no LinkedIn
 
-const API_URL = 'https://linkedin-prospector-production.up.railway.app'
+const API_URL = 'http://localhost:3000'
 let perfilAtual = null
 let leadIdCapturado = null
 let tipoPagina = 'outro'
@@ -28,6 +28,7 @@ const els = {
   btnCopy: document.getElementById('btnCopy'),
   btnWhatsApp: document.getElementById('btnWhatsApp'),
   btnLinkedInMsg: document.getElementById('btnLinkedInMsg'),
+  btnConnect: document.getElementById('btnConnect'),
   successMsg: document.getElementById('successMsg'),
   errorMsg: document.getElementById('errorMsg'),
   totalEncontrado: document.getElementById('totalEncontrado'),
@@ -39,21 +40,61 @@ const els = {
   tokenInput: document.getElementById('tokenInput'),
   btnSaveToken: document.getElementById('btnSaveToken'),
   statusDot: document.getElementById('statusDot'),
+  groupName: document.getElementById('groupName'),
+  groupNameBulk: document.getElementById('groupNameBulk'),
+  campaignId: document.getElementById('campaignId'),
+  campaignIdBulk: document.getElementById('campaignIdBulk'),
+  btnRetry: document.getElementById('btnRetry'),
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   const { token } = await chrome.storage.local.get('token')
   atualizarStatusToken(token)
   verificarAPI()
+  if (token) carregarCampanhas(token)
+  
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab.url || !tab.url.includes('linkedin.com')) { mostrarTela('outro'); return }
-  chrome.tabs.sendMessage(tab.id, { action: 'detectarPagina' }, (response) => {
-    if (!response) { mostrarTela('outro'); return }
-    tipoPagina = response.tipo
-    if (tipoPagina === 'perfil') { mostrarTela('perfil'); carregarPerfilIndividual(tab) }
-    else if (tipoPagina === 'busca') { mostrarTela('busca'); carregarResultadosBusca(tab, response.preview) }
-    else mostrarTela('outro')
-  })
+
+  // 🔄 TENTATIVA DE DETECÇÃO (Com Fallback de URL)
+  function detectar() {
+    chrome.tabs.sendMessage(tab.id, { action: 'detectarPagina' }, (response) => {
+      if (chrome.runtime.lastError || !response) {
+        console.warn('⚠️ Content script não respondeu. Usando fallback de URL.');
+        // Fallback via URL se o script de conteúdo falhar
+        const isPerfil = tab.url.includes('/in/');
+        const isBusca = tab.url.includes('/search/results/people/');
+        
+        if (isPerfil) { tipoPagina = 'perfil'; mostrarTela('perfil'); carregarPerfilIndividual(tab) }
+        else if (isBusca) { tipoPagina = 'busca'; mostrarTela('busca'); carregarResultadosBusca(tab) }
+        else { mostrarTela('outro') }
+        return;
+      }
+
+      tipoPagina = response.tipo
+      if (tipoPagina === 'perfil') { mostrarTela('perfil'); carregarPerfilIndividual(tab) }
+      else if (tipoPagina === 'busca') { mostrarTela('busca'); carregarResultadosBusca(tab, response.preview) }
+      else mostrarTela('outro')
+    })
+  }
+
+  detectar();
+
+  els.btnRetry?.addEventListener('click', () => {
+    els.profileName.textContent = '⏳ Lendo...';
+    detectar();
+  });
+
+  // 🔎 PREENCHIMENTO INTELIGENTE: Detecta o termo de busca (ex: "SAP MM") e preenche o Grupo automaticamente
+  if (tab.url.includes('/search/results/people/')) {
+    try {
+      const urlParams = new URLSearchParams(new URL(tab.url).search);
+      const keywords = urlParams.get('keywords');
+      if (keywords && els.groupNameBulk) {
+        els.groupNameBulk.value = keywords.replace(/"/g, '').trim();
+      }
+    } catch(e) { console.warn('Erro ao ler keywords:', e) }
+  }
 })
 
 function atualizarStatusToken(token) {
@@ -77,6 +118,43 @@ document.getElementById('btnOpenApp')?.addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://prospector.cromosit.com' })
 })
 
+let listaDeCampanhas = []
+
+async function carregarCampanhas(token) {
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    const data = await res.json()
+    listaDeCampanhas = Array.isArray(data) ? data : (data.campaigns || [])
+    
+    const html = ['<option value="">— Sem campanha —</option>']
+    listaDeCampanhas.forEach(c => {
+      html.push(`<option value="${c.id}">${c.name}</option>`)
+    })
+    
+    if (els.campaignId) els.campaignId.innerHTML = html.join('')
+    if (els.campaignIdBulk) els.campaignIdBulk.innerHTML = html.join('')
+  } catch (err) { console.error('Erro ao carregar campanhas:', err) }
+}
+
+// 🎯 AUTO-PREENCHIMENTO: Detecta quando o usuário escolhe uma campanha e carrega o template
+els.campaignId?.addEventListener('change', (e) => {
+  const campId = e.target.value
+  if (!campId) return
+
+  const camp = listaDeCampanhas.find(c => String(c.id) === String(campId))
+  if (camp?.message_template) {
+    // Mostra a mensagem da campanha na caixa de mensagem
+    els.msgBox.classList.add('visible')
+    els.msgText.innerHTML = `<div style="color:var(--blue-b);font-size:10px;margin-bottom:5px;font-weight:700">📋 MENSAGEM DA CAMPANHA DE PROSPECÇÃO:</div>` + 
+                            camp.message_template.replace(/\n/g, '<br>')
+    
+    // Mostra o botão de envio se for 1º grau ou se for conexão
+    els.btnLinkedInMsg.style.display = 'block'
+  }
+})
+
 function mostrarTela(tela) {
   els.telaOutro.style.display = tela === 'outro' ? 'block' : 'none'
   els.telaPerfil.style.display = tela === 'perfil' ? 'block' : 'none'
@@ -84,29 +162,66 @@ function mostrarTela(tela) {
 }
 
 function carregarPerfilIndividual(tab) {
+  // 1. Abre a tela de perfil imediatamente para evitar travamentos
+  mostrarTela('perfil');
+  
   chrome.tabs.sendMessage(tab.id, { action: 'extrairPerfil' }, (response) => {
-    if (!response?.dados?.name) { mostrarTela('outro'); return }
-    perfilAtual = response.dados
-    const d = perfilAtual
+    if (!response?.dados?.name) { 
+      console.warn('⚠️ Dados não extraídos, tentando novamente...');
+      return 
+    }
+    
+    perfilAtual = response.dados;
+    const d = perfilAtual;
+    
+    // 2. Preenche a UI básica imediatamente
     els.profileName.textContent = d.name || '—'
     els.profileHeadline.textContent = d.headline || ''
     els.profileCompany.textContent = d.company || ''
     els.profileLocation.textContent = d.location || ''
+    
+    // 3. Verifica existência no CRM em background
+    chrome.storage.local.get('token', async ({ token }) => {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_URL}/api/leads/check/${d.linkedin_id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.exists) {
+          leadIdCapturado = data.lead.id
+          els.btnCapture.style.display = 'none'
+          els.btnAI.style.display = 'block'
+        } else {
+          leadIdCapturado = null
+          els.btnCapture.style.display = 'block'
+          els.btnAI.style.display = 'none'
+        }
+      } catch (e) { console.error('Erro na checagem assíncrona:', e) }
+    });
+
+    // 4. Esteta e badges
     const grauCores = { '1': '#00c896', '2': '#1d8fe8', '3': '#8899aa' }
-    const grauLabels = { '1': '🟢 1º Grau — Conexão direta', '2': '🔵 2º Grau — Amigo de amigo', '3': '⚪ 3º Grau — Fora da rede' }
+    const grauLabels = { '1': '🟢 1º Grau (Direto)', '2': '🔵 2º Grau (Amigo)', '3': '⚪ 3º Grau' }
     els.profileDegree.textContent = grauLabels[d.connection_degree] || '⚪ 3º Grau'
     els.profileDegree.style.color = grauCores[d.connection_degree] || '#8899aa'
-    if (d.mutual_connections) { els.profileMutual.textContent = d.mutual_connections; els.profileMutual.style.display = 'block' }
-    els.temperature.value = d.temperature || 'frio'
+    
     if (d.profile_picture) {
-      const img = document.createElement('img'); img.className = 'profile-avatar'; img.src = d.profile_picture
-      els.avatarContainer.innerHTML = ''; els.avatarContainer.appendChild(img)
+      els.avatarContainer.innerHTML = `<img class="profile-avatar" src="${d.profile_picture}" />`
     } else {
-      els.avatarContainer.innerHTML = `<div class="profile-avatar-placeholder">${d.name[0].toUpperCase()}</div>`
+      els.avatarContainer.innerHTML = `<div class="profile-avatar-placeholder">${d.name[0]}</div>`
     }
-    // Mostra botão de enviar no LinkedIn apenas para 1º grau
-    if (d.connection_degree === '1') {
-      els.btnLinkedInMsg.style.display = 'none' // aparece só após gerar mensagem
+
+    // 🛡️ GESTÃO DE BOTÕES BASEADA NO GRAU
+    const grau = d.connection_degree
+    if (grau === '1') {
+      els.btnLinkedInMsg.style.display = 'block'
+      els.btnConnect.style.display = 'none'
+      if (document.getElementById('linkedinTip')) document.getElementById('linkedinTip').style.display = 'none'
+    } else {
+      els.btnLinkedInMsg.style.display = 'none'
+      els.btnConnect.style.display = 'block'
+      if (document.getElementById('linkedinTip')) document.getElementById('linkedinTip').style.display = 'block'
     }
   })
 }
@@ -151,7 +266,7 @@ document.getElementById('btnCaptureSelected')?.addEventListener('click', () => c
 
 async function capturarLeads(apenasChecados) {
   const { token } = await chrome.storage.local.get('token')
-  if (!token) { alert('Cole seu token JWT nas configurações.'); return }
+  if (!token) { mostrarErro('Cole seu token JWT nas configurações.'); return }
   let leads = leadsBusca
   if (apenasChecados) {
     const checkboxes = document.querySelectorAll('.lead-checkbox:checked')
@@ -163,11 +278,16 @@ async function capturarLeads(apenasChecados) {
   els.bulkProgress.textContent = `Enviando ${leads.length} leads...`
   els.btnCaptureAll.disabled = true
   els.btnCaptureSelected.disabled = true
+  let res;
   try {
-    const res = await fetch(`${API_URL}/api/leads/bulk`, {
+    res = await fetch(`${API_URL}/api/leads/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ leads })
+      body: JSON.stringify({ 
+        leads, 
+        group_name: els.groupNameBulk.value || 'sem_grupo',
+        campaign_id: els.campaignIdBulk.value || null
+      })
     })
     const data = await res.json()
     if (res.ok) {
@@ -176,8 +296,13 @@ async function capturarLeads(apenasChecados) {
       els.bulkResult.style.color = '#00c896'
       els.bulkResult.textContent = `✅ ${data.leads.length} leads capturados!`
       await notificarVendedor(token, data.leads)
+      // Reset UI after successful capture
+      leadsBusca = []
+      els.listaLeads.innerHTML = ''
+      els.totalEncontrado.textContent = 'Nenhum lead selecionado.'
     } else { throw new Error(data.error) }
   } catch (err) {
+    console.error('Erro na captura em massa:', err);
     els.bulkProgress.style.display = 'none'
     els.bulkResult.style.display = 'block'
     els.bulkResult.style.color = '#ff3b5c'
@@ -206,26 +331,115 @@ async function notificarVendedor(token, leads) {
 }
 
 els.btnCapture?.addEventListener('click', async () => {
-  if (!perfilAtual) return
   const { token } = await chrome.storage.local.get('token')
-  if (!token) { mostrarErro('Cole seu token JWT nas configurações.'); return }
-  setCarregando(true); esconderMensagens()
+  if (!token) { mostrarErro('🔐 Faça login ou cole seu token nas configurações.'); return }
+
+  // SE O PERFIL ESTIVER VAZIO, TENTA LER DE NOVO NA HORA DO CLIQUE
+  if (!perfilAtual || !perfilAtual.name) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    setCarregando(true);
+    els.btnCaptureText.textContent = '⏳ Lendo LinkedIn...';
+    
+    chrome.tabs.sendMessage(tab.id, { action: 'extrairPerfil' }, (response) => {
+      if (response?.dados?.name) {
+        perfilAtual = response.dados;
+        executarSalvamentoIndividual(token);
+      } else {
+        setCarregando(false);
+        els.btnCaptureText.textContent = '+ Capturar Lead';
+        mostrarErro('❌ Não foi possível ler os dados. Tente dar F5 na página!');
+      }
+    });
+    return;
+  }
+
+  executarSalvamentoIndividual(token);
+});
+
+async function executarSalvamentoIndividual(token) {
+  setCarregando(true); esconderMensagens();
+  els.btnCaptureText.textContent = 'Salvando...';
+
   try {
-    const res = await fetch(`${API_URL}/api/leads`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ ...perfilAtual, temperature: els.temperature.value, notes: els.notes.value, source: 'chrome_extension' })
-    })
+    // 1. Verifica se o lead já existe
+    const tokenGet = await chrome.storage.local.get('token');
+    const token = tokenGet.token;
+    const checkRes = await fetch(`${API_URL}/api/leads/check/${perfilAtual.linkedin_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const checkData = await checkRes.json();
+    
+    let res;
+    let isUpdate = false;
+
+    if (checkData.exists && checkData.lead?.id) {
+      // ATUALIZA LEAD EXISTENTE
+      isUpdate = true;
+      res = await fetch(`${API_URL}/api/leads/${checkData.lead.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ 
+          ...perfilAtual,
+          temperature: els.temperature.value, 
+          notes: els.notes.value,
+          group_name: els.groupName.value || 'Geral',
+          campaign_id: els.campaignId.value || null
+        })
+      });
+    } else {
+      // CRIA NOVO LEAD
+      res = await fetch(`${API_URL}/api/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ 
+          ...perfilAtual, 
+          temperature: els.temperature.value, 
+          notes: els.notes.value, 
+          group_name: els.groupName.value || 'Geral',
+          campaign_id: els.campaignId.value || null,
+          source: 'chrome_extension' 
+        })
+      });
+    }
+
     const data = await res.json()
     if (res.ok) {
       leadIdCapturado = data.lead.id
-      mostrarSucesso(`✅ ${perfilAtual.name} capturado!`)
+      mostrarSucesso(isUpdate ? `✅ Dados atualizados no CRM!` : `✅ ${perfilAtual.name} capturado!`)
       els.btnCapture.style.display = 'none'
       els.btnAI.style.display = 'block'
-    } else { mostrarErro(data.error || 'Erro ao capturar.') }
-  } catch (err) { mostrarErro('Erro de conexão com o backend.') }
-  finally { setCarregando(false) }
-})
+    } else { 
+      // SE O ERRO FOR DE DUPLICIDADE (ID ou URL), TRATA COMO SUCESSO (LEAD JÁ EXISTENTE)
+      const msgErro = (data.message || data.error || '').toLowerCase();
+      const isDuplicado = msgErro.includes('unique constraint') || 
+                          msgErro.includes('already exists') || 
+                          msgErro.includes('duplicate key') ||
+                          res.status === 409;
+
+      if (isDuplicado) {
+        mostrarSucesso(`✅ Este lead já está no seu CRM!`)
+        // Tenta recuperar o ID se o backend enviou
+        if (data.lead?.id) leadIdCapturado = data.lead.id
+        
+        els.btnCapture.style.display = 'none'
+        els.btnAI.style.display = 'block'
+        // Se já tiver mensagem, mostra os botões de envio
+        if (els.msgText.textContent) {
+          els.btnWhatsApp.style.display = 'block'
+          if (perfilAtual?.connection_degree === '1') els.btnLinkedInMsg.style.display = 'block'
+        }
+      } else {
+        throw new Error(data.error || data.message || 'Erro ao capturar.') 
+      }
+    }
+  } catch (err) { 
+    console.error('Erro na captura:', err);
+    mostrarErro(err.message || 'Erro de conexão com o backend.') 
+  } finally { 
+    setCarregando(false);
+    els.btnCaptureText.textContent = '+ Capturar Lead';
+  }
+}
 
 els.btnAI?.addEventListener('click', async () => {
   if (!leadIdCapturado) return
@@ -258,6 +472,55 @@ els.btnCopy?.addEventListener('click', () => {
   })
 })
 
+els.btnWhatsApp?.addEventListener('click', async () => {
+  const msg = els.msgText.textContent
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+  async function abrirWpp(phone) {
+    let cleanPhone = phone.replace(/\D/g, '')
+    if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone
+    const url = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
+    chrome.tabs.create({ url })
+  }
+
+  if (!perfilAtual?.phone) {
+    els.btnWhatsApp.textContent = '⏳ Buscando no banco...';
+    
+    // Tenta primeiro extrair da página
+    chrome.tabs.sendMessage(tab.id, { action: 'extrairCompleto' }, async (response) => {
+      if (response?.dados?.phone) {
+        perfilAtual.phone = response.dados.phone;
+        els.btnWhatsApp.textContent = '📱 Enviar via WhatsApp';
+        abrirWpp(response.dados.phone);
+      } else {
+        // Se falhar na página, tenta buscar no banco de dados pelo ID do lead
+        try {
+          const { token } = await chrome.storage.local.get('token');
+          const res = await fetch(`${API_URL}/api/leads/check/${perfilAtual.linkedin_id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          
+          if (data.exists && data.lead?.phone) {
+            perfilAtual.phone = data.lead.phone;
+            els.btnWhatsApp.textContent = '📱 Enviar via WhatsApp';
+            abrirWpp(data.lead.phone);
+          } else {
+            els.btnWhatsApp.textContent = '📱 Enviar via WhatsApp';
+            mostrarErro('❌ Não encontramos o telefone nem na página, nem no seu CRM.');
+          }
+        } catch (e) {
+          els.btnWhatsApp.textContent = '📱 Enviar via WhatsApp';
+          mostrarErro('❌ Erro ao consultar o banco de dados.');
+        }
+      }
+    });
+    return;
+  }
+
+  abrirWpp(perfilAtual.phone);
+})
+
 // ==========================================
 // ENVIAR NO INBOX DO LINKEDIN
 // ==========================================
@@ -268,17 +531,26 @@ els.btnLinkedInMsg?.addEventListener('click', async () => {
   els.btnLinkedInMsg.disabled = true
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   chrome.tabs.sendMessage(tab.id, { action: 'enviarMensagemLinkedIn', texto: mensagem }, (response) => {
-    if (response?.sucesso) {
-      mostrarSucesso('✅ ' + response.mensagem)
-      // Registra atividade no backend
+    if (response && response.sucesso) {
       chrome.storage.local.get('token', ({ token }) => {
-        if (token && leadIdCapturado) {
-          fetch(`${API_URL}/api/leads/${leadIdCapturado}/atividades`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ type: 'linkedin_msg_preparada', description: `Mensagem inserida no inbox do LinkedIn: "${mensagem.substring(0, 100)}..."` })
+        // 1. Registra atividade
+        fetch(`${API_URL}/api/leads/${leadIdCapturado}/atividades`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ type: 'linkedin_msg_enviada', description: `Mensagem enviada no LinkedIn: "${mensagem.substring(0, 100)}..."` })
+        })
+        
+        // 2. Atualiza Status e Agenda Follow-up
+        const proximo = new Date(); proximo.setDate(proximo.getDate() + 3);
+        fetch(`${API_URL}/api/leads/${leadIdCapturado}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ 
+            status: 'contatado', 
+            contacted_at: new Date().toISOString(),
+            next_followup_at: proximo.toISOString()
           })
-        }
+        })
       })
     } else {
       mostrarErro(response?.erro || 'Não foi possível abrir o chat. Verifique se está no perfil do lead.')
@@ -314,3 +586,23 @@ function setCarregando(v) {
 function mostrarSucesso(msg) { els.successMsg.textContent = msg; els.successMsg.classList.add('visible'); els.errorMsg.classList.remove('visible') }
 function mostrarErro(msg) { els.errorMsg.textContent = msg; els.errorMsg.classList.add('visible'); els.successMsg.classList.remove('visible') }
 function esconderMensagens() { els.successMsg.classList.remove('visible'); els.errorMsg.classList.remove('visible') }
+
+// 🤝 LÓGICA DO BOTÃO DE CONEXÃO
+els.btnConnect?.addEventListener('click', async () => {
+  const campId = els.campaignId.value
+  const camp = listaDeCampanhas.find(c => String(c.id) === String(campId))
+  const msg = camp?.message_template || ''
+  
+  if (msg) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0]
+      const url = new URL(tab.url)
+      url.searchParams.set('lp_action', 'connect')
+      url.searchParams.set('lp_msg', encodeURIComponent(msg))
+      chrome.tabs.update(tab.id, { url: url.toString() })
+    })
+    window.close() // Fecha o popup para deixar o robô agir
+  } else {
+    alert('Escolha uma campanha com template de mensagem para usar o convite automático!')
+  }
+})

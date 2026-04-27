@@ -106,7 +106,10 @@
       <div class="profile-top">
         <div id="avatarContainer"></div>
         <div style="flex:1;min-width:0">
-          <div class="profile-name" id="profileName">—</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="profile-name" id="profileName">—</div>
+            <button id="btnRetry" style="background:transparent;border:none;color:var(--blue-b);cursor:pointer;font-size:16px;" title="Tentar ler perfil novamente">🔄</button>
+          </div>
           <div class="profile-sub" id="profileHeadline"></div>
           <div class="profile-sub" id="profileCompany"></div>
           <div class="profile-sub" id="profileLocation"></div>
@@ -122,6 +125,12 @@
       <option value="frio">❄️ Frio — 3º Grau</option>
     </select>
     <textarea class="notes" id="notes" placeholder="Notas sobre este lead..."></textarea>
+    <div class="section-label" style="margin-top:6px">Vincular à Campanha</div>
+    <select class="temp-select" id="campaignId" style="margin-top:2px">
+      <option value="">— Sem campanha —</option>
+    </select>
+    <div class="section-label" style="margin-top:6px">Grupo / Classificação</div>
+    <input class="temp-select" id="groupName" placeholder="Ex: Pesquisa SAP MM" style="margin-top:2px" />
     <button class="btn-main" id="btnCapture">
       <span id="btnCaptureText">+ Capturar Lead</span>
       <div class="spinner" id="btnSpinner" style="display:none"></div>
@@ -129,6 +138,7 @@
     <button class="btn-secondary" id="btnAI">✦ Gerar mensagem com IA</button>
     <button class="btn-whatsapp" id="btnWhatsApp">📱 Enviar via WhatsApp</button>
     <button class="btn-linkedin-msg" id="btnLinkedInMsg">💬 Enviar no inbox do LinkedIn</button>
+    <button class="btn-main" id="btnConnect" style="display:none;background:#285e8e;margin-top:6px">🤝 Solicitar Conexão (Nota Auto)</button>
     <div class="linkedin-tip" id="linkedinTip" style="display:none">Apenas para conexões de 1º grau</div>
     <div class="msg-box" id="msgBox">
       <div id="msgText"></div>
@@ -144,6 +154,12 @@
   <div class="content">
     <div class="bulk-header">
       <div class="bulk-total" id="totalEncontrado">Carregando...</div>
+      <div class="section-label" style="margin-bottom:4px">Vincular leads à campanha:</div>
+      <select class="temp-select" id="campaignIdBulk" style="margin-bottom:10px">
+        <option value="">— Sem campanha —</option>
+      </select>
+      <div class="section-label" style="margin-bottom:4px">Classificar leads no grupo:</div>
+      <input class="temp-select" id="groupNameBulk" placeholder="Ex: Projeto SAP 2026" style="margin-bottom:10px" />
       <div class="bulk-actions">
         <button class="btn-bulk btn-bulk-all" id="btnCaptureAll">⬇ Capturar Todos</button>
         <button class="btn-bulk btn-bulk-sel" id="btnCaptureSelected">Selecionados</button>

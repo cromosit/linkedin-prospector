@@ -4,21 +4,65 @@ import Sidebar from '../components/Sidebar'
 
 export default function Relatorios() {
   const S = {
-    layout: { display: 'flex', minHeight: '100vh', background: '#020617', color: '#f8fafc', fontFamily: 'Inter, sans-serif' },
+    layout: { display: 'flex', minHeight: '100vh', background: '#020617', color: '#f8fafc', fontFamily: 'Outfit, sans-serif' },
     main: { flex: 1, padding: '2rem', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '2rem' },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
     titleBox: { display: 'flex', flexDirection: 'column' },
-    title: { fontSize: '2rem', fontWeight: 800, margin: 0, color: '#f8fafc' },
-    subtitle: { opacity: 0.5, fontSize: '0.9rem' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' },
-    card: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' },
-    cardTitle: { fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' },
-    cardValue: { fontSize: '2.5rem', fontWeight: 800, color: '#3b82f6', lineHeight: 1 },
-    statRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #1e293b' },
-    badge: (color, bg) => ({ padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 800, color: color, background: bg }),
-    actionZone: { display: 'flex', gap: '1rem', alignItems: 'center' },
-    btnPrimary: { background: '#3b82f6', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' },
-    btnExport: { background: 'transparent', border: '1px dashed #3b82f6', color: '#3b82f6', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }
+    title: { fontSize: '2.5rem', fontWeight: 900, margin: 0, background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.02em' },
+    subtitle: { opacity: 0.6, fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' },
+    
+    // Glassmorphism Card
+    card: { 
+      background: 'rgba(15, 23, 42, 0.6)', 
+      backdropFilter: 'blur(12px)',
+      border: '1px solid rgba(255, 255, 255, 0.05)', 
+      borderRadius: '24px', 
+      padding: '2rem', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '1rem', 
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      transition: 'transform 0.3s ease, border-color 0.3s ease'
+    },
+    
+    kpiLabel: { fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' },
+    kpiValue: { fontSize: '3rem', fontWeight: 900, color: '#fff', lineHeight: 1, margin: '0.5rem 0' },
+    kpiTrend: (color) => ({ fontSize: '0.85rem', fontWeight: 600, color: color, display: 'flex', alignItems: 'center', gap: '4px' }),
+    
+    funnelItem: (bg) => ({ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center', 
+      padding: '1.2rem', 
+      background: bg, 
+      borderRadius: '16px',
+      border: '1px solid rgba(255, 255, 255, 0.03)',
+      marginBottom: '0.75rem',
+      transition: 'all 0.2s ease'
+    }),
+    
+    badge: (color, bg) => ({ padding: '6px 12px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800, color: color, background: bg, border: `1px solid ${color}30` }),
+    
+    btnPrimary: { 
+      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+      color: '#fff', 
+      border: 'none', 
+      padding: '12px 24px', 
+      borderRadius: '12px', 
+      fontWeight: 700, 
+      cursor: 'pointer',
+      boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.4)'
+    },
+    btnSecondary: { 
+      background: 'rgba(255, 255, 255, 0.03)', 
+      border: '1px solid rgba(255, 255, 255, 0.1)', 
+      color: '#f8fafc', 
+      padding: '12px 24px', 
+      borderRadius: '12px', 
+      fontWeight: 700, 
+      cursor: 'pointer' 
+    }
   }
 
   const [stats, setStats] = useState({
@@ -38,8 +82,7 @@ export default function Relatorios() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      // No ambiente de DEV, pegamos os status reais direto do Motor Backend Master
-      const res = await axios.get('http://localhost:3000/leads/stats/dashboard', {
+      const res = await axios.get('http://localhost:3000/api/leads/stats/dashboard', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(res.data);
@@ -51,16 +94,15 @@ export default function Relatorios() {
   }
 
   const exportCsv = async () => {
-    alert("📥 Processando extração de dados Master Cromosit IT...");
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:3000/leads', { 
+      const res = await axios.get('http://localhost:3000/api/leads', { 
          headers: { Authorization: `Bearer ${token}` },
-         params: { limit: 5000 } // Trazemos tudo para o CSV
+         params: { limit: 5000 }
       });
       
       const leads = res.data.leads || [];
-      if (!leads.length) return alert("Nenhum lead para exportar.");
+      if (!leads.length) return;
       
       const header = ["Nome", "Empresa", "Cargo", "Email", "Telefone", "Status", "Temperatura", "Origem", "LinkedIn"].join(",");
       const rows = leads.map(l => [
@@ -69,29 +111,24 @@ export default function Relatorios() {
         `"${l.temperature || ''}"`, `"${l.source || ''}"`, `"${l.linkedin_url || ''}"`
       ].join(","));
       
-      const csv = [header, ...rows].join("\\n");
+      const csv = [header, ...rows].join("\n");
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `exportacao_cromosit_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `leads_cromosit_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (e) {
-      alert("❌ Falha na exportação: " + e.message);
+      console.error("Erro exportação:", e);
     }
   }
 
-  // Cálculos de KPI conforme o Blueprint v9.0
-  const novos = stats.porStatus['novo'] || 0;
-  const contatados = (stats.porStatus['contatado'] || 0) + (stats.porStatus['respondeu'] || 0) + (stats.porStatus['fechado'] || 0);
   const totalLeads = stats.total || 0;
-  
-  const taxaContato = totalLeads ? Math.round((contatados / totalLeads) * 100) : 0;
-  const resposta = stats.porStatus['respondeu'] || 0;
-  const taxaResposta = contatados ? Math.round((resposta / contatados) * 100) : 0;
+  const respondidos = stats.porStatus['respondeu'] || 0;
   const fechados = stats.porStatus['fechado'] || 0;
+  const taxaConversao = totalLeads ? Math.round((fechados / totalLeads) * 100) : 0;
 
   return (
     <div style={S.layout}>
@@ -99,91 +136,119 @@ export default function Relatorios() {
       <div style={S.main}>
         <header style={S.header}>
           <div style={S.titleBox}>
-             <h1 style={S.title}>BI & RELATÓRIOS V9.0</h1>
-             <p style={S.subtitle}>Arquitetura V9 Master | KPIs de Prospecção Cromosit IT</p>
+             <h1 style={S.title}>Inteligência de Mercado</h1>
+             <p style={S.subtitle}>Dashboard v9.0 — Monitoramento em tempo real Cromosit IT</p>
           </div>
-          <div style={S.actionZone}>
-             <button style={S.btnExport} onClick={exportCsv}>📥 EXPORTAR CSV BKP</button>
-             <button style={S.btnPrimary} onClick={fetchStats}>🔄 ATUALIZAR BI</button>
+          <div style={{display: 'flex', gap: '1rem'}}>
+             <button style={S.btnSecondary} onClick={exportCsv}>Extrair Dados</button>
+             <button style={S.btnPrimary} onClick={fetchStats}>Sincronizar BI</button>
           </div>
         </header>
 
-        {/* CENA 1: KPIs DE SUCESSO (Blueprint 7.1) */}
         <div style={S.grid}>
            <div style={S.card}>
-              <div style={S.cardTitle}>LEADS CAPTURADOS MÊS</div>
-              <div style={S.cardValue}>{loading ? '...' : totalLeads}</div>
-              <div style={{fontSize: '0.8rem', color: '#10b981'}}>↗ Meta 1.500/mês</div>
+              <div style={S.kpiLabel}>Volume de Captura</div>
+              <div style={S.kpiValue}>{loading ? '...' : totalLeads}</div>
+              <div style={S.kpiTrend('#10b981')}>↑ 12% este mês</div>
            </div>
            <div style={S.card}>
-              <div style={S.cardTitle}>TAXA DE CONTATO (WHATSAPP/INBOX)</div>
-              <div style={S.cardValue}>{loading ? '...' : taxaContato}%</div>
-              <div style={{fontSize: '0.8rem', color: '#3b82f6'}}>↗ Meta Blueprint: 90%</div>
+              <div style={S.kpiLabel}>Taxa de Conversão</div>
+              <div style={S.kpiValue}>{loading ? '...' : taxaConversao}%</div>
+              <div style={S.kpiTrend('#3b82f6')}>Padrão Elite SAP</div>
            </div>
            <div style={S.card}>
-              <div style={S.cardTitle}>TAXA DE RESPOSTA</div>
-              <div style={S.cardValue}>{loading ? '...' : taxaResposta}%</div>
-              <div style={{fontSize: '0.8rem', color: '#f59e0b'}}>↗ Meta Blueprint: 20%</div>
+              <div style={S.kpiLabel}>Leads Qualificados</div>
+              <div style={S.kpiValue}>{loading ? '...' : respondidos}</div>
+              <div style={S.kpiTrend('#f59e0b')}>Aguardando M2</div>
            </div>
            <div style={S.card}>
-              <div style={S.cardTitle}>CONTRATOS FECHADOS (SAP/TI)</div>
-              <div style={S.cardValue} style={{...S.cardValue, color: '#10b981'}}>{loading ? '...' : fechados}</div>
-              <div style={{fontSize: '0.8rem', color: '#10b981'}}>↗ ROAS Projetado: +R$ 75k</div>
+              <div style={S.kpiLabel}>Novos Contratos</div>
+              <div style={S.kpiValue} style={{...S.kpiValue, color: '#10b981'}}>{loading ? '...' : fechados}</div>
+              <div style={S.kpiTrend('#10b981')}>Faturamento Crescente</div>
            </div>
         </div>
 
-        {/* CENA 2: FUNIL DE VENDAS E INTELIGÊNCIA */}
-        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem'}}>
+        <div style={{display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem'}}>
            
            <div style={S.card}>
-              <div style={{...S.cardTitle, color: '#fff'}}>📊 SEU FUNIL DE VENDAS (STATUS)</div>
+              <h3 style={{margin: '0 0 1.5rem 0', fontSize: '1.2rem', fontWeight: 800}}>Funil de Vendas Dinâmico</h3>
               
-              <div style={S.statRow}>
-                 <div><span style={{fontSize:'1.2rem', marginRight:'10px'}}>📥</span> <b>Novos Capturados</b> (Falta abordar)</div>
-                 <div style={S.badge('#fff', '#1e293b')}>{stats.porStatus['novo'] || 0} leads</div>
+              <div style={S.funnelItem('rgba(59, 130, 246, 0.1)')}>
+                 <div style={{display:'flex', gap:'1rem', alignItems:'center'}}>
+                    <div style={{width:'40px', height:'40px', borderRadius:'10px', background:'#3b82f6', display:'flex', alignItems:'center', justifyContent:'center'}}>📥</div>
+                    <div><b>Topo do Funil</b><br/><span style={{fontSize:'0.8rem', opacity:0.5}}>Leads Novos</span></div>
+                 </div>
+                 <span style={{fontSize:'1.5rem', fontWeight:800}}>{stats.porStatus['novo'] || 0}</span>
               </div>
-              <div style={S.statRow}>
-                 <div><span style={{fontSize:'1.2rem', marginRight:'10px'}}>📱</span> <b>Contatados</b> (WhatsApp enviado)</div>
-                 <div style={S.badge('#3b82f6', '#3b82f620')}>{stats.porStatus['contatado'] || 0} leads</div>
+
+              <div style={S.funnelItem('rgba(139, 92, 246, 0.1)')}>
+                 <div style={{display:'flex', gap:'1rem', alignItems:'center'}}>
+                    <div style={{width:'40px', height:'40px', borderRadius:'10px', background:'#8b5cf6', display:'flex', alignItems:'center', justifyContent:'center'}}>📱</div>
+                    <div><b>Qualificação (Meio)</b><br/><span style={{fontSize:'0.8rem', opacity:0.5}}>Abordagem Realizada</span></div>
+                 </div>
+                 <span style={{fontSize:'1.5rem', fontWeight:800}}>{stats.porStatus['contatado'] || 0}</span>
               </div>
-              <div style={S.statRow}>
-                 <div><span style={{fontSize:'1.2rem', marginRight:'10px'}}>💬</span> <b>Responderam</b> (Qualificação M2)</div>
-                 <div style={S.badge('#f59e0b', '#f59e0b20')}>{stats.porStatus['respondeu'] || 0} leads</div>
+
+              <div style={S.funnelItem('rgba(245, 158, 11, 0.1)')}>
+                 <div style={{display:'flex', gap:'1rem', alignItems:'center'}}>
+                    <div style={{width:'40px', height:'40px', borderRadius:'10px', background:'#f59e0b', display:'flex', alignItems:'center', justifyContent:'center'}}>🤝</div>
+                    <div><b>Negociação (Fundo)</b><br/><span style={{fontSize:'0.8rem', opacity:0.5}}>Interesse Confirmado</span></div>
+                 </div>
+                 <span style={{fontSize:'1.5rem', fontWeight:800}}>{stats.porStatus['em_negociacao'] || 0}</span>
               </div>
-              <div style={S.statRow}>
-                 <div><span style={{fontSize:'1.2rem', marginRight:'10px'}}>🤝</span> <b>Em Negociação</b> (Call Feita)</div>
-                 <div style={S.badge('#8b5cf6', '#8b5cf620')}>{stats.porStatus['negociacao'] || 0} leads</div>
-              </div>
-              <div style={{...S.statRow, borderBottom: 'none'}}>
-                 <div><span style={{fontSize:'1.2rem', marginRight:'10px'}}>🏆</span> <b>Fechados / Won</b> (Contrato)</div>
-                 <div style={S.badge('#10b981', '#10b98120')}>{stats.porStatus['fechado'] || 0} clientes</div>
+
+              <div style={S.funnelItem('rgba(16, 185, 129, 0.15)')}>
+                 <div style={{display:'flex', gap:'1rem', alignItems:'center'}}>
+                    <div style={{width:'40px', height:'40px', borderRadius:'10px', background:'#10b981', display:'flex', alignItems:'center', justifyContent:'center'}}>🏆</div>
+                    <div><b>Conversão Final</b><br/><span style={{fontSize:'0.8rem', opacity:0.5}}>Clientes Fechados</span></div>
+                 </div>
+                 <span style={{fontSize:'1.5rem', fontWeight:800}}>{stats.porStatus['fechado'] || 0}</span>
               </div>
            </div>
 
            <div style={S.card}>
-              <div style={{...S.cardTitle, color: '#fff'}}>🔥 TEMPERATURA DA BASE</div>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem'}}>
-                 <div style={{display: 'flex', justifyContent: 'space-between', background: '#ef444420', padding: '15px', borderRadius: '8px'}}>
-                    <b style={{color: '#ef4444'}}>🔥 QUENTES</b>
-                    <b style={{color: '#fff'}}>{stats.porTemperatura['quente'] || 0}</b>
+              <h3 style={{margin: '0 0 1.5rem 0', fontSize: '1.2rem', fontWeight: 800}}>Saúde da Base</h3>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                 <div style={{background:'rgba(239, 68, 68, 0.1)', padding:'1.2rem', borderRadius:'16px', border:'1px solid rgba(239, 68, 68, 0.2)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'0.5rem'}}>
+                       <span style={{fontWeight:700, color:'#ef4444'}}>🔥 Leads Quentes</span>
+                       <b>{stats.porTemperatura['quente'] || 0}</b>
+                    </div>
+                    <div style={{height:'6px', background:'rgba(255,255,255,0.05)', borderRadius:'10px', overflow:'hidden'}}>
+                       <div style={{width:`${(stats.porTemperatura['quente']/totalLeads)*100 || 0}%`, height:'100%', background:'#ef4444'}}></div>
+                    </div>
                  </div>
-                 <div style={{display: 'flex', justifyContent: 'space-between', background: '#f59e0b20', padding: '15px', borderRadius: '8px'}}>
-                    <b style={{color: '#f59e0b'}}>⚡ MORNOS</b>
-                    <b style={{color: '#fff'}}>{stats.porTemperatura['morno'] || 0}</b>
+
+                 <div style={{background:'rgba(245, 158, 11, 0.1)', padding:'1.2rem', borderRadius:'16px', border:'1px solid rgba(245, 158, 11, 0.2)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'0.5rem'}}>
+                       <span style={{fontWeight:700, color:'#f59e0b'}}>⚡ Leads Mornos</span>
+                       <b>{stats.porTemperatura['morno'] || 0}</b>
+                    </div>
+                    <div style={{height:'6px', background:'rgba(255,255,255,0.05)', borderRadius:'10px', overflow:'hidden'}}>
+                       <div style={{width:`${(stats.porTemperatura['morno']/totalLeads)*100 || 0}%`, height:'100%', background:'#f59e0b'}}></div>
+                    </div>
                  </div>
-                 <div style={{display: 'flex', justifyContent: 'space-between', background: '#3b82f620', padding: '15px', borderRadius: '8px'}}>
-                    <b style={{color: '#3b82f6'}}>❄️ FRIOS</b>
-                    <b style={{color: '#fff'}}>{stats.porTemperatura['frio'] || 0}</b>
+
+                 <div style={{background:'rgba(59, 130, 246, 0.1)', padding:'1.2rem', borderRadius:'16px', border:'1px solid rgba(59, 130, 246, 0.2)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'0.5rem'}}>
+                       <span style={{fontWeight:700, color:'#3b82f6'}}>❄️ Leads Frios</span>
+                       <b>{stats.porTemperatura['frio'] || 0}</b>
+                    </div>
+                    <div style={{height:'6px', background:'rgba(255,255,255,0.05)', borderRadius:'10px', overflow:'hidden'}}>
+                       <div style={{width:`${(stats.porTemperatura['frio']/totalLeads)*100 || 0}%`, height:'100%', background:'#3b82f6'}}></div>
+                    </div>
                  </div>
               </div>
-              
-              <div style={{marginTop: '2rem'}}>
-                 <div style={S.cardTitle}>📍 ORIGEM MÁQUINA</div>
-                 <div style={{marginTop: '1rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom:'8px'}}>
-                    <span>🕵️ Capturas Manuais (Inbox):</span> <b>{stats.porOrigem['manual'] || 0}</b>
+
+              <div style={{marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)'}}>
+                 <div style={S.kpiLabel}>Radar de Origem</div>
+                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'1rem', fontSize:'0.9rem'}}>
+                    <span>🕵️ Captura Manual</span>
+                    <b style={{color:'#3b82f6'}}>{stats.porOrigem['manual'] || 0}</b>
                  </div>
-                 <div style={{marginTop: '10px', display: 'flex', justifyContent: 'space-between'}}>
-                    <span>🛰️ Captura Radar Em Massa:</span> <b>{stats.porOrigem['importacao'] || 0}</b>
+                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'0.5rem', fontSize:'0.9rem'}}>
+                    <span>🛰️ Radar em Massa</span>
+                    <b style={{color:'#8b5cf6'}}>{stats.porOrigem['importacao'] || 0}</b>
                  </div>
               </div>
            </div>

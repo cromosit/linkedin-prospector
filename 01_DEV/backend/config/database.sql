@@ -15,8 +15,12 @@ CREATE TABLE IF NOT EXISTS users (
   id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   linkedin_id     TEXT UNIQUE,
   name            TEXT NOT NULL,
-  email           TEXT,
-  headline        TEXT,
+  email           TEXT UNIQUE,
+  password_hash   TEXT,
+  company         TEXT,
+  role            TEXT,
+  lgpd_accepted   BOOLEAN DEFAULT false,
+  lgpd_consent_at TIMESTAMPTZ,
   profile_picture TEXT,
   access_token    TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -81,10 +85,50 @@ CREATE TABLE IF NOT EXISTS lead_activities (
 );
 
 -- ==========================================
--- CONSTRAINTS UNIQUE (evita duplicatas)
+-- TABELA: campaigns (Gestão de Lotes de Prospecção)
 -- ==========================================
-ALTER TABLE leads ADD CONSTRAINT IF NOT EXISTS leads_linkedin_id_unique  UNIQUE (linkedin_id);
-ALTER TABLE leads ADD CONSTRAINT IF NOT EXISTS leads_linkedin_url_unique UNIQUE (linkedin_url);
+CREATE TABLE IF NOT EXISTS campaigns (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID REFERENCES users(id),
+  name        TEXT NOT NULL,
+  description TEXT,
+  status      TEXT DEFAULT 'ativa' CHECK (status IN ('ativa', 'pausada', 'concluida')),
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Vincular leads a campanhas
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES campaigns(id) ON DELETE SET NULL;
+
+-- ==========================================
+-- TABELA: tasks (Gestão de Follow-ups e Afazeres)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS tasks (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID REFERENCES users(id),
+  lead_id     UUID REFERENCES leads(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  description TEXT,
+  due_date    TIMESTAMPTZ,
+  status      TEXT DEFAULT 'pendente' CHECK (status IN ('pendente', 'concluida', 'atrasada')),
+  priority    TEXT DEFAULT 'media' CHECK (priority IN ('baixa', 'media', 'alta')),
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ==========================================
+-- PERMISSÕES EXTRAS
+-- ==========================================
+GRANT ALL PRIVILEGES ON campaigns TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON tasks TO postgres, anon, authenticated, service_role;
+
+-- ==========================================
+-- CONSTRAINTS UNIQUE ... (mantenha o restante do arquivo)
+-- Remover se já existir para evitar erros ao rodar o script novamente
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_linkedin_id_unique;
+ALTER TABLE leads ADD CONSTRAINT leads_linkedin_id_unique UNIQUE (linkedin_id);
+
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_linkedin_url_unique;
+ALTER TABLE leads ADD CONSTRAINT leads_linkedin_url_unique UNIQUE (linkedin_url);
 
 -- ==========================================
 -- ÍNDICES para busca rápida
@@ -113,3 +157,18 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS followers          TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS website            TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS about              TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS can_connect        BOOLEAN DEFAULT true;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS legal_basis        TEXT DEFAULT 'Legítimo Interesse';
+
+-- ==========================================
+-- TABELA: lgpd_logs (Prova de Conformidade)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS lgpd_logs (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID REFERENCES users(id),
+  lead_id     UUID REFERENCES leads(id) ON DELETE CASCADE,
+  action      TEXT, -- 'visualizacao', 'exportacao', 'exclusao_lgpd'
+  description TEXT,
+  timestamp   TIMESTAMPTZ DEFAULT NOW()
+);
+
+GRANT ALL PRIVILEGES ON lgpd_logs TO postgres, anon, authenticated, service_role;
