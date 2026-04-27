@@ -361,25 +361,26 @@ async function executarSalvamentoIndividual(token) {
   els.btnCaptureText.textContent = 'Salvando...';
 
   try {
-    // 1. Verifica se o lead já existe
-    const tokenGet = await chrome.storage.local.get('token');
-    const token = tokenGet.token;
-    const checkRes = await fetch(`${API_URL}/api/leads/check/${perfilAtual.linkedin_id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const checkData = await checkRes.json();
+    const { exists, lead } = await verificarLeadExiste(perfilAtual.linkedin_id);
     
+    // FILTRO INTELIGENTE: Só envia campos que não estão vazios para não apagar o que já existe no CRM
+    const dadosParaEnviar = { ...perfilAtual };
+    Object.keys(dadosParaEnviar).forEach(key => {
+      if (!dadosParaEnviar[key] || dadosParaEnviar[key] === '' || dadosParaEnviar[key] === 'null') {
+        delete dadosParaEnviar[key];
+      }
+    });
+
     let res;
     let isUpdate = false;
 
-    if (checkData.exists && checkData.lead?.id) {
-      // ATUALIZA LEAD EXISTENTE
+    if (exists && lead?.id) {
       isUpdate = true;
-      res = await fetch(`${API_URL}/api/leads/${checkData.lead.id}`, {
+      res = await fetch(`${API_URL}/api/leads/${lead.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ 
-          ...perfilAtual,
+          ...dadosParaEnviar,
           temperature: els.temperature.value, 
           notes: els.notes.value,
           group_name: els.groupName.value || 'Geral',
@@ -387,12 +388,11 @@ async function executarSalvamentoIndividual(token) {
         })
       });
     } else {
-      // CRIA NOVO LEAD
       res = await fetch(`${API_URL}/api/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ 
-          ...perfilAtual, 
+          ...dadosParaEnviar, 
           temperature: els.temperature.value, 
           notes: els.notes.value, 
           group_name: els.groupName.value || 'Geral',
