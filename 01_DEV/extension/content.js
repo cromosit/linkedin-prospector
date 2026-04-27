@@ -85,7 +85,8 @@ async function extrairPerfilIndividualCompleto() {
     const segMatch = bodyTxt.match(/([\d.,]+)\s+seguidores?/i)
     if (segMatch) dados.followers = segMatch[0]
 
-    dados.connection_degree = bodyTxt.includes('• 1º') || bodyTxt.includes('• 1st') ? '1' : bodyTxt.includes('• 2º') || bodyTxt.includes('• 2nd') ? '2' : '3'
+    dados.connection_degree = (bodyTxt.includes('1º') || bodyTxt.includes('1st')) && (bodyTxt.includes('• 1') || bodyTxt.includes('· 1') || bodyTxt.includes(' 1º')) ? '1' : 
+                              (bodyTxt.includes('2º') || bodyTxt.includes('2nd')) ? '2' : '3'
     dados.temperature = dados.connection_degree === '1' ? 'quente' : 'frio'
   } catch(e) {}
 
