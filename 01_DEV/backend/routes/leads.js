@@ -3,6 +3,7 @@ const router   = express.Router();
 const axios    = require('axios');
 const supabase = require('../config/supabase');
 const auth     = require('../middleware/auth');
+const chatwaCrmService = require('../services/chatwaCrmService');
 
 router.use(auth);
 
@@ -398,6 +399,11 @@ router.post('/', async (req, res) => {
     if (lead && (headline || about)) {
       enriquecerLeadComIA(lead).catch(e => console.error('Erro IA no create:', e.message));
     }
+
+    // [AUTOMAÇÃO CHATWA] Sincroniza lead com o Funil de Vendas do ChatWA
+    chatwaCrmService.syncLeadToFunnel(lead).catch(e => 
+      console.error('⚠️ [ChatWA CRM] Falha na sincronização automática:', e.message)
+    );
 
     res.status(201).json({ message: 'Lead criado com sucesso', lead });
   } catch (err) {
