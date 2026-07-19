@@ -88,10 +88,11 @@ router.put('/stages/:id', async (req, res) => {
       .from('pipeline_stages')
       .update({ name, color, position })
       .eq('id', req.params.id)
-      .select()
-      .single();
+      .select();
+      
     if (error) throw error;
-    res.json(data);
+    const stage = (data && data.length > 0) ? data[0] : { name, color, position, id: req.params.id };
+    res.json(stage);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

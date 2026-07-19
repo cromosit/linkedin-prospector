@@ -136,9 +136,16 @@ router.post('/suggest-prompt', auth, async (req, res) => {
   try {
     const axios = require('axios');
     
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY não configurada no servidor.');
-    }
+    // Busca as chaves personalizadas cadastradas pelo usuário no banco
+    const { data: keys, error: errKeys } = await supabase
+      .from('user_ai_settings')
+      .select('*')
+      .eq('user_id', req.user.userId)
+      .maybeSingle();
+
+    const provider = keys?.preferred_provider || 'openai';
+    const openaiKey = keys?.openai_key || process.env.OPENAI_API_KEY;
+    const geminiKey = keys?.gemini_key || process.env.GEMINI_API_KEY;
 
     const prompt = `
 Você é um especialista em prospecção outbound B2B e copywriting da Cromosit IT (empresa de alocação de profissionais de TI, treinamentos e consultoria técnica em Curitiba/PR).
@@ -147,23 +154,36 @@ O público-alvo (ICP) é definido por:
 - Nome da Campanha (ICP): "${name}"
 - Objetivo: "${description || 'prospecção de novos negócios'}"
 
-Diga à IA como criar a mensagem perfeita para este ICP específico (exemplo: elogiando um aspecto profissional comum a esse cargo, fazendo um gancho direto de conexão sem parecer pitch de vendas forçado, e focando nos diferenciais da Cromosit IT).
+Diga à IA como criar a mensagem perfeita para este ICP específico (exemplo: elogiando um aspect profissional comum a esse cargo, fazendo um gancho direto de conexão sem parecer pitch de vendas forçado, e focando nos diferenciais da Cromosit IT).
 Escreva APENAS o comando de sugestão em formato de instrução direta para a IA (ex: "Crie uma mensagem de no máximo 2 parágrafos..."). Não use aspas adicionais, introduções ou explicações.
 `.trim();
 
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o-mini',
-        max_tokens: 300,
-        temperature: 0.7,
-        messages: [{ role: 'user', content: prompt }]
-      },
-      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` } }
-    );
+    let suggestion = '';
 
-    const suggestion = response.data.choices[0].message.content.trim();
-    res.json({ suggestion });
+    if (provider === 'gemini') {
+      if (!geminiKey) throw new Error('Chave do Gemini não configurada.');
+      const resAI = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        { contents: [{ parts: [{ text: prompt }] }] }
+      );
+      suggestion = resAI.data.candidates[0].content.parts[0].text;
+    } else {
+      // Padrão: OpenAI
+      if (!openaiKey) throw new Error('Chave da OpenAI não configurada.');
+      const resAI = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o-mini',
+          max_tokens: 300,
+          temperature: 0.7,
+          messages: [{ role: 'user', content: prompt }]
+        },
+        { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` } }
+      );
+      suggestion = resAI.data.choices[0].message.content;
+    }
+
+    res.json({ suggestion: suggestion.trim() });
   } catch (err) {
     console.error('Erro ao sugerir prompt:', err.message);
     res.status(500).json({ error: 'Erro ao gerar sugestão com IA', detalhe: err.message });

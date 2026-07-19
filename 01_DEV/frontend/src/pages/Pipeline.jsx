@@ -71,6 +71,14 @@ export default function Pipeline() {
     } catch (err) { alert('Erro ao renomear') }
   }
 
+  const excluirEtapa = async (stageId, nome) => {
+    if (!confirm(`Deseja realmente excluir a etapa "${nome}"? Os leads desta etapa ficarão sem etapa vinculada.`)) return
+    try {
+      await api.delete(`/api/pipelines/stages/${stageId}`)
+      carregarTudo()
+    } catch (err) { alert('Erro ao excluir etapa') }
+  }
+
   const criarFunil = async () => {
     const nome = prompt('Nome do novo funil (ex: Vendas SAP):')
     if (!nome) return
@@ -154,9 +162,27 @@ export default function Pipeline() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleDrop(e, stage.id)}
               >
-                <div style={S.colHeader(stage.color)} onClick={() => renomearEtapa(stage.id, stage.name)}>
-                  <span style={{ fontWeight: '700', fontSize: '12px' }}>{stage.name.toUpperCase()}</span>
-                  <span style={{ opacity: 0.5, fontSize: '11px' }}>{leadsNaEtapa.length}</span>
+                <div style={{ ...S.colHeader(stage.color), cursor: 'default' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '11px', color: '#fff' }}>{stage.name.toUpperCase()}</span>
+                    <span style={{ opacity: 0.5, fontSize: '10px' }}>{leadsNaEtapa.length} leads</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => renomearEtapa(stage.id, stage.name)}
+                      style={{ background: 'transparent', border: 'none', color: '#8899a6', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                      title="Editar nome"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      onClick={() => excluirEtapa(stage.id, stage.name)}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                      title="Excluir etapa"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
                 
                 <div style={{ padding: '15px', overflowY: 'auto' }}>

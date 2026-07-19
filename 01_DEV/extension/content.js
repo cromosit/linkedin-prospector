@@ -54,43 +54,69 @@ function extrairBasico() {
 
 // 2️⃣ LÓGICA DE CAPTURA DOS CONTATOS (E-MAIL, FONE, SITE, ANIVERSÁRIO)
 async function buscarContatos(dados) {
-  const btn = document.querySelector('#top-card-text-details-contact-info, [href*="/contact-info/"]');
-  if (btn || window.location.href.includes('/in/')) {
-    if (!window.location.hash.includes('contact-info')) {
-       const linkDireto = document.querySelector(`a[href*="/contact-info/"]`);
-       if (linkDireto) linkDireto.click();
-       else if (btn) btn.click();
-    }
+  // Abre a janela de contatos se não estiver aberta
+  if (!window.location.hash.includes('contact-info') && !document.querySelector('[role="dialog"], .artdeco-modal')) {
+     const btn = document.querySelector('#top-card-text-details-contact-info, [href*="/contact-info/"]');
+     if (btn) {
+       btn.click();
+       console.log('[Prospector] Clicou para abrir dados de contato.');
+       await esperar(2000);
+     }
+  }
 
-    await esperar(2500); // Aguarda o modal abrir
+  // Tenta encontrar o container do modal
+  const modal = document.querySelector('[role="dialog"], .artdeco-modal, .artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
+  
+  if (modal || window.location.href.includes('contact-info')) {
+    console.log('[Prospector] Extraindo dados do modal de contato...');
+    const container = modal || document.body;
     
-    const modal = document.querySelector('.artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
-    if (modal) {
-      console.log('✅ Modal de contatos encontrado!');
-      const txt = modal.innerText;
-      
-      const emailMatch = txt.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    // 1. Extração de E-mail (por link mailto ou regex)
+    const emailEl = container.querySelector('a[href^="mailto:"]');
+    if (emailEl) {
+      dados.email = emailEl.href.replace('mailto:', '').trim();
+    } else {
+      const emailMatch = container.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
       if (emailMatch) dados.email = emailMatch[0];
-      
-      const phoneMatch = txt.match(/(\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4})/);
+    }
+    
+    // 2. Extração de Telefone (por link tel ou regex)
+    const foneEl = container.querySelector('a[href^="tel:"]');
+    if (foneEl) {
+      dados.phone = foneEl.href.replace('tel:', '').trim();
+    } else {
+      const phoneMatch = container.innerText.match(/(\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4})/);
       if (phoneMatch) dados.phone = phoneMatch[0];
-      
-      const siteEl = modal.querySelector('a[href*="linktr.ee"], a[href*="bit.ly"], .pv-contact-info__contact-link');
-      if (siteEl) dados.website = siteEl.href;
+    }
+    
+    // 3. Extração de Website (busca links que não sejam linkedin.com ou mailto)
+    const links = Array.from(container.querySelectorAll('a'));
+    const linkExterno = links.find(a => a.href && !a.href.includes('linkedin.com') && !a.href.startsWith('mailto:') && !a.href.startsWith('tel:'));
+    if (linkExterno) {
+      dados.website = linkExterno.href;
+    }
+    
+    // 4. Aniversário e Data de Conexão (procurando pelos textos das seções)
+    const sections = Array.from(container.querySelectorAll('section, .pv-contact-info__contact-type, .pv-profile-section'));
+    sections.forEach(s => {
+      const t = s.innerText.toLowerCase();
+      if (t.includes('aniversário') || t.includes('birthday')) {
+        dados.birthday = s.querySelector('.pv-contact-info__contact-item, span:last-child, .pv-contact-info__header + *')?.innerText.trim();
+      }
+      if (t.includes('conexão desde') || t.includes('connected')) {
+        dados.connected_since = s.querySelector('.pv-contact-info__contact-item, span:last-child, .pv-contact-info__header + *')?.innerText.trim();
+      }
+    });
 
-      const sections = Array.from(modal.querySelectorAll('section, .pv-contact-info__contact-type'));
-      sections.forEach(s => {
-        const t = s.innerText.toLowerCase();
-        if (t.includes('aniversário') || t.includes('birthday')) {
-          dados.birthday = s.querySelector('.pv-contact-info__contact-item, span:last-child')?.innerText.trim();
-        }
-        if (t.includes('conexão desde') || t.includes('connected')) {
-          dados.connected_since = s.querySelector('.pv-contact-info__contact-item, span:last-child')?.innerText.trim();
-        }
-      });
-      
-      const closeBtn = document.querySelector('.artdeco-modal__dismiss, [aria-label*="Fechar"], [aria-label*="Close"]');
-      if (closeBtn) closeBtn.click();
+    console.log('[Prospector] Dados de contato extraídos:', { email: dados.email, phone: dados.phone, website: dados.website, birthday: dados.birthday, connected_since: dados.connected_since });
+
+    // Fecha o modal clicando fora ou no botão de fechar
+    const closeBtn = document.querySelector('.artdeco-modal__dismiss, [aria-label*="Fechar"], [aria-label*="Close"], button.artdeco-button');
+    if (closeBtn) {
+      closeBtn.click();
+    } else {
+      // Fallback: pressiona ESC para fechar o modal
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     }
   }
 }

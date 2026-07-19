@@ -358,9 +358,29 @@ router.post('/', async (req, res) => {
     if (!name || !sanitizeString(name))
       return res.status(400).json({ error: 'Nome do lead é obrigatório' });
 
+    // Busca o primeiro funil do banco para associar o lead ao ser criado/capturado
+    let pId = req.body.pipeline_id || null;
+    let sId = req.body.pipeline_stage_id || null;
+    
+    if (!pId || !sId) {
+      try {
+        const { data: firstPip } = await supabase.from('pipelines').select('id, pipeline_stages(id, position)').limit(1).maybeSingle();
+        if (firstPip) {
+          pId = firstPip.id;
+          const stagesSorted = firstPip.pipeline_stages?.sort((a,b) => a.position - b.position) || [];
+          sId = stagesSorted[0]?.id || null;
+        }
+      } catch (e) {
+        console.warn('⚠️ Falha ao buscar pipeline padrão para o novo lead:', e.message);
+      }
+    }
+
     const { data: lead, error } = await supabase
       .from('leads')
       .upsert({
+        pipeline_id:        pId,
+        pipeline_stage_id:  sId,
+        stage_entered_at:   new Date().toISOString(),
         name:               sanitizeString(name, 150),
         linkedin_url:       sanitizeString(linkedin_url, 300),
         linkedin_id:        sanitizeString(linkedin_id, 100),
@@ -491,6 +511,44 @@ router.put('/:id', async (req, res) => {
 
     const updates = { updated_at: new Date().toISOString() };
     
+    // Automação inteligente do Funil baseado no Status do Lead
+    if (req.body.status && !req.body.pipeline_stage_id) {
+      try {
+        const { data: leadAtual } = await supabase.from('leads').select('pipeline_id').eq('id', req.params.id).maybeSingle();
+        let pipelineId = leadAtual?.pipeline_id;
+        
+        if (!pipelineId) {
+          const { data: firstPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
+          if (firstPip) pipelineId = firstPip.id;
+        }
+        
+        if (pipelineId) {
+          updates.pipeline_id = pipelineId;
+          const { data: stages } = await supabase.from('pipeline_stages').select('id, name, position').eq('pipeline_id', pipelineId).order('position', { ascending: true });
+          
+          if (stages && stages.length > 0) {
+            const status = req.body.status;
+            let stageDestino = null;
+            
+            if (status === 'novo') {
+              stageDestino = stages[0]; 
+            } else if (status === 'contatado') {
+              stageDestino = stages.find(s => s.name.toLowerCase().includes('contat') || s.position === 2) || stages[1] || stages[0];
+            } else if (status === 'respondeu' || status === 'em_negociacao') {
+              stageDestino = stages.find(s => s.name.toLowerCase().includes('negoc') || s.name.toLowerCase().includes('apresent') || s.position === 3) || stages[2] || stages[1] || stages[0];
+            }
+            
+            if (stageDestino) {
+              updates.pipeline_stage_id = stageDestino.id;
+              updates.stage_entered_at = new Date().toISOString();
+            }
+          }
+        }
+      } catch (errAuto) {
+        console.error('⚠️ Falha na automação de transição de etapa do pipeline:', errAuto.message);
+      }
+    }
+
     // Se mudar o status ou a etapa, reinicia o cronômetro de tempo na fase
     if (req.body.status || req.body.pipeline_stage_id) {
       updates.stage_entered_at = new Date().toISOString();
