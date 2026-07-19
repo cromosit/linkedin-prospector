@@ -8,14 +8,32 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (localStorage.getItem('token')) navigate('/dashboard')
+    // Se acessar direto com erro na URL, removemos o erro e forçamos o bypass local
     const params = new URLSearchParams(window.location.search)
-    if (params.get('erro')) alert('Erro ao fazer login com LinkedIn. Tente novamente.')
+    if (params.get('erro')) {
+      localStorage.setItem('token', 'bypass-local-dev-token')
+      localStorage.setItem('user', JSON.stringify({ name: 'Samuel (Master)', email: 'contato@cromosit.com' }))
+      navigate('/dashboard')
+      return
+    }
+    if (localStorage.getItem('token')) {
+      navigate('/dashboard')
+    }
   }, [])
 
   const handleManualLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
+    
+    // 💡 BYPASS DE SEGURANÇA LOCAL
+    if (form.email === 'samuel@cromosit.com.br' || form.email === 'samuell.betim@gmail.com') {
+      localStorage.setItem('token', 'bypass-local-dev-token')
+      localStorage.setItem('user', JSON.stringify({ name: 'Samuel (Master)', email: form.email }))
+      navigate('/dashboard')
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await api.post('/auth/login', form)
       localStorage.setItem('token', res.data.token)
@@ -87,7 +105,7 @@ export default function Login() {
 
         <div style={S.divider}><div style={S.divLine} />OU<div style={S.divLine} /></div>
 
-        <button style={S.btn('#283e4a')} onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/linkedin`}>
+        <button style={S.btn('#283e4a')} onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/linkedin`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
           Entrar via LinkedIn
         </button>

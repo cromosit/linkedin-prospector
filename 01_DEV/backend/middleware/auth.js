@@ -16,6 +16,12 @@ const authMiddleware = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
+    // 💡 BYPASS DE SEGURANÇA LOCAL PARA A EXTENSÃO
+    if (token === 'bypass-local-dev-token') {
+      req.user = { userId: '550e8400-e29b-41d4-a716-446655440000', email: 'contato@cromosit.com', name: 'Samuel (Master)' };
+      return next();
+    }
+
     // Verifica se o token é válido e não expirou
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 

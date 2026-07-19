@@ -42,7 +42,7 @@
     .leads-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); margin-bottom: 10px; }
     .lead-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
     .lead-item:last-child { border-bottom: none; }
-    .lead-checkbox { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); }
+    .lead-checkbox { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); cursor: pointer; }
     .lead-info { flex: 1; min-width: 0; }
     .lead-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .lead-sub { font-size: 10px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -174,7 +174,7 @@
 <div class="config-section">
   <div id="syncStatus" style="font-size:11px;color:#8899aa;text-align:center;padding:6px 0;">⟳ Verificando login...</div>
   <button class="btn-save-token" id="btnOpenApp" style="display:none;background:#0a66c2;color:#fff;border:none;">🔐 Fazer login no app</button>
-  <div id="tokenManual" style="display:none;margin-top:6px">
+  <div id="tokenManual" style="margin-top:6px">
     <div class="section-label" style="margin-bottom:4px">Token manual (fallback)</div>
     <input class="config-input" type="password" id="tokenInput" placeholder="Cole seu token JWT aqui..." />
     <button class="btn-save-token" id="btnSaveToken">Salvar token</button>

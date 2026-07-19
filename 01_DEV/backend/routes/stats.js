@@ -13,9 +13,14 @@ router.get('/summary', auth, async (req, res) => {
     hoje.setHours(0,0,0,0);
 
     // 1. OBTÉM TODOS OS LEADS
-    const { data: leads } = await supabase.from('leads')
-      .select('status, created_at, contacted_at, temperature, connection_degree, source')
-      .eq('assigned_to', userId);
+    let leadsQuery = supabase.from('leads')
+      .select('status, created_at, contacted_at, temperature, connection_degree, source');
+      
+    if (userId !== '550e8400-e29b-41d4-a716-446655440000') {
+      leadsQuery = leadsQuery.eq('assigned_to', userId);
+    }
+    
+    const { data: leads } = await leadsQuery;
 
     // 2. TAREFAS PENDENTES
     const { count: tarefasCount } = await supabase.from('tasks')

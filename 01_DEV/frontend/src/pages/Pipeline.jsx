@@ -169,7 +169,14 @@ export default function Pipeline() {
                       onClick={() => window.location.href = `/leads?id=${lead.id}`}
                     >
                       <div style={S.temp(lead.temperature)} />
-                      <div style={{ fontSize: '13px', fontWeight: '600' }}>{lead.name}</div>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                        <div style={{ fontSize: '13px', fontWeight: '600' }}>{lead.name}</div>
+                        {lead.connection_degree && (
+                          <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '4px', fontWeight: 'bold' }}>
+                            {lead.connection_degree}º Grau
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>{lead.company || lead.headline}</div>
                       
                       {/* ⏱️ INDICADOR DE TEMPO NA ETAPA (AGING) */}

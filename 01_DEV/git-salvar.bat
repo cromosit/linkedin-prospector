@@ -8,7 +8,7 @@ echo   Salvando alteracoes no GitHub...
 echo ================================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector
+cd /d "%~dp0"
 
 REM Verifica se Git está configurado
 git status >nul 2>&1

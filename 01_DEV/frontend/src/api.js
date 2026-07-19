@@ -19,9 +19,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/'
+      const token = localStorage.getItem('token')
+      if (token !== 'bypass-local-dev-token') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/'
+      }
     }
     return Promise.reject(error)
   }

@@ -425,7 +425,7 @@ async function notificarVendedor(token, leads) {
       (graus['1'].length ? `🟢 *1º Grau (${graus['1'].length}):*\n${graus['1'].slice(0,5).join(', ')}${graus['1'].length > 5 ? '...' : ''}\n\n` : '') +
       (graus['2'].length ? `🔵 *2º Grau (${graus['2'].length}):*\n${graus['2'].slice(0,5).join(', ')}${graus['2'].length > 5 ? '...' : ''}\n\n` : '') +
       (graus['3'].length ? `⚪ *3º Grau (${graus['3'].length}):*\n${graus['3'].slice(0,5).join(', ')}${graus['3'].length > 5 ? '...' : ''}\n\n` : '') +
-      `Acesse: http://localhost:5173/leads`
+      `Acesse: http://localhost:5174/leads`
 
     await fetch(`${API_URL}/api/notificar-vendedor`, {
       method: 'POST',

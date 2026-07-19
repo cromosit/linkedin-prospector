@@ -236,6 +236,22 @@ export default function Relatorios() {
               </div>
 
               <div style={{marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)'}}>
+                 <div style={S.kpiLabel}>Rede de Conexão (Grau)</div>
+                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'1rem', fontSize:'0.9rem'}}>
+                    <span>🥇 1º Grau (Conectados)</span>
+                    <b style={{color:'#10b981'}}>{stats.porGrau['1'] || 0}</b>
+                 </div>
+                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'0.5rem', fontSize:'0.9rem'}}>
+                    <span>🥈 2º Grau (Em comum)</span>
+                    <b style={{color:'#f59e0b'}}>{stats.porGrau['2'] || 0}</b>
+                 </div>
+                 <div style={{display:'flex', justifyContent:'space-between', marginTop:'0.5rem', fontSize:'0.9rem'}}>
+                    <span>🥉 3º Grau (Fora da rede)</span>
+                    <b style={{color:'#64748b'}}>{stats.porGrau['3'] || 0}</b>
+                 </div>
+              </div>
+
+              <div style={{marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)'}}>
                  <div style={S.kpiLabel}>Radar de Origem</div>
                  <div style={{display:'flex', justifyContent:'space-between', marginTop:'1rem', fontSize:'0.9rem'}}>
                     <span>🕵️ Captura Manual</span>

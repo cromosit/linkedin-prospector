@@ -11,7 +11,7 @@
 | Componente | URL | Porta | Comando |
 | :--- | :--- | :--- | :--- |
 | **Backend (API)** | [http://localhost:3001](http://localhost:3001) | `3001` | `npm run dev` (em /backend) |
-| **Frontend (CRM)** | [http://localhost:5173](http://localhost:5173) | `5173` | `npm run dev` (em /frontend) |
+| **Frontend (CRM)** | [http://localhost:5174](http://localhost:5174) | `5174` | `npm run dev` (em /frontend) |
 | **Login LinkedIn** | [http://localhost:3001/auth/linkedin](http://localhost:3001/auth/linkedin) | - | - |
 | **Health Check** | [http://localhost:3001/health](http://localhost:3001/health) | - | - |
 

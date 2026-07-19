@@ -835,10 +835,16 @@ export default function Leads() {
                     style={S.headerBtn('#0a66c2')}
                     onClick={() => {
                       logLinkedInAction()
+                      // Copia a mensagem gerada automaticamente para a área de transferência do Windows
+                      if (msgGerada) {
+                        navigator.clipboard.writeText(msgGerada)
+                          .then(() => showToast('📋 Mensagem copiada! Dê Ctrl+V no chat.'))
+                          .catch(err => console.error('Erro ao copiar:', err));
+                      }
                       const target = form.linkedin_id || form.linkedin_url?.split('/in/')[1]?.split('/')[0]
                       const url = form.connection_degree === '1'
-                        ? `https://www.linkedin.com/messaging/compose/?recipient=${target}&body=${encodeURIComponent(msgGerada)}&lp_msg=${encodeURIComponent(msgGerada)}`
-                        : `${form.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}`
+                        ? `https://www.linkedin.com/messaging/compose/?recipient=${target}&lp_action=send_message&lp_msg=${encodeURIComponent(msgGerada)}&leadId=${leadSel.id}`
+                        : `${form.linkedin_url}?lp_action=connect&lp_msg=${encodeURIComponent(msgGerada)}&leadId=${leadSel.id}`
                       window.open(url, '_blank')
                     }}
                   >

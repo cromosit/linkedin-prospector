@@ -7,7 +7,8 @@ export default function Campaigns() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', search_url: '', message_template: '' })
+    const [form, setForm] = useState({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos' })
+  const [iaLoading, setIaLoading] = useState(false)
 
   useEffect(() => { carregarCampanhas() }, [])
 
@@ -18,16 +19,42 @@ export default function Campaigns() {
     } finally { setLoading(false) }
   }
 
+  const sugerirComIA = async () => {
+    if (!form.name) {
+      alert('Preencha o Nome da Campanha primeiro para que a IA entenda o ICP!')
+      return
+    }
+    setIaLoading(true)
+    try {
+      const res = await api.post('/api/campaigns/suggest-prompt', {
+        name: form.name,
+        description: form.description
+      })
+      setForm({ ...form, message_template: res.data.suggestion })
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message
+      alert('Erro ao sugerir comando: ' + msg)
+    } finally {
+      setIaLoading(false)
+    }
+  }
+
   const abrirEdicao = (c) => {
     setEditingId(c.id)
-    setForm({ name: c.name, description: c.description || '', search_url: c.search_url || '', message_template: c.message_template || '' })
+    setForm({ 
+      name: c.name, 
+      description: c.description || '', 
+      search_url: c.search_url || '', 
+      message_template: c.message_template || '',
+      target_degree: c.target_degree || 'todos'
+    })
     setModal(true)
   }
 
   const fecharModal = () => {
     setModal(false)
     setEditingId(null)
-    setForm({ name: '', description: '', search_url: '', message_template: '' })
+    setForm({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos' })
   }
 
   const excluirCampanha = async (id) => {
@@ -89,8 +116,18 @@ export default function Campaigns() {
                   <button style={{ ...S.btnIcon, color: '#ff3b5c' }} onClick={() => excluirCampanha(c.id)} title="Excluir Campanha">🗑️</button>
                 </div>
                 
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
                   <span style={S.badge(c.status || 'ativa')}>{(c.status || 'ativa').toUpperCase()}</span>
+                  <span style={{ 
+                    fontSize: '10px', 
+                    padding: '2px 8px', 
+                    background: `${c.target_degree === '1' ? '#00c896' : c.target_degree === '2' ? '#1d8fe8' : c.target_degree === '3' ? '#8899aa' : '#a78bfa'}15`, 
+                    color: c.target_degree === '1' ? '#00c896' : c.target_degree === '2' ? '#1d8fe8' : c.target_degree === '3' ? '#8899aa' : '#a78bfa', 
+                    borderRadius: '2px', 
+                    border: `1px solid ${c.target_degree === '1' ? '#00c896' : c.target_degree === '2' ? '#1d8fe8' : c.target_degree === '3' ? '#8899aa' : '#a78bfa'}30` 
+                  }}>
+                    {c.target_degree === '1' ? '1º Grau' : c.target_degree === '2' ? '2º Grau' : c.target_degree === '3' ? '3º Grau' : 'Todos os Graus'}
+                  </span>
                   <span style={{ fontSize: '11px', color: 'var(--text3)' }}>{new Date(c.created_at).toLocaleDateString()}</span>
                 </div>
                 
@@ -99,7 +136,7 @@ export default function Campaigns() {
 
                 {c.message_template && (
                   <div style={{ background: 'rgba(29,143,232,0.05)', padding: '12px', borderLeft: '3px solid var(--blue)', marginBottom: '15px' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '5px' }}>Template de Mensagem:</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '5px' }}>🤖 Comando da IA (Prompt):</div>
                     <div style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text2)' }}>"{c.message_template.substring(0, 100)}..."</div>
                   </div>
                 )}
@@ -133,13 +170,31 @@ export default function Campaigns() {
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text3)', display: 'block', marginBottom: '5px' }}>OBJETIVO</label>
                 <input style={S.input} placeholder="O que você busca aqui?" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
                 
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text3)', display: 'block', marginBottom: '5px' }}>GRAU DE CONEXÃO ALVO</label>
+                <select style={S.input} value={form.target_degree} onChange={e => setForm({...form, target_degree: e.target.value})}>
+                  <option value="todos">Todos os Graus</option>
+                  <option value="1">1º Grau (Conectado)</option>
+                  <option value="2">2º Grau (Conexão em Comum)</option>
+                  <option value="3">3º Grau (Fora da Rede)</option>
+                </select>
+
                 <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text3)', display: 'block', marginBottom: '5px' }}>LINK DA PESQUISA NO LINKEDIN</label>
                 <input style={S.input} placeholder="https://www.linkedin.com/search/results/people/..." value={form.search_url} onChange={e => setForm({...form, search_url: e.target.value})} />
 
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text3)', display: 'block', marginBottom: '5px' }}>TEMPLATE DE MENSAGEM (BOAS-VINDAS)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981' }}>🤖 COMANDO DA IA PARA ESTA CAMPANHA (PROMPT)</label>
+                  <button 
+                    type="button" 
+                    onClick={sugerirComIA} 
+                    disabled={iaLoading} 
+                    style={{ background: 'transparent', border: 'none', color: '#10b981', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    {iaLoading ? 'Gerando...' : '✦ Sugerir com IA'}
+                  </button>
+                </div>
                 <textarea 
-                  style={{ ...S.input, height: '100px', resize: 'none' }} 
-                  placeholder="Olá [NOME], vi seu perfil e gostei muito da sua atuação em [EMPRESA]..." 
+                  style={{ ...S.input, height: '100px', resize: 'none', border: '1px solid #10b98130', background: 'rgba(16, 185, 129, 0.05)' }} 
+                  placeholder="Ex: Crie uma mensagem curta de no máximo 2 parágrafos. Elogie a trajetória da pessoa e pergunte se a empresa usa SAP, mencionando que temos especialistas focados no módulo [SEU_MODULO]." 
                   value={form.message_template} 
                   onChange={e => setForm({...form, message_template: e.target.value})} 
                 />

@@ -17,8 +17,8 @@ class UnipileService {
 
   // 1. Criar um Link de Conexão (Usa chave específica por tipo)
   async createConnectLink(typeParam, userIdParam) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     
     // GARANTIA: Se o primeiro parâmetro parecer um ID (UUID), nós invertemos.
     let type = typeParam;

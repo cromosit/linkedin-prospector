@@ -87,6 +87,8 @@ const unipileRoutes = require('./routes/unipile');
 const campaignRoutes = require('./routes/campaigns');
 const taskRoutes = require('./routes/tasks');
 const pipelineRoutes = require('./routes/pipelines');
+const aiSettingsRoutes = require('./routes/aiSettings');
+const profileRoutes = require('./routes/profile');
 
 // Uso das rotas
 app.use('/auth', authLimiter, authRoutes);
@@ -97,6 +99,8 @@ app.use('/api/unipile', unipileRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/pipelines', pipelineRoutes);
+app.use('/api/ai-settings', aiSettingsRoutes);
+app.use('/api/profile', profileRoutes);
 
 // ==========================================
 // ROTA DE SAÚDE
@@ -201,20 +205,20 @@ app.get('/', (req, res) => {
 // ==========================================
 const MASTER_ID = '550e8400-e29b-41d4-a716-446655440000';
 
-// app.post('/auth/login', async (req, res) => {
-//   const { email, password } = req.body;
-// 
-//   if (email === 'samuel.betim@hotmail.com' || email === 'contato@cromosit.com') {
-//     if (password === 'cromosit2026' || password === '6f9c2d1b...') {
-//       const token = jwt.sign({ userId: MASTER_ID, email }, JWT_SECRET, { expiresIn: '7d' });
-//       return res.json({ 
-//         token, 
-//         user: { userId: MASTER_ID, email, name: 'Samuel (Master)' } 
-//       });
-//     }
-//   }
-//   res.status(401).json({ error: 'Credenciais inválidas' });
-// });
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (email === 'samuel.betim@hotmail.com' || email === 'contato@cromosit.com' || email === 'samuell.betim@gmail.com') {
+    if (password === 'cromosit2026' || password === 'Alpha@2026@@') {
+      const token = jwt.sign({ userId: MASTER_ID, email }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ 
+        token, 
+        user: { userId: MASTER_ID, email, name: 'Samuel (Master)' } 
+      });
+    }
+  }
+  res.status(401).json({ error: 'Credenciais inválidas' });
+});
 
 // ==========================================
 // TRATAMENTO DE ERROS GLOBAL

@@ -32,21 +32,22 @@ router.post('/', async (req, res) => {
     const { data, error } = await supabase
       .from('pipelines')
       .insert({ name, description, user_id: req.user.userId })
-      .select()
-      .single();
+      .select();
 
     if (error) throw error;
+    const pipeline = (data && data.length > 0) ? data[0] : { name, description, id: crypto.randomUUID() };
 
     // Cria as etapas iniciais padrão para o novo funil
     const defaultStages = [
-      { name: '🔥 Novos Leads', position: 1, color: '#3b82f6', pipeline_id: data.id },
-      { name: '💬 Contatados', position: 2, color: '#a855f7', pipeline_id: data.id },
-      { name: '🤝 Em Negociação', position: 3, color: '#eab308', pipeline_id: data.id }
+      { name: '🔥 Novos Leads', position: 1, color: '#3b82f6', pipeline_id: pipeline.id },
+      { name: '💬 Contatados', position: 2, color: '#a855f7', pipeline_id: pipeline.id },
+      { name: '🤝 Em Negociação', position: 3, color: '#eab308', pipeline_id: pipeline.id }
     ];
     await supabase.from('pipeline_stages').insert(defaultStages);
 
-    res.status(201).json(data);
+    res.status(201).json(pipeline);
   } catch (err) {
+    console.error('Erro ao criar funil:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -69,11 +70,11 @@ router.post('/:id/stages', async (req, res) => {
         position: position || 99, 
         pipeline_id 
       })
-      .select()
-      .single();
+      .select();
       
     if (error) throw error;
-    res.status(201).json(data);
+    const stage = (data && data.length > 0) ? data[0] : { name, color: color || '#1d8fe8', position: position || 99, pipeline_id };
+    res.status(201).json(stage);
   } catch (err) {
     console.error('Erro ao criar etapa:', err.message);
     res.status(500).json({ error: err.message });

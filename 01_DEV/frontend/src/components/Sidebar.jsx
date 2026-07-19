@@ -1,13 +1,28 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
+
+  // Mantém o estado sincronizado se o tema mudar de outra forma
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark'
+    setTheme(savedTheme)
+  }, [location])
+
+  const toggleTheme = () => {
+    const novoTema = theme === 'light' ? 'dark' : 'light'
+    setTheme(novoTema)
+    localStorage.setItem('theme', novoTema)
+    document.body.className = novoTema === 'light' ? 'theme-light' : 'theme-dark'
+  }
 
   const S = {
     sidebar: { width: '220px', flexShrink: 0, background: 'var(--bg2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 },
-    logo: { padding: '20px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' },
+    logo: { padding: '20px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     logoBox: { width: '28px', height: '28px', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#fff' },
     logoText: { fontSize: '13px', fontWeight: '600' },
     status: { display: 'flex', alignItems: 'center', gap: '6px', margin: '10px 12px', padding: '7px 10px', background: 'rgba(0,200,150,0.08)', border: '1px solid rgba(0,200,150,0.2)', fontSize: '11px', color: 'var(--green)' },
@@ -29,14 +44,24 @@ export default function Sidebar() {
     { path: '/pipeline', label: 'Pipeline', icon: '📊' },
     { path: '/campaigns', label: 'Campanhas', icon: '📁' },
     { path: '/tasks', label: 'Tarefas', icon: '📅' },
-    { path: '/integrations', label: 'Integrações', icon: '⚙️' },
+    { path: '/integrations', label: 'Integrações', icon: '🔗' },
+    { path: '/settings', label: 'Configurações', icon: '⚙️' },
   ]
 
   return (
     <div style={S.sidebar}>
       <div style={S.logo}>
-        <div style={S.logoBox}>LP</div>
-        <div style={S.logoText}>Prospector</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={S.logoBox}>LP</div>
+          <div style={S.logoText}>Prospector</div>
+        </div>
+        <button 
+          onClick={toggleTheme} 
+          style={{ background: 'transparent', border: 'none', fontSize: '15px', cursor: 'pointer', outline: 'none' }}
+          title={theme === 'light' ? 'Ativar Modo Escuro' : 'Ativar Modo Claro'}
+        >
+          {theme === 'light' ? '🌑' : '☀️'}
+        </button>
       </div>
       <div style={S.status}>
         <div style={S.statusDot} />
@@ -51,7 +76,7 @@ export default function Sidebar() {
         ))}
       </div>
       <div style={S.footer}>
-        <div style={S.user}>
+        <div style={{ ...S.user, cursor: 'pointer' }} onClick={() => navigate('/settings')} title="Ver Configurações/Perfil">
           <div style={S.avatar}>{user.name ? user.name[0].toUpperCase() : 'U'}</div>
           <div style={{ overflow: 'hidden' }}>
             <div style={S.userName}>{user.name || 'Usuário'}</div>
