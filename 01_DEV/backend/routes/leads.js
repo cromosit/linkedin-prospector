@@ -364,11 +364,18 @@ router.post('/', async (req, res) => {
     
     if (!pId || !sId) {
       try {
-        const { data: firstPip } = await supabase.from('pipelines').select('id, pipeline_stages(id, position)').limit(1).maybeSingle();
+        const { data: firstPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
         if (firstPip) {
           pId = firstPip.id;
-          const stagesSorted = firstPip.pipeline_stages?.sort((a,b) => a.position - b.position) || [];
-          sId = stagesSorted[0]?.id || null;
+          const { data: stages } = await supabase
+            .from('pipeline_stages')
+            .select('id, position')
+            .eq('pipeline_id', pId)
+            .order('position', { ascending: true });
+            
+          if (stages && stages.length > 0) {
+            sId = stages[0].id;
+          }
         }
       } catch (e) {
         console.warn('⚠️ Falha ao buscar pipeline padrão para o novo lead:', e.message);

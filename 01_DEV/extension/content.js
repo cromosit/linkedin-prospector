@@ -35,7 +35,7 @@ function extrairBasico() {
       nameVal = document.title.split('|')[0].split('-')[0].replace(' (Personal)', '').trim();
     }
     dados.name = nameVal || 'Lead Desconhecido';
-    dados.headline = document.querySelector('.text-body-medium.break-words, h2')?.innerText.trim() || '';
+    dados.headline = document.querySelector('.pv-text-details__left-panel .text-body-medium, .text-body-medium.break-words, .pv-top-card-layout__headline')?.innerText.trim() || '';
     dados.company = document.querySelector('.pv-text-details__right-panel li button span, [data-field="experience"]')?.innerText.trim() || '';
     dados.location = document.querySelector('.text-body-small.inline.t-black--light.break-words')?.innerText.trim() || '';
     
@@ -74,19 +74,24 @@ async function buscarContatos(dados) {
     // 1. Extração de E-mail (por link mailto ou regex)
     const emailEl = container.querySelector('a[href^="mailto:"]');
     if (emailEl) {
-      dados.email = emailEl.href.replace('mailto:', '').trim();
+      dados.email = emailEl.href.replace('mailto:', '').split('?')[0].trim();
     } else {
       const emailMatch = container.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
       if (emailMatch) dados.email = emailMatch[0];
     }
     
-    // 2. Extração de Telefone (por link tel ou regex)
+    // 2. Extração de Telefone (por link tel ou regex com limpeza)
     const foneEl = container.querySelector('a[href^="tel:"]');
     if (foneEl) {
-      dados.phone = foneEl.href.replace('tel:', '').trim();
+      let telRaw = decodeURIComponent(foneEl.href.replace('tel:', '')).trim();
+      dados.phone = telRaw.replace(/[^\d+]/g, '');
     } else {
-      const phoneMatch = container.innerText.match(/(\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4})/);
-      if (phoneMatch) dados.phone = phoneMatch[0];
+      const text = container.innerText;
+      const phoneMatch = text.match(/(?:telefone|phone|celular|mobile)[\s\S]*?([\d\s()-]{8,20})/i) || 
+                         text.match(/(\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4})/);
+      if (phoneMatch) {
+        dados.phone = phoneMatch[1].replace(/[^\d]/g, '');
+      }
     }
     
     // 3. Extração de Website (busca links que não sejam linkedin.com ou mailto)
@@ -227,21 +232,56 @@ async function automatizarConexao(mensagem) {
   const grauTexto = document.body.innerText;
   if (grauTexto.includes('· 1º') || grauTexto.includes('1st degree')) return await automatizarChat(mensagem);
 
-  const btnNota = await aguardarElemento('button[aria-label="Adicionar nota"], button[aria-label^="Add a note"]', 6000);
+  // 1. Busca o botão "Adicionar nota" de forma resiliente
+  let btnNota = null;
+  for (let i = 0; i < 12; i++) {
+    btnNota = document.querySelector('button[aria-label="Adicionar nota"], button[aria-label^="Add a note"]') || 
+              Array.from(document.querySelectorAll('button')).find(b => {
+                const txt = b.innerText.trim().toLowerCase();
+                return txt === 'adicionar nota' || txt === 'add a note';
+              });
+    if (btnNota) break;
+    await esperar(500);
+  }
+
   if (btnNota) {
     btnNota.click();
-    const textarea = await aguardarElemento('textarea[name="message"]', 3000);
+    console.log('[Prospector] Botão Adicionar Nota clicado. Aguardando textarea...');
+    
+    // 2. Aguarda a caixa de texto da nota abrir
+    let textarea = null;
+    for (let i = 0; i < 10; i++) {
+      textarea = document.querySelector('textarea[name="message"], textarea, #custom-message');
+      if (textarea) break;
+      await esperar(300);
+    }
+
     if (textarea) {
+      // Limita a 200 caracteres para evitar estouro de limite da nota de convite do LinkedIn
       textarea.value = mensagem.length > 200 ? mensagem.substring(0, 197) + '...' : mensagem;
       textarea.dispatchEvent(new Event('input', { bubbles: true })); 
       await esperar(1000);
-      const btnEnviar = document.querySelector('button[aria-label="Enviar agora"], button[aria-label^="Send now"]');
-      if (btnEnviar) btnEnviar.click(); 
-      exibirBanner('✅ CONEXÃO ENVIADA COM SUCESSO!', '#00c896'); 
-      await esperar(1500); 
-      window.close();
+      
+      // 3. Busca o botão de enviar de forma resiliente
+      let btnEnviar = document.querySelector('button[aria-label="Enviar agora"], button[aria-label^="Send now"]') || 
+                        Array.from(document.querySelectorAll('button')).find(b => {
+                          const txt = b.innerText.trim().toLowerCase();
+                          return txt === 'enviar' || txt === 'enviar agora' || txt === 'send' || txt === 'send now';
+                        });
+
+      if (btnEnviar) {
+        btnEnviar.click(); 
+        exibirBanner('✅ CONEXÃO ENVIADA COM SUCESSO!', '#00c896'); 
+        await esperar(1500); 
+        window.close();
+      } else {
+        exibirBanner('⚠️ Botão de enviar nota não encontrado. Envie manualmente!', '#ff9f0a');
+      }
+    } else {
+      exibirBanner('⚠️ Campo de texto da nota não encontrado!', '#ff9f0a');
     }
   } else { 
+    // Fallback caso não ache o botão de nota: tenta enviar no chat convencional
     await automatizarChat(mensagem); 
   }
 }
