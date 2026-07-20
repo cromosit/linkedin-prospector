@@ -119,7 +119,9 @@ export default function Leads() {
       setTotalLeads(res.data.pagination?.total || 0)
       setTotalPages(res.data.pagination?.totalPages || 1)
     } catch (err) {
-      console.error(err)
+      console.error('Erro detalhado no carregarLeads:', err);
+      console.log('Mensagem de erro:', err.message);
+      console.log('Dados de resposta da API:', err.response?.data);
       const errMsg = err.response?.data?.error || err.message;
       showToast(`❌ Erro ao carregar leads: ${errMsg}`, 'error')
     } finally {
