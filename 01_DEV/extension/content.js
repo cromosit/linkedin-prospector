@@ -320,8 +320,8 @@ function monitorarPerfil() {
 }
 
 // 6️⃣ MOTOR DE ATUALIZAÇÃO DE STATUS E HISTÓRICO
-async function registrarSucessoEnvio() {
-    const leadId = params.get('leadId');
+async function registrarSucessoEnvio(p) {
+    const leadId = p.get('leadId');
     if (!leadId) return;
 
     chrome.runtime.sendMessage({
@@ -419,8 +419,27 @@ function extrairListaDeBusca() {
   return leads;
 }
 
+function detectarTipoPagina() {
+  const url = window.location.href;
+  if (url.includes('/search/results/')) return 'busca';
+  if (url.includes('/in/')) return 'perfil';
+  return 'outro';
+}
+
 // 8️⃣ LISTENER DE COMUNICACAO INTERNA DA EXTENSAO
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'detectarPagina') {
+    const tipo = detectarTipoPagina();
+    let preview = null;
+    if (tipo === 'perfil') {
+      preview = { name: (document.querySelector('h1')?.innerText || document.title.split('|')[0]).trim() };
+    } else if (tipo === 'busca') {
+      const leads = extrairListaDeBusca();
+      preview = { total: leads.length };
+    }
+    sendResponse({ tipo, preview });
+    return true;
+  }
   if (request.action === 'extrairPerfil') {
     const dados = extrairBasico();
     sendResponse({ sucesso: true, dados });
@@ -433,19 +452,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // INICIALIZAÇÃO E MONITORAMENTO SPA
-const params = new URLSearchParams(window.location.search);
-if (params.get('lp_msg')) {
-    const m = decodeURIComponent(params.get('lp_msg'));
-    const act = params.get('lp_action');
-    setTimeout(async () => {
-      if (act === 'send_message') {
-          await automatizarChat(m);
-          await registrarSucessoEnvio();
-      }
-      else if (act === 'connect') await automatizarConexao(m);
-    }, 2000);
-} else {
-    const observer = new MutationObserver(monitorarPerfil);
-    observer.observe(document.body, { childList: true, subtree: true });
-    monitorarPerfil();
-}
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('lp_msg')) {
+      const m = decodeURIComponent(params.get('lp_msg'));
+      const act = params.get('lp_action');
+      setTimeout(async () => {
+        if (act === 'send_message') {
+            await automatizarChat(m);
+            await registrarSucessoEnvio(params);
+        }
+        else if (act === 'connect') await automatizarConexao(m);
+      }, 2000);
+  } else {
+      const observer = new MutationObserver(monitorarPerfil);
+      observer.observe(document.body, { childList: true, subtree: true });
+      monitorarPerfil();
+  }
+})();

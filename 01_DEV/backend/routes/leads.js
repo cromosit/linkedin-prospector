@@ -364,14 +364,18 @@ router.post('/', async (req, res) => {
     
     if (!pId || !sId) {
       try {
-        const { data: firstPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
+        const { data: firstPip, error: errPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
+        console.log('[Automação Pipeline] firstPip consultado:', firstPip, 'Erro se houver:', errPip);
+        
         if (firstPip) {
           pId = firstPip.id;
-          const { data: stages } = await supabase
+          const { data: stages, error: errStages } = await supabase
             .from('pipeline_stages')
             .select('id, position')
             .eq('pipeline_id', pId)
             .order('position', { ascending: true });
+            
+          console.log('[Automação Pipeline] stages consultados:', stages, 'Erro se houver:', errStages);
             
           if (stages && stages.length > 0) {
             sId = stages[0].id;
