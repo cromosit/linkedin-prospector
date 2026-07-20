@@ -90,6 +90,43 @@ export default function Pipeline() {
     finally { setLoading(false) }
   }
 
+  const renomearFunil = async () => {
+    if (!activePipeline) return
+    const novo = prompt('Novo nome do funil:', activePipeline.name)
+    if (!novo || novo === activePipeline.name) return
+    try {
+      setLoading(true)
+      await api.put(`/api/pipelines/${activePipeline.id}`, { name: novo })
+      
+      // Recarrega pipelines e atualiza a seleção local
+      const res = await api.get('/api/pipelines')
+      const pList = res.data || []
+      setPipelines(pList)
+      const updated = pList.find(x => x.id === activePipeline.id)
+      setActivePipeline(updated || null)
+    } catch (err) { 
+      const errMsg = err.response?.data?.error || err.message;
+      alert(`Erro ao renomear funil: ${errMsg}`);
+    }
+    finally { setLoading(false) }
+  }
+
+  const deletarFunil = async () => {
+    if (!activePipeline) return
+    if (!confirm(`Deseja realmente excluir o funil "${activePipeline.name}" e todas as suas etapas? Todos os leads deste funil ficarão sem funil.`)) return
+    try {
+      setLoading(true)
+      await api.delete(`/api/pipelines/${activePipeline.id}`)
+      setActivePipeline(null)
+      const res = await api.get('/api/pipelines')
+      setPipelines(res.data || [])
+    } catch (err) { 
+      const errMsg = err.response?.data?.error || err.message;
+      alert(`Erro ao excluir funil: ${errMsg}`);
+    }
+    finally { setLoading(false) }
+  }
+
   const S = {
     layout: { display: 'flex', height: '100vh', background: '#080c10', color: '#fff' },
     main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -112,7 +149,7 @@ export default function Pipeline() {
           <div>
             <h1 style={{ fontSize: '18px' }}>🚀 Funis de Negociação</h1>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '5px' }}>
-              <select 
+               <select 
                 style={{ background: 'var(--bg3)', border: '1px solid var(--border)', padding: '4px 8px', borderRadius: '3px', color: 'var(--blue-bright)', fontWeight: 'bold', cursor: 'pointer', outline: 'none' }}
                 value={activePipeline?.id || ''}
                 onChange={(e) => setActivePipeline(pipelines.find(p => p.id === e.target.value))}
@@ -120,6 +157,24 @@ export default function Pipeline() {
                 <option value="">— Selecionar Funil —</option>
                 {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              {activePipeline && (
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button 
+                    onClick={renomearFunil} 
+                    style={{ background: 'transparent', border: 'none', color: '#8899a6', cursor: 'pointer', fontSize: '11px', padding: 0 }}
+                    title="Editar nome do funil"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    onClick={deletarFunil} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '11px', padding: 0 }}
+                    title="Excluir funil inteiro"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              )}
               <button 
                 onClick={criarFunil} 
                 style={{ background: 'transparent', border: '1px solid var(--blue-bright)', color: 'var(--blue-bright)', padding: '2px 8px', fontSize: '10px', borderRadius: '3px', fontWeight: 'bold' }}

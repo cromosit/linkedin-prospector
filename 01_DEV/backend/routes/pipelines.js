@@ -114,4 +114,35 @@ router.delete('/stages/:id', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  const { name, description } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('pipelines')
+      .update({ name, description })
+      .eq('id', req.params.id)
+      .select();
+    if (error) throw error;
+    res.json(data && data.length > 0 ? data[0] : { id: req.params.id, name, description });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    // 1. Deleta as etapas vinculadas a esse funil
+    await supabase.from('pipeline_stages').delete().eq('pipeline_id', req.params.id);
+    // 2. Deleta o funil
+    const { error } = await supabase
+      .from('pipelines')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: 'Funil removido com sucesso' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
