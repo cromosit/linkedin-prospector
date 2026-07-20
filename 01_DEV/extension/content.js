@@ -346,10 +346,16 @@ function extrairListaDeBusca() {
   const leads = [];
   const vistos = new Set();
   const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent'];
-  const todosLinks = document.querySelectorAll('a[href*="/in/"]');
+  // Seleciona apenas os links principais dos perfis nos títulos dos resultados de busca
+  const todosLinks = document.querySelectorAll(
+    '.entity-result__title-text a[href*="/in/"], ' +
+    '.entity-result__title-line a[href*="/in/"], ' +
+    '.reusable-search__result-container [data-view-name="search-results-entity-result-user"] a[href*="/in/"]'
+  );
 
-  todosLinks.forEach(link => {
+  (todosLinks.length > 0 ? todosLinks : document.querySelectorAll('a[href*="/in/"]')).forEach(link => {
     try {
+      if (link.closest('.entity-result__simple-insight') || link.closest('.entity-result__insight') || link.closest('.entity-result__insight-line')) return;
       const href = link.href || '';
       if (!href.includes('/in/')) return;
       const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/);
