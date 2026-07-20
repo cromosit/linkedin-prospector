@@ -26,6 +26,21 @@ const GRAU = {
   '3': { label: '3º / Fora', color: '#8899aa' }
 }
 
+function formatAging(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days > 0) return `${days}d`;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours > 0) return `${hours}h`;
+    const mins = Math.floor(diff / (1000 * 60));
+    return `${mins}m`;
+  } catch (e) {
+    return '';
+  }
+}
+
 const FORM_EMPTY = {
   name: '', headline: '', company: '', location: '',
   linkedin_url: '', email: '', phone: '', website: '',
@@ -105,7 +120,8 @@ export default function Leads() {
       setTotalPages(res.data.pagination?.totalPages || 1)
     } catch (err) {
       console.error(err)
-      showToast('❌ Erro ao carregar leads')
+      const errMsg = err.response?.data?.error || err.message;
+      showToast(`❌ Erro ao carregar leads: ${errMsg}`, 'error')
     } finally {
       setLoading(false)
     }
