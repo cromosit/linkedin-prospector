@@ -341,6 +341,97 @@ async function registrarSucessoEnvio() {
     });
 }
 
+// 7️⃣ EXTRAÇÃO DE MÚLTIPLOS PERFIS EM PÁGINA DE PESQUISA
+function extrairListaDeBusca() {
+  const leads = [];
+  const vistos = new Set();
+  const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent'];
+  const todosLinks = document.querySelectorAll('a[href*="/in/"]');
+
+  todosLinks.forEach(link => {
+    try {
+      const href = link.href || '';
+      if (!href.includes('/in/')) return;
+      const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/);
+      if (!match) return;
+      const linkedin_id = match[1];
+      if (vistos.has(linkedin_id)) return;
+      if (blacklist.some(b => linkedin_id.includes(b))) return;
+      if (linkedin_id.length < 3) return;
+      vistos.add(linkedin_id);
+
+      const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' };
+      let container = link;
+
+      for (let i = 0; i < 10; i++) {
+        container = container.parentElement;
+        if (!container || container.tagName === 'BODY') break;
+        const texto = container.innerText || '';
+
+        if (!lead.name) {
+          const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span');
+          const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim();
+          if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 && !nomeTexto.includes('•') && !nomeTexto.includes('º')) lead.name = nomeTexto;
+        }
+
+        if (!lead.headline) {
+          const subs = container.querySelectorAll('[class*="subtitle"],[class*="headline"],.t-14.t-black');
+          subs.forEach(s => { const t = s.innerText?.trim(); if (t && t.length > 3 && t.length < 200 && !lead.headline && !t.includes('conexões') && !t.includes('seguidores') && !t.includes('•')) lead.headline = t; });
+        }
+
+        if (!lead.profile_picture) {
+          const img = container.querySelector('img');
+          if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') && (img.src.includes('media') || img.src.includes('profile'))) lead.profile_picture = img.src;
+        }
+
+        if (!lead.connection_degree) {
+          if (texto.includes('• 1º')||texto.includes('1st')) lead.connection_degree='1';
+          else if (texto.includes('• 2º')||texto.includes('2nd')) lead.connection_degree='2';
+          else if (texto.includes('3º e +')||texto.includes('3rd')||texto.includes('• 3')) lead.connection_degree='3';
+        }
+
+        if (!lead.mutual_connections) { const m = texto.match(/(\d+)\s+conex[õo]es? em comum/i); if (m) lead.mutual_connections = m[0]; }
+
+        if (!lead.location) {
+          const locMatch = texto.match(/([A-ZÀ-Ü][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*,\s*(?:Brasil|[A-Z][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*))/u);
+          if (locMatch && !locMatch[0].includes('Jacinto') && locMatch[0].length < 50) lead.location = locMatch[0];
+        }
+
+        if (lead.name && lead.connection_degree) break;
+      }
+
+      if (!lead.name || lead.name.length < 2) return;
+      if (lead.name.toLowerCase().includes('linkedin')) return;
+      if (lead.name.includes('•') || lead.name.includes('º')) return;
+
+      if (lead.headline && !lead.company) {
+        if (lead.headline.includes(' · ')) lead.company = lead.headline.split(' · ').pop().trim();
+        else if (lead.headline.includes(' na ')) lead.company = lead.headline.split(' na ').pop().split('|')[0].trim();
+        else if (lead.headline.includes(' at ')) lead.company = lead.headline.split(' at ').pop().split('|')[0].trim();
+      }
+
+      lead.connection_degree = lead.connection_degree || '3';
+      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio';
+      leads.push(lead);
+    } catch(e) {}
+  });
+
+  return leads;
+}
+
+// 8️⃣ LISTENER DE COMUNICACAO INTERNA DA EXTENSAO
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'extrairPerfil') {
+    const dados = extrairBasico();
+    sendResponse({ sucesso: true, dados });
+  }
+  else if (request.action === 'extrairBusca') {
+    const leads = extrairListaDeBusca();
+    sendResponse({ sucesso: true, leads, total: leads.length });
+  }
+  return true;
+});
+
 // INICIALIZAÇÃO E MONITORAMENTO SPA
 const params = new URLSearchParams(window.location.search);
 if (params.get('lp_msg')) {
