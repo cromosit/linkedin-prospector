@@ -203,6 +203,16 @@ function carregarPerfilIndividual(tab) {
 }
 
 function carregarResultadosBusca(tab) {
+  try {
+    const urlObj = new URL(tab.url)
+    const keywords = urlObj.searchParams.get('keywords')
+    if (keywords && els.groupNameBulk) {
+      els.groupNameBulk.value = decodeURIComponent(keywords).trim().toUpperCase()
+    }
+  } catch (err) {
+    console.error('[Prospector] Erro ao extrair palavra-chave da busca:', err)
+  }
+
   chrome.tabs.sendMessage(tab.id, { action: 'extrairBusca' }, (response) => {
     if (!response?.leads || response.leads.length === 0) {
       els.totalEncontrado.textContent = 'Nenhum perfil encontrado nesta página'
@@ -243,7 +253,28 @@ els.btnCapture?.addEventListener('click', async () => {
   if (!perfilAtual) return
 
   setCarregando(true); esconderMensagens();
+  
+  // Exibe mensagem de enriquecimento no botão
+  els.btnCaptureText.textContent = 'Enriquecendo contatos...';
+  
   try {
+    // 1. Tenta enriquecer pegando os dados do Modal de Contatos do LinkedIn
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const enrichedResponse = await new Promise(resolve => {
+      chrome.tabs.sendMessage(tab.id, { action: 'extrairContatosDialog', dados: perfilAtual }, (resp) => {
+        resolve(resp);
+      });
+      // Timeout de segurança caso o content script trave
+      setTimeout(() => resolve(null), 4000);
+    });
+    
+    if (enrichedResponse && enrichedResponse.dados) {
+      perfilAtual = enrichedResponse.dados;
+    }
+    
+    els.btnCaptureText.textContent = 'Salvando...';
+
+    // 2. Salva no CRM
     const res = await fetch(`${API_URL}/api/leads`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

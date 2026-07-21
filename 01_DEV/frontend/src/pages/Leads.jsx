@@ -95,6 +95,7 @@ export default function Leads() {
   const [msgGerada, setMsgGerada]   = useState('')
   const [enriquecendo, setEnriquecendo] = useState(false)
   const [toast, setToast]           = useState(null)
+  const [contextoIA, setContextoIA] = useState('')
 
   // Recarrega quando filtros/busca/página mudam
   useEffect(() => { carregarLeads() }, [busca, pagina, filtroStatus, filtroTemp, filtroGrau])
@@ -145,7 +146,9 @@ export default function Leads() {
       carregarLeads()
       showToast(leadSel ? '✅ Lead atualizado!' : '✅ Lead criado!')
     } catch (err) {
-      showToast('❌ Erro ao salvar lead', 'error')
+      console.error('Erro detalhado ao salvar lead:', err.response?.data || err.message);
+      const msg = err.response?.data?.error || err.message;
+      showToast(`❌ Erro: ${msg}`, 'error');
     } finally {
       setSalvando(false)
     }
@@ -220,7 +223,7 @@ export default function Leads() {
     setGerandoMsg(true)
     setTipoMsg(tipo)
     try {
-      const res = await api.post(`/api/leads/${leadSel.id}/gerar-mensagem`, { tipo })
+      const res = await api.post(`/api/leads/${leadSel.id}/gerar-mensagem`, { tipo, contexto: contextoIA })
       setMsgGerada(res.data.mensagem)
     } catch (err) {
       setMsgGerada('❌ Erro ao gerar abordagem.')
@@ -276,6 +279,7 @@ export default function Leads() {
   // ─── MODAL ───────────────────────────────────
   const abrirEditar = async (lead) => {
     setLeadSel(lead)
+    setContextoIA('')
     
     // Higieniza para evitar erro de 'value prop on input should not be null'
     const cleanForm = { ...FORM_EMPTY }
@@ -320,6 +324,7 @@ export default function Leads() {
     setLeadSel(null)
     setForm(FORM_EMPTY)
     setMsgGerada('')
+    setContextoIA('')
     setModal(true)
   }
 
@@ -801,6 +806,17 @@ export default function Leads() {
 
               {/* MENSAGEM COM IA */}
               <div style={S.sectionTitle('#1d8fe8')}>✦ MENSAGEM COM IA</div>
+
+              {/* Orientação / Contexto customizado */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ ...S.label, color: '#1d8fe8' }}>Orientação / Contexto da Abordagem (Opcional)</label>
+                <textarea
+                  style={{ ...S.input, height: '48px', resize: 'vertical', borderColor: '#1d8fe830' }}
+                  value={contextoIA}
+                  onChange={e => setContextoIA(e.target.value)}
+                  placeholder="Ex: Focar em capacitação de equipe ou citar projeto de debug no S/4HANA..."
+                />
+              </div>
 
               {/* Tipo de mensagem */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>

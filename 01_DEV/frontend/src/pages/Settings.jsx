@@ -10,12 +10,20 @@ export default function Settings() {
   // States de Perfil
   const [profile, setProfile] = useState({ name: '', email: '', company: '', role: '' })
   
-  // States de Chaves de IA
+  // States de Chaves de IA e Lead Scoring
   const [aiSettings, setAiSettings] = useState({
     openai_key: '',
     gemini_key: '',
     claude_key: '',
-    preferred_provider: 'openai'
+    preferred_provider: 'openai',
+    score_cargo_decisao: 35,
+    score_cargo_sap: 30,
+    score_cargo_ti: 20,
+    score_localizacao_br: 15,
+    score_conexao_1: 20,
+    score_conexao_2: 10,
+    penalidade_fora_br: -40,
+    penalidade_sem_dados: -45
   })
 
   useEffect(() => {
@@ -144,6 +152,7 @@ export default function Settings() {
         <div style={S.tabs}>
           <button style={S.tabBtn(activeTab === 'profile')} onClick={() => setActiveTab('profile')}>Meu Perfil</button>
           <button style={S.tabBtn(activeTab === 'ai')} onClick={() => setActiveTab('ai')}>Configurações de IA</button>
+          <button style={S.tabBtn(activeTab === 'score')} onClick={() => setActiveTab('score')}>Regras do Lead Score</button>
         </div>
 
         {/* Aba 1: Perfil */}
@@ -213,6 +222,55 @@ export default function Settings() {
 
               <button style={{ ...S.btnSubmit, background: '#10b981' }} type="submit" disabled={salvando}>
                 {salvando ? 'Salvando...' : 'Salvar Chaves de IA'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Aba 3: Regras do Lead Score */}
+        {activeTab === 'score' && (
+          <div style={S.card} className="fade-in">
+            <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: '#f59e0b' }}>Pesos e Regras do Lead Scoring</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text2)', lineHeight: '1.5' }}>Personalize o algoritmo de qualificação de leads com base nas melhores práticas do seu negócio. Essas notas serão usadas pela IA para classificar os contatos automaticamente.</p>
+            
+            <form onSubmit={salvarIA} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Tomador de Decisão SAP/TI</label>
+                  <input style={S.input} type="number" value={aiSettings.score_cargo_decisao} onChange={e => setAiSettings({...aiSettings, score_cargo_decisao: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Consultor Funcional SAP</label>
+                  <input style={S.input} type="number" value={aiSettings.score_cargo_sap} onChange={e => setAiSettings({...aiSettings, score_cargo_sap: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Profissional de TI Geral</label>
+                  <input style={S.input} type="number" value={aiSettings.score_cargo_ti} onChange={e => setAiSettings({...aiSettings, score_cargo_ti: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Localização no Brasil</label>
+                  <input style={S.input} type="number" value={aiSettings.score_localizacao_br} onChange={e => setAiSettings({...aiSettings, score_localizacao_br: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Conexão de 1º Grau</label>
+                  <input style={S.input} type="number" value={aiSettings.score_conexao_1} onChange={e => setAiSettings({...aiSettings, score_conexao_1: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Conexão de 2º Grau</label>
+                  <input style={S.input} type="number" value={aiSettings.score_conexao_2} onChange={e => setAiSettings({...aiSettings, score_conexao_2: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Penalidade: Fora do Brasil</label>
+                  <input style={S.input} type="number" value={aiSettings.penalidade_fora_br} onChange={e => setAiSettings({...aiSettings, penalidade_fora_br: parseInt(e.target.value) || 0})} />
+                </div>
+                <div style={S.formGroup}>
+                  <label style={S.label}>Penalidade: Sem Cargo / Irrelevante</label>
+                  <input style={S.input} type="number" value={aiSettings.penalidade_sem_dados} onChange={e => setAiSettings({...aiSettings, penalidade_sem_dados: parseInt(e.target.value) || 0})} />
+                </div>
+              </div>
+
+              <button style={{ ...S.btnSubmit, background: '#f59e0b' }} type="submit" disabled={salvando}>
+                {salvando ? 'Salvando...' : 'Salvar Regras do Score'}
               </button>
             </form>
           </div>

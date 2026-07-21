@@ -71,18 +71,57 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [ultimaAtual, setUltimaAtual] = useState(null)
+  const [periodo, setPeriodo] = useState('todo')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
 
   useEffect(() => { 
-    carregarStats() 
+    carregarStats(periodo, dataInicio, dataFim) 
     // Auto-refresh a cada 30 segundos para tempo real
-    const interval = setInterval(carregarStats, 30000)
+    const interval = setInterval(() => carregarStats(periodo, dataInicio, dataFim), 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [periodo, dataInicio, dataFim])
 
-  const carregarStats = async () => {
+  const carregarStats = async (p = periodo, dIni = dataInicio, dFim = dataFim) => {
     setLoading(true)
     try {
-      const res = await api.get('/api/stats/summary')
+      let params = {};
+      const hoje = new Date();
+      let start = null;
+      let end = null;
+
+      if (p === 'hoje') {
+        const d = new Date(hoje);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+      } else if (p === '7d') {
+        const d = new Date(hoje);
+        d.setDate(d.getDate() - 7);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+      } else if (p === '30d') {
+        const d = new Date(hoje);
+        d.setDate(d.getDate() - 30);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+      } else if (p === 'mes') {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        start = d.toISOString();
+      } else if (p === 'custom') {
+        if (dIni) {
+          const d = new Date(dIni + 'T00:00:00');
+          start = d.toISOString();
+        }
+        if (dFim) {
+          const d = new Date(dFim + 'T23:59:59');
+          end = d.toISOString();
+        }
+      }
+
+      if (start) params.startDate = start;
+      if (end) params.endDate = end;
+
+      const res = await api.get('/api/stats/summary', { params })
       setStats(res.data)
       setUltimaAtual(new Date())
     } catch (err) {
@@ -202,7 +241,63 @@ export default function Dashboard() {
                 COPIAR
               </button>
             </div>
-            <button style={S.btnSec} onClick={carregarStats} disabled={loading}>
+            <select
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                fontSize: '12px',
+                padding: '8px 12px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="todo">Todo o período</option>
+              <option value="hoje">Hoje</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="mes">Mês atual</option>
+              <option value="custom">Personalizado</option>
+            </select>
+
+            {periodo === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                  style={{
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text)',
+                    fontSize: '12px',
+                    padding: '7px 10px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ color: 'var(--text3)', fontSize: '12px' }}>até</span>
+                <input
+                  type="date"
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                  style={{
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text)',
+                    fontSize: '12px',
+                    padding: '7px 10px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            )}
+
+            <button style={S.btnSec} onClick={() => carregarStats(periodo, dataInicio, dataFim)} disabled={loading}>
               {loading ? '⏳' : '🔄'} Atualizar
             </button>
             <button style={S.btnPrimary} onClick={() => navigate('/leads')}>

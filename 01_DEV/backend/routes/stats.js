@@ -12,12 +12,21 @@ router.get('/summary', auth, async (req, res) => {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
 
+    const { startDate, endDate } = req.query;
+
     // 1. OBTÉM TODOS OS LEADS
     let leadsQuery = supabase.from('leads')
       .select('status, created_at, contacted_at, temperature, connection_degree, source');
       
     if (userId !== '550e8400-e29b-41d4-a716-446655440000') {
       leadsQuery = leadsQuery.eq('assigned_to', userId);
+    }
+
+    if (startDate) {
+      leadsQuery = leadsQuery.gte('created_at', startDate);
+    }
+    if (endDate) {
+      leadsQuery = leadsQuery.lte('created_at', endDate);
     }
     
     const { data: leads } = await leadsQuery;

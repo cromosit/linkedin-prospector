@@ -72,17 +72,71 @@ export default function Relatorios() {
     porOrigem: {},
     porGrau: {}
   });
+  const [performanceData, setPerformanceData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [periodo, setPeriodo] = useState('todo');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    fetchStats(periodo, dataInicio, dataFim);
+  }, [periodo, dataInicio, dataFim]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (p = periodo, dIni = dataInicio, dFim = dataFim) => {
     setLoading(true);
     try {
-      const res = await api.get('/api/leads/stats/dashboard');
-      setStats(res.data);
+      let params = {};
+      const hoje = new Date();
+      let start = null;
+      let end = null;
+      let days = 30;
+
+      if (p === 'hoje') {
+        const d = new Date(hoje);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+        days = 1;
+      } else if (p === '7d') {
+        const d = new Date(hoje);
+        d.setDate(d.getDate() - 7);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+        days = 7;
+      } else if (p === '30d') {
+        const d = new Date(hoje);
+        d.setDate(d.getDate() - 30);
+        d.setHours(0,0,0,0);
+        start = d.toISOString();
+        days = 30;
+      } else if (p === 'mes') {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        start = d.toISOString();
+        days = hoje.getDate();
+      } else if (p === 'custom') {
+        if (dIni) {
+          const d = new Date(dIni + 'T00:00:00');
+          start = d.toISOString();
+        }
+        if (dFim) {
+          const d = new Date(dFim + 'T23:59:59');
+          end = d.toISOString();
+        }
+        if (dIni && dFim) {
+          const diffTime = Math.abs(new Date(dFim) - new Date(dIni));
+          days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        }
+      }
+
+      if (start) params.startDate = start;
+      if (end) params.endDate = end;
+
+      const [resDashboard, resPerformance] = await Promise.all([
+        api.get('/api/leads/stats/dashboard', { params }),
+        api.get('/api/leads/stats/performance', { params: { ...params, days } })
+      ]);
+
+      setStats(resDashboard.data);
+      setPerformanceData(resPerformance.data);
     } catch (err) {
       console.error('Erro ao buscar relatórios:', err);
     } finally {
@@ -134,9 +188,66 @@ export default function Relatorios() {
              <h1 style={S.title}>Inteligência de Mercado</h1>
              <p style={S.subtitle}>Dashboard v9.0 — Monitoramento em tempo real Cromosit IT</p>
           </div>
-          <div style={{display: 'flex', gap: '1rem'}}>
+          <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+             <select
+               value={periodo}
+               onChange={(e) => setPeriodo(e.target.value)}
+               style={{
+                 background: 'rgba(15, 23, 42, 0.6)',
+                 backdropFilter: 'blur(12px)',
+                 border: '1px solid rgba(255, 255, 255, 0.1)',
+                 color: '#f8fafc',
+                 fontSize: '0.85rem',
+                 padding: '10px 16px',
+                 borderRadius: '12px',
+                 cursor: 'pointer',
+                 outline: 'none'
+               }}
+             >
+               <option value="todo">Todo o período</option>
+               <option value="hoje">Hoje</option>
+               <option value="7d">Últimos 7 dias</option>
+               <option value="30d">Últimos 30 dias</option>
+               <option value="mes">Mês atual</option>
+               <option value="custom">Personalizado</option>
+             </select>
+
+             {periodo === 'custom' && (
+               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                 <input
+                   type="date"
+                   value={dataInicio}
+                   onChange={(e) => setDataInicio(e.target.value)}
+                   style={{
+                     background: 'rgba(15, 23, 42, 0.6)',
+                     border: '1px solid rgba(255, 255, 255, 0.1)',
+                     color: '#f8fafc',
+                     fontSize: '0.85rem',
+                     padding: '8px 12px',
+                     borderRadius: '12px',
+                     outline: 'none'
+                   }}
+                 />
+                 <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>até</span>
+                 <input
+                   type="date"
+                   value={dataFim}
+                   onChange={(e) => setDataFim(e.target.value)}
+                   style={{
+                     background: 'rgba(15, 23, 42, 0.6)',
+                     border: '1px solid rgba(255, 255, 255, 0.1)',
+                     color: '#f8fafc',
+                     fontSize: '0.85rem',
+                     padding: '8px 12px',
+                     borderRadius: '12px',
+                     outline: 'none'
+                   }}
+                 />
+               </div>
+             )}
+
              <button style={S.btnSecondary} onClick={exportCsv}>Extrair Dados</button>
-             <button style={S.btnPrimary} onClick={fetchStats}>Sincronizar BI</button>
+             <button style={S.btnPrimary} onClick={() => fetchStats(periodo, dataInicio, dataFim)}>Sincronizar BI</button>
           </div>
         </header>
 
@@ -162,6 +273,61 @@ export default function Relatorios() {
               <div style={S.kpiTrend('#10b981')}>Faturamento Crescente</div>
            </div>
         </div>
+
+         {/* GRÁFICO DE CAPTURA DIÁRIA */}
+         <div style={S.card}>
+           <h3 style={{margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 800}}>Volume de Captura Diária (Performance)</h3>
+           {loading ? (
+             <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Carregando dados...</div>
+           ) : !performanceData || Object.keys(performanceData.grafico_captura || {}).length === 0 ? (
+             <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Sem dados de captura no período selecionado.</div>
+           ) : (
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                 <span>Período: {performanceData.periodo.dias} dias analisados</span>
+                 <span>Taxa de Conversão: <b style={{color: '#10b981'}}>{performanceData.metricas.taxa_conversao}</b></span>
+               </div>
+               <div style={{
+                 display: 'flex',
+                 alignItems: 'flex-end',
+                 justifyContent: 'space-between',
+                 height: '150px',
+                 paddingTop: '20px',
+                 gap: '8px',
+                 overflowX: 'auto'
+               }}>
+                 {Object.entries(performanceData.grafico_captura || {})
+                   .sort(([a], [b]) => a.localeCompare(b))
+                   .map(([dia, count]) => {
+                     const maxVal = Math.max(...Object.values(performanceData.grafico_captura), 1);
+                     const heightPct = (count / maxVal) * 100;
+                     const formatDia = dia.split('-').slice(1).reverse().join('/');
+                     return (
+                       <div key={dia} style={{
+                         display: 'flex',
+                         flexDirection: 'column',
+                         alignItems: 'center',
+                         flex: 1,
+                         minWidth: '35px'
+                       }}>
+                         <span style={{ fontSize: '10px', color: '#fff', marginBottom: '4px', fontWeight: 'bold' }}>{count}</span>
+                         <div style={{
+                           width: '100%',
+                           height: `${heightPct}%`,
+                           minHeight: count > 0 ? '4px' : '0px',
+                           background: 'linear-gradient(180deg, #3b82f6 0%, rgba(59, 130, 246, 0.2) 100%)',
+                           borderRadius: '4px 4px 0 0',
+                           transition: 'height 0.5s ease-in-out'
+                         }} title={`${dia}: ${count} leads`} />
+                         <span style={{ fontSize: '9px', color: '#64748b', marginTop: '6px', whiteSpace: 'nowrap' }}>{formatDia}</span>
+                       </div>
+                     );
+                   })
+                 }
+               </div>
+             </div>
+           )}
+         </div>
 
         <div style={{display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem'}}>
            

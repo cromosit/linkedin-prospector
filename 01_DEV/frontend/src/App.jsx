@@ -9,6 +9,7 @@ import Campaigns from './pages/Campaigns'
 import Tasks from './pages/Tasks'
 import Integrations from './pages/Integrations'
 import Settings from './pages/Settings'
+import Relatorios from './pages/Relatorios'
 import AuthCallback from './pages/AuthCallback'
 
 const globalStyles = `
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/tasks" element={<RotaProtegida><Tasks /></RotaProtegida>} />
         <Route path="/integrations" element={<RotaProtegida><Integrations /></RotaProtegida>} />
         <Route path="/settings" element={<RotaProtegida><Settings /></RotaProtegida>} />
+        <Route path="/relatorios" element={<RotaProtegida><Relatorios /></RotaProtegida>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

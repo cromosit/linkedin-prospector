@@ -1,8 +1,17 @@
-const express  = require('express');
-const router   = express.Router();
-const axios    = require('axios');
-const supabase = require('../config/supabase');
-const auth     = require('../middleware/auth');
+const express   = require('express');
+const router    = express.Router();
+const axios     = require('axios');
+const supabase  = require('../config/supabase');
+const auth      = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições de IA. Aguarde um momento.' }
+});
 const chatwaCrmService = require('../services/chatwaCrmService');
 
 router.use(auth);
@@ -95,6 +104,28 @@ router.get('/', async (req, res) => {
 router.get('/stats/dashboard', async (req, res) => {
   try {
     const userId = req.user.userId;
+    const { startDate, endDate } = req.query;
+
+    let statusQuery = supabase.from('leads').select('status').eq('assigned_to', userId).not('status', 'is', null);
+    let tempQuery = supabase.from('leads').select('temperature').eq('assigned_to', userId).not('temperature', 'is', null);
+    let sourceQuery = supabase.from('leads').select('source').eq('assigned_to', userId).not('source', 'is', null);
+    let degreeQuery = supabase.from('leads').select('connection_degree').eq('assigned_to', userId).not('connection_degree', 'is', null);
+    let totalQuery = supabase.from('leads').select('*', { count: 'exact', head: true }).eq('assigned_to', userId);
+
+    if (startDate) {
+      statusQuery = statusQuery.gte('created_at', startDate);
+      tempQuery = tempQuery.gte('created_at', startDate);
+      sourceQuery = sourceQuery.gte('created_at', startDate);
+      degreeQuery = degreeQuery.gte('created_at', startDate);
+      totalQuery = totalQuery.gte('created_at', startDate);
+    }
+    if (endDate) {
+      statusQuery = statusQuery.lte('created_at', endDate);
+      tempQuery = tempQuery.lte('created_at', endDate);
+      sourceQuery = sourceQuery.lte('created_at', endDate);
+      degreeQuery = degreeQuery.lte('created_at', endDate);
+      totalQuery = totalQuery.lte('created_at', endDate);
+    }
 
     const [
       { data: porStatus },
@@ -103,11 +134,11 @@ router.get('/stats/dashboard', async (req, res) => {
       { data: porGrau },
       { count: total }
     ] = await Promise.all([
-      supabase.from('leads').select('status').eq('assigned_to', userId).not('status', 'is', null),
-      supabase.from('leads').select('temperature').eq('assigned_to', userId).not('temperature', 'is', null),
-      supabase.from('leads').select('source').eq('assigned_to', userId).not('source', 'is', null),
-      supabase.from('leads').select('connection_degree').eq('assigned_to', userId).not('connection_degree', 'is', null),
-      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('assigned_to', userId)
+      statusQuery,
+      tempQuery,
+      sourceQuery,
+      degreeQuery,
+      totalQuery
     ]);
 
     const agrupar = (arr, campo) =>
@@ -364,7 +395,7 @@ router.post('/', async (req, res) => {
     
     if (!pId || !sId) {
       try {
-        const { data: firstPip, error: errPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
+        const { data: firstPip, error: errPip } = await supabase.from('pipelines').select('id').eq('user_id', req.user.userId).limit(1).maybeSingle();
         console.log('[Automação Pipeline] firstPip consultado:', firstPip, 'Erro se houver:', errPip);
         
         if (firstPip) {
@@ -522,47 +553,63 @@ router.put('/:id', async (req, res) => {
 
     const updates = { updated_at: new Date().toISOString() };
     
-    // Automação inteligente do Funil baseado no Status do Lead
-    if (req.body.status && !req.body.pipeline_stage_id) {
-      try {
-        const { data: leadAtual } = await supabase.from('leads').select('pipeline_id').eq('id', req.params.id).maybeSingle();
-        let pipelineId = leadAtual?.pipeline_id;
-        
-        if (!pipelineId) {
-          const { data: firstPip } = await supabase.from('pipelines').select('id').limit(1).maybeSingle();
-          if (firstPip) pipelineId = firstPip.id;
-        }
-        
-        if (pipelineId) {
-          updates.pipeline_id = pipelineId;
-          const { data: stages } = await supabase.from('pipeline_stages').select('id, name, position').eq('pipeline_id', pipelineId).order('position', { ascending: true });
-          
-          if (stages && stages.length > 0) {
-            const status = req.body.status;
-            let stageDestino = null;
-            
-            if (status === 'novo') {
-              stageDestino = stages[0]; 
-            } else if (status === 'contatado') {
-              stageDestino = stages.find(s => s.name.toLowerCase().includes('contat') || s.position === 2) || stages[1] || stages[0];
-            } else if (status === 'respondeu' || status === 'em_negociacao') {
-              stageDestino = stages.find(s => s.name.toLowerCase().includes('negoc') || s.name.toLowerCase().includes('apresent') || s.position === 3) || stages[2] || stages[1] || stages[0];
-            }
-            
-            if (stageDestino) {
-              updates.pipeline_stage_id = stageDestino.id;
-              updates.stage_entered_at = new Date().toISOString();
-            }
-          }
-        }
-      } catch (errAuto) {
-        console.error('⚠️ Falha na automação de transição de etapa do pipeline:', errAuto.message);
-      }
-    }
-
     // Se mudar o status ou a etapa, reinicia o cronômetro de tempo na fase
     if (req.body.status || req.body.pipeline_stage_id) {
       updates.stage_entered_at = new Date().toISOString();
+    }
+    
+    // Automação inteligente do Funil e Score baseado no Status do Lead
+    let leadAtual = null;
+    try {
+      const { data: fetchLead } = await supabase.from('leads').select('pipeline_id, score, status, temperature').eq('id', req.params.id).maybeSingle();
+      leadAtual = fetchLead;
+      let pipelineId = leadAtual?.pipeline_id;
+      
+      if (!pipelineId && req.body.status && !req.body.pipeline_stage_id) {
+        const { data: firstPip } = await supabase.from('pipelines').select('id').eq('user_id', req.user.userId).limit(1).maybeSingle();
+        if (firstPip) pipelineId = firstPip.id;
+      }
+      
+      if (pipelineId && req.body.status && !req.body.pipeline_stage_id) {
+        updates.pipeline_id = pipelineId;
+        const { data: stages } = await supabase.from('pipeline_stages').select('id, name, position').eq('pipeline_id', pipelineId).order('position', { ascending: true });
+        
+        if (stages && stages.length > 0) {
+          const status = req.body.status;
+          let stageDestino = null;
+          
+          if (status === 'novo') {
+            stageDestino = stages[0]; 
+          } else if (status === 'contatado') {
+            stageDestino = stages.find(s => s.name.toLowerCase().includes('contat') || s.position === 2) || stages[1] || stages[0];
+          } else if (status === 'respondeu' || status === 'em_negociacao') {
+            stageDestino = stages.find(s => s.name.toLowerCase().includes('negoc') || s.name.toLowerCase().includes('apresent') || s.position === 3) || stages[2] || stages[1] || stages[0];
+          }
+          
+          if (stageDestino) {
+            updates.pipeline_stage_id = stageDestino.id;
+            updates.stage_entered_at = new Date().toISOString();
+          }
+        }
+      }
+      
+      // BUMP DE SCORE AUTOMÁTICO (Interesse / Resposta)
+      if (leadAtual) {
+         let currentScore = leadAtual.score || 0;
+         let newScore = currentScore;
+         
+         if (req.body.status === 'respondeu' && currentScore < 60) newScore += 30;
+         else if (req.body.status === 'em_negociacao' && currentScore < 80) newScore += 40;
+         
+         if (req.body.temperature === 'quente' && currentScore < 60) newScore += 30;
+         else if (req.body.temperature === 'morno' && currentScore < 40) newScore += 15;
+         
+         if (newScore > currentScore) {
+             updates.score = Math.min(100, newScore);
+         }
+      }
+    } catch (errAuto) {
+      console.error('⚠️ Falha na automação de transição/score:', errAuto.message);
     }
 
     for (const key of allowed) {
@@ -570,7 +617,14 @@ router.put('/:id', async (req, res) => {
         if (key === 'status' && !STATUS_VALIDOS.includes(req.body[key])) continue;
         if (key === 'temperature' && !TEMPERATURA_VALIDA.includes(req.body[key])) continue;
         if (key === 'connection_degree' && !GRAU_VALIDO.includes(req.body[key])) continue;
-        if (key === 'score') { updates[key] = Math.min(100, Math.max(0, parseInt(req.body[key]) || 0)); continue; }
+        if (key === 'score') { 
+          const manualScore = Math.min(100, Math.max(0, parseInt(req.body[key]) || 0));
+          // Só sobrescreve se o bump não calculou um score maior automaticamente
+          if (!updates.score || manualScore > updates.score) {
+            updates.score = manualScore;
+          }
+          continue; 
+        }
         updates[key] = req.body[key];
       }
     }
@@ -587,9 +641,17 @@ router.put('/:id', async (req, res) => {
       updateQuery = updateQuery.eq('assigned_to', req.user.userId);
     }
 
-    const { data: lead, error } = await updateQuery.select().single();
+    const { data: lead, error } = await updateQuery.select().maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase update error:', error);
+      throw error;
+    }
+    
+    if (!lead) {
+      console.warn('⚠️ Supabase update retornou 0 rows para ID:', req.params.id);
+      return res.status(404).json({ error: 'Lead não encontrado ou acesso negado' });
+    }
 
     const statusDeParada = ['respondeu', 'em_negociacao', 'fechado', 'descartado'];
     if (updates.status && statusDeParada.includes(updates.status)) {
@@ -686,7 +748,7 @@ router.post('/:id/lgpd-purge', async (req, res) => {
 // ==========================================
 // ROTA 8: Gerar mensagem com IA
 // ==========================================
-router.post('/:id/gerar-mensagem', async (req, res) => {
+router.post('/:id/gerar-mensagem', aiLimiter, async (req, res) => {
   try {
     const { data: lead, error } = await supabase
       .from('leads')
@@ -755,12 +817,59 @@ router.post('/:id/gerar-mensagem', async (req, res) => {
     - SERVIÇO 4: Consultoria SAP (Implementação/Suporte).
     - SERVIÇO 5: Automação RPA e Inteligência Artificial (Eficiência).`;
 
-    if (hasTechOrDev || isDecisionMaker) {
+    const primeiroNome = lead.name ? lead.name.split(' ')[0].trim() : 'Prezado(a)';
+
+    // Calcula a saudação com base no horário atual do servidor
+    const hora = new Date().getHours();
+    let saudacaoTempo = 'Bom dia';
+    if (hora >= 12 && hora < 18) {
+      saudacaoTempo = 'Boa tarde';
+    } else if (hora >= 18 || hora < 5) {
+      saudacaoTempo = 'Boa noite';
+    }
+
+    // Detecta o módulo SAP do profissional (MM, SD, FI, CO, EWM, TM, HCM, PP, QM, PM, WM etc.)
+    let moduloSAP = '';
+    const textoDetectar = ` ${lead.group_name || ''} ${lead.current_role || ''} ${lead.headline || ''} `.toUpperCase();
+    
+    if (/\bMM\b/.test(textoDetectar)) moduloSAP = 'MM';
+    else if (/\bSD\b/.test(textoDetectar)) moduloSAP = 'SD';
+    else if (/\bFI\b/.test(textoDetectar) || textoDetectar.includes('FINAN')) moduloSAP = 'FI';
+    else if (/\bCO\b/.test(textoDetectar) || textoDetectar.includes('CONTROLLING')) moduloSAP = 'CO';
+    else if (/\bEWM\b/.test(textoDetectar)) moduloSAP = 'EWM';
+    else if (/\bTM\b/.test(textoDetectar) || textoDetectar.includes('TRANSPORTATION')) moduloSAP = 'TM';
+    else if (/\bHCM\b|\bHR\b|RECURSOS HUMANOS/.test(textoDetectar)) moduloSAP = 'HCM';
+    else if (/\bPP\b/.test(textoDetectar)) moduloSAP = 'PP';
+    else if (/\bQM\b/.test(textoDetectar)) moduloSAP = 'QM';
+    else if (/\bPM\b/.test(textoDetectar) || textoDetectar.includes('MANUTEN')) moduloSAP = 'PM';
+    else if (/\bWM\b/.test(textoDetectar)) moduloSAP = 'WM';
+    else {
+      // Tenta extrair a partir do grupo
+      const grupoUpper = (lead.group_name || '').toUpperCase();
+      const modulos = ['MM','SD','FI','CO','EWM','TM','HCM','PP','QM','PM','WM'];
+      const encontrado = modulos.find(m => grupoUpper.includes(m));
+      moduloSAP = encontrado || 'funcional SAP';
+    }
+
+    if (isRecrutador) {
+      anguloEstrategico = `O lead é da área de Recrutamento e Seleção / Talent Acquisition / RH. O foco comercial OBRIGATÓRIO é oferecer o serviço de Hunting e Alocação de Profissionais SAP e TI da Cromosit IT (SERVIÇO 2). A mensagem deve:
+1. Mencionar diretamente que a empresa provavelmente tem vagas abertas de SAP/TI difíceis de fechar.
+2. Apresentar brevemente o serviço de hunting como solução para acelerar o fechamento de posições técnicas.
+3. Fazer uma pergunta direta de qualificação: se faz sentido e se há vagas abertas de SAP/TI no momento.
+Tom: direto, consultivo, curto. Exemplo de estrutura ideal: saudação + problema (dificuldade de encontrar profissionais SAP) + proposta (hunting especializado) + pergunta de qualificação.
+NUNCA mencione debug, ABAP, autonomia funcional, treinamento individual ou módulos SAP técnicos. Esse lead não é consultor SAP.`;
+    } else if (isDecisionMaker) {
+      if (moduloSAP !== 'funcional SAP' || isEcossistemaSAP) {
+        anguloEstrategico = `O lead é um tomador de decisão (CEO, Diretor, Gerente, Sócio) na área de SAP/TI. O foco comercial OBRIGATÓRIO deve ser corporativo B2B: oferecer a contratação de profissionais/alocação de consultores SAP (SERVIÇO 2) ou treinamento corporativo para a equipe de consultores dele (SERVIÇO 1 ou 3), para reduzir gargalos e a dependência técnica de ABAP externo. NUNCA venda treinamento individual de debug para a carreira dele mesmo, foque no ganho da equipe/empresa dele.`;
+      } else {
+        anguloEstrategico = `O lead é um tomador de decisão corporativo (CEO, Diretor, Gerente). O foco comercial OBRIGATÓRIO deve ser corporativo B2B: oferecer alocação/hunting de profissionais de TI (SERVIÇO 2) ou automação RPA/IA (SERVIÇO 5) para otimizar os processos da empresa ${empresa}.`;
+      }
+    } else if (moduloSAP !== 'funcional SAP') {
+      anguloEstrategico = `O lead é um consultor funcional SAP do módulo ${moduloSAP}. O foco comercial OBRIGATÓRIO deve ser a venda do treinamento individual de ABAP para Funcionais / Debug SAP para dar autonomia para ele mesmo depurar transações e programas standard e customizados Z no dia a dia. Ele quer autonomia em depuração de códigos e transações Z em chamados e projetos SAP, sem depender de programadores ABAP ou da fábrica de software. NUNCA fale em vender alocação, consultoria ou treinamento para a equipe/empresa dele; a abordagem deve ser estritamente de venda individual para a carreira e autonomia dele.`;
+    } else if (hasTechOrDev) {
       anguloEstrategico = `Foco em SERVIÇO 2 (Alocação/Body Shop) ou SERVIÇO 5 (RPA/IA) para eficiência operacional. Cargo: ${cargo}.`;
-    } else if (isRecrutador) {
-      anguloEstrategico = `Foco em SERVIÇO 1 (Plataforma de Treinamento) ou SERVIÇO 2 (Hunting de Nicho SAP). Cargo: ${cargo}.`;
     } else if (isEcossistemaSAP || isConsultor) {
-      anguloEstrategico = `Foco em SERVIÇO 3 (Treinamento SAP) ou SERVIÇO 4 (Consultoria SAP). Cargo: ${cargo}.`;
+      anguloEstrategico = `Foco em SERVIÇO 3 (Treinamento SAP, destacando o benefício de o profissional funcional passar a debugar/depurar programas standard e customizados Z, tendo total autonomia para resolver chamados e atuar em projetos SAP sem travar o fluxo dependendo de desenvolvedores ABAP ou da fábrica de software) ou SERVIÇO 4 (Consultoria SAP). Cargo: ${cargo}.`;
     } else {
       anguloEstrategico = `Identificar qual destes serviços atende melhor a empresa ${empresa}: ${servicosCromosit}`;
     }
@@ -770,23 +879,49 @@ Sua missão é gerar uma mensagem altamente empática, organizada e com forte ap
 
 ${anguloEstrategico}
 
+Tipo de Mensagem a ser Gerada:
+- Formato/Objetivo: ${tipoDescricao[tipo] || tipo}
+
 Dados do Lead:
-- Nome: ${lead.name}
+- Nome do destinatário (use APENAS este primeiro nome na saudação): ${primeiroNome}
+- Nome completo do Lead: ${lead.name}
 - Cargo: ${lead.current_role || lead.headline || 'não informado'}
 - Empresa: ${lead.current_company || lead.company || 'não informada'}
 - Localização: ${lead.location || 'não informada'}
 - Grau de conexão: ${grauLabel}
+- Módulo SAP Estimado: ${moduloSAP}
 ${lead.mutual_connections ? `- Conexões em comum: ${lead.mutual_connections}` : ''}
 ${lead.service_interest ? `- Mapeamento de dor/interesse da IA: ${lead.service_interest}` : ''}
 ${lead.about ? `- Informações do perfil (Bio): ${lead.about.substring(0, 300)}` : ''}
 ${contexto ? `- Contexto extra para a abordagem: ${sanitizeString(contexto, 300)}` : ''}
 
+Exemplos de Referência de Tom e Estilo para Consultores SAP:
+
+1. Se o tipo for 'primeiro_contato' (ou mensagem de primeiro contato) e o lead for da área SAP, siga estritamente esta estrutura padrão, adaptando o módulo para ser "${moduloSAP}":
+"${saudacaoTempo} ${primeiroNome}, como vai?
+
+Vi que você atua como consultor no módulo ${moduloSAP}. Muitos funcionais têm buscado mais autonomia para debugar transações Zs e códigos sem depender de programadores abaps.
+
+Isso é algo que você está enfrentando no seu dia a dia?"
+
+2. Se o tipo for 'follow_up' e o lead for da área SAP, siga este estilo conciso e direto, adaptando o módulo do profissional para ser "${moduloSAP}":
+"${saudacaoTempo} ${primeiroNome}, como vai?
+
+Segue o link da Aula DEMO prática de debug no S/4HANA com o instrutor Rafael: https://www.youtube.com/watch?v=d4ftrf2kNP0&t=1399s
+
+Dá uma olhada com calma na técnica de debug que ele ensina e que dá essa autonomia no dia a dia do ${moduloSAP}. Vale destacar que nossos alunos praticam em ambiente SAP S/4HANA e FIORI ativo versão 2023, já com as Best Practices configuradas.
+
+Você consegue assistir hoje à noite para darmos um alinhamento rápido amanhã sobre os acessos ao sistema e o presente que preparei para você?"
+
 Diretrizes OBRIGATÓRIAS para a Mensagem:
-1. RAPPORT & CONEXÃO: Comece fazendo referência ao cargo, empresa ou contexto do lead de maneira natural.
-2. FOCO NA DOR/NECESSIDADE: Não tente vender logo de cara. Foque na eficiência, produtividade ou capacitação da equipe dele, abordando uma dor provável (ex: escassez de recursos SAP, treinamento técnico, gargalos operacionais).
-3. ESTRUTURA VISUAL E PARÁGRAFOS: Organize a mensagem em parágrafos muito curtos (no máximo 2 ou 3 parágrafos curtos, com espaçamento limpo entre eles).
-4. BREVIDADE E OBJETIVIDADE: Linguagem polida, direta, sem jargões forçados de "vendedor" e sem clichês ("Espero que esteja bem", "Gostaria de tomar 5 minutos").
-5. CTA MATADOR: Termine com uma única pergunta simples e curta, estimulando uma resposta sobre a dor discutida.
+1. SAUDAÇÃO & NOME: Inicie a mensagem obrigatoriamente saudando o lead pelo primeiro nome e utilizando a saudação temporal exata de acordo com o horário: "${saudacaoTempo} ${primeiroNome}, como vai?". Nunca use termos informais como "Show de bola" ou "Tudo certo?".
+2. RAPPORT & CONEXÃO: Comece fazendo referência ao cargo, empresa ou contexto do lead de maneira natural. Se o cargo ou empresa não forem informados, faça uma abordagem genérica sobre tecnologia/SAP sem inventar cargos fictícios.
+3. FOCO NA DOR/NECESSIDADE: Não tente vender logo de cara. Foque na eficiência, produtividade ou capacitação da equipe dele, abordando uma dor provável (ex: escassez de recursos SAP, treinamento técnico, gargalos operacionais).
+4. ESTRUTURA VISUAL E PARÁGRAFOS: Organize a mensagem em parágrafos muito curtos (no máximo 2 ou 3 parágrafos curtos, com espaçamento limpo entre eles).
+5. BREVIDADE E OBJETIVIDADE: Linguagem formal, polida, direta, sem jargões forçados de "vendedor" e sem clichês ("Espero que esteja bem", "Gostaria de tomar 5 minutos").
+6. LIMITE RÍGIDO DE CARACTERES: A mensagem DEVE respeitar estritamente o limite do tipo: ${tipoDescricao[tipo] || tipo}. Seja conciso para evitar truncamento no LinkedIn/WhatsApp.
+7. MÓDULO DO PROFISSIONAL: Adapte a abordagem ao módulo de atuação do profissional. Se o módulo foi identificado como "${moduloSAP}", utilize este termo (ex: "...autonomia no dia a dia do ${moduloSAP}") em vez de termos genéricos.
+8. CTA MATADOR: Termine com uma única pergunta simples e curta, estimulando uma resposta sobre a dor discutida.
 
 Retorne APENAS a mensagem limpa, pronta para envio, sem aspas ou tags de formatação adicionais.`.trim();
 
@@ -1020,7 +1155,16 @@ async function enriquecerLeadComIA(lead) {
   let claudeKey = process.env.CLAUDE_API_KEY;
   let provider = 'openai';
 
-  // 2. Tentar buscar chaves específicas do usuário que está rodando a ação
+  // 2. Tentar buscar chaves e regras de score específicas do usuário
+  let score_cargo_decisao = 35;
+  let score_cargo_sap = 30;
+  let score_cargo_ti = 20;
+  let score_localizacao_br = 15;
+  let score_conexao_1 = 20;
+  let score_conexao_2 = 10;
+  let penalidade_fora_br = -40;
+  let penalidade_sem_dados = -45;
+
   try {
     const userId = lead.assigned_to;
     if (userId) {
@@ -1035,6 +1179,15 @@ async function enriquecerLeadComIA(lead) {
         if (aiSettings.gemini_key) geminiKey = aiSettings.gemini_key;
         if (aiSettings.claude_key) claudeKey = aiSettings.claude_key;
         if (aiSettings.preferred_provider) provider = aiSettings.preferred_provider;
+
+        if (aiSettings.score_cargo_decisao !== undefined && aiSettings.score_cargo_decisao !== null) score_cargo_decisao = aiSettings.score_cargo_decisao;
+        if (aiSettings.score_cargo_sap !== undefined && aiSettings.score_cargo_sap !== null) score_cargo_sap = aiSettings.score_cargo_sap;
+        if (aiSettings.score_cargo_ti !== undefined && aiSettings.score_cargo_ti !== null) score_cargo_ti = aiSettings.score_cargo_ti;
+        if (aiSettings.score_localizacao_br !== undefined && aiSettings.score_localizacao_br !== null) score_localizacao_br = aiSettings.score_localizacao_br;
+        if (aiSettings.score_conexao_1 !== undefined && aiSettings.score_conexao_1 !== null) score_conexao_1 = aiSettings.score_conexao_1;
+        if (aiSettings.score_conexao_2 !== undefined && aiSettings.score_conexao_2 !== null) score_conexao_2 = aiSettings.score_conexao_2;
+        if (aiSettings.penalidade_fora_br !== undefined && aiSettings.penalidade_fora_br !== null) penalidade_fora_br = aiSettings.penalidade_fora_br;
+        if (aiSettings.penalidade_sem_dados !== undefined && aiSettings.penalidade_sem_dados !== null) penalidade_sem_dados = aiSettings.penalidade_sem_dados;
       }
     }
   } catch (dbErr) {
@@ -1042,24 +1195,52 @@ async function enriquecerLeadComIA(lead) {
   }
 
   const prompt = `
-Você é um agente de inteligência comercial da Cromosit IT (empresa de alocação de profissionais de TI, treinamentos e consultoria técnica em Curitiba/PR).
+Você é um agente especialista em inteligência comercial B2B e Lead Scoring (Classificação de Leads) da Cromosit IT, aplicando as melhores práticas globais de mercado para definição de ICP (Perfil de Cliente Ideal).
 
-Analise o perfil LinkedIn abaixo e responda SOMENTE um JSON válido com 3 campos:
+Sua missão é analisar o perfil do LinkedIn abaixo e calcular um Score de 0 a 100 com base em critérios científicos de ICP B2B/SaaS, retornando um JSON estruturado.
 
-Perfil:
+Dados do Perfil a Analisar:
 - Nome: ${lead.name}
-- Cargo Real: ${lead.current_role || lead.headline || 'não informado'}
+- Cargo Real/Headline: ${lead.current_role || lead.headline || 'não informado'}
 - Empresa Real: ${lead.current_company || lead.company || 'não informada'}
 - Localização: ${lead.location || 'não informada'}
 - Bio: ${lead.about ? lead.about.substring(0, 500) : 'não disponível'}
 - Grau de conexão: ${lead.connection_degree === '1' ? '1º (já conectados)' : lead.connection_degree === '2' ? '2º (amigos em comum)' : '3º (sem conexão)'}
 - Conexões em comum: ${lead.mutual_connections || 'nenhuma'}
 
+REGRAS RÍGIDAS DE CÁLCULO DO LEAD SCORE (Comece em 0):
+
+1. FIT GEOGRÁFICO (ICP Mercadológico) - Peso: 20 pontos
+   - Localização no Brasil (BR) ou cidades brasileiras: +${score_localizacao_br} pontos.
+   - Localização fora do Brasil (Estrangeiro, ex: USA, Índia, Europa): Limite o score geográfico a 0 pontos (penalização de ${penalidade_fora_br}).
+
+2. FIT DE CARGO E TOMADA DE DECISÃO (ICP Comprador) - Peso: 35 pontos
+   - Tomador de decisão em SAP/TI (Diretor, Gerente, Head, Coordenador, PMO): +${score_cargo_decisao} pontos.
+   - Consultor Funcional SAP (MM, SD, FI, CO, PP, PM, QM, EWM, TM, HCM): +${score_cargo_sap} pontos.
+   - Desenvolvedor, Programador ou Profissional de TI geral: +${score_cargo_ti} pontos.
+   - Cargo genérico, irrelevante, em branco ou sem relação com TI (ex: "Estudante", "Vendas", "Hello", "Autônomo"): 0 pontos.
+
+3. FIT DE ÁREA E TECNOLOGIA (ICP Solução) - Peso: 25 pontos
+   - Menção direta a SAP, S/4HANA ou módulos funcionais SAP (na headline ou bio): +25 pontos.
+   - Menção a TI, Software ou tecnologia em geral (sem SAP): +15 pontos.
+   - Sem qualquer menção a tecnologia ou SAP: 0 pontos.
+
+4. NÍVEL DE ENGAJAMENTO (Relação Comercial) - Peso: 20 pontos
+   - Conexão de 1º Grau (já conectados): +${score_conexao_1} pontos.
+   - Conexão de 2º Grau (amigos em comum): +${score_conexao_2} pontos.
+   - Conexão de 3º Grau (sem conexão): +0 pontos.
+
+PENALIZAÇÕES OBRIGATÓRIAS (Desqualificação):
+- Perfil desqualificado/sem informação (cargo em branco, headline irrelevante como 'Hello' ou 'Disponível', sem qualquer ligação com SAP ou TI): Penalize em ${penalidade_sem_dados} pontos na nota final.
+- Lead estrangeiro/localização fora do Brasil: Penalize em ${penalidade_fora_br} pontos na nota final.
+
+O score final deve ser a soma das pontuações respeitando o limite mínimo de 0 e máximo de 100. leads estrangeiros ou irrelevantes devem obrigatoriamente ter score menor que 15.
+
 Responda APENAS este JSON (sem markdown, sem explicações):
 {
   "service_interest": "Em 1-2 frases: qual serviço da Cromosit IT ele precisa?",
   "notes": "Em 3-5 bullet points curtos: dicas reais de abordagem.",
-  "score": número de 0 a 100 (cargo estratégico=+30, empresa potencial=+20, 1º grau=+20, setor relevante=+15, localização BR=+10, sem informação=-10)
+  "score": 10
 }`.trim();
 
   let responseText = '';

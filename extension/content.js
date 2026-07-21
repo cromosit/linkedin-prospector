@@ -421,12 +421,28 @@ function extrairListaDeBusca() {
   const leads = []
   const vistos = new Set()
   const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent']
-  const todosLinks = document.querySelectorAll('a[href*="/in/"]')
 
-  todosLinks.forEach(link => {
+  // Seleciona os containers de cada resultado de busca
+  const containers = document.querySelectorAll(
+    '.reusable-search__result-container, ' +
+    '.entity-result, ' +
+    'li.search-results__list-item'
+  )
+
+  containers.forEach(container => {
     try {
+      // O link principal do lead fica no título
+      const link = container.querySelector(
+        '.entity-result__title-text a[href*="/in/"], ' +
+        '.entity-result__title-line a[href*="/in/"], ' +
+        '.entity-result__title a[href*="/in/"], ' +
+        'a[href*="/in/"]:not([class*="image"]):not([aria-hidden="true"])'
+      )
+
+      if (!link) return
       const href = link.href || ''
       if (!href.includes('/in/')) return
+      
       const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/)
       if (!match) return
       const linkedin_id = match[1]
@@ -435,110 +451,67 @@ function extrairListaDeBusca() {
       if (linkedin_id.length < 3) return
       vistos.add(linkedin_id)
 
-      const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' }
-      // Sobe até encontrar o card raiz do resultado de busca
-      let card = link
-      for (let i = 0; i < 12; i++) {
-        card = card.parentElement
-        if (!card || card.tagName === 'BODY') break
-        // Para no primeiro container grande que contenha o nome E mais dados
-        if (card.querySelectorAll('a[href*="/in/"]').length === 1 &&
-            (card.className?.includes('result') || card.className?.includes('entity') ||
-             card.className?.includes('reusable') || card.className?.includes('search') ||
-             card.tagName === 'LI')) break
-      }
-      if (!card || card.tagName === 'BODY') card = link.parentElement?.parentElement?.parentElement
-
-      const texto = card?.innerText || document.body.innerText || ''
-
-      // NOME
-      if (!lead.name) {
-        const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span')
-        const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim()
-        if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 &&
-            !nomeTexto.includes('•') && !nomeTexto.includes('·') && !nomeTexto.includes('º')) {
-          lead.name = nomeTexto
-        }
+      const lead = { 
+        linkedin_id, 
+        linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, 
+        source: 'chrome_extension' 
       }
 
-      // FOTO
-      if (!lead.profile_picture && card) {
-        const img = card.querySelector('img')
-        if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') &&
-            (img.src.includes('media') || img.src.includes('profile'))) {
-          lead.profile_picture = img.src
-        }
+      const textoCompleto = container.innerText || ''
+
+      // Extrai Nome
+      const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span') || link
+      let nomeTexto = nomeSpan.innerText?.trim() || link.innerText?.trim() || ''
+      nomeTexto = nomeTexto.split('\n')[0].replace(/\s*•\s*\d+º(?: e \+)?/g, '').trim()
+      lead.name = nomeTexto
+
+      // Extrai Headline/Cargo
+      const headlineEl = container.querySelector('.entity-result__primary-subtitle, [class*="primary-subtitle"], [class*="headline"]')
+      lead.headline = headlineEl?.innerText?.trim() || ''
+
+      // Extrai Localização
+      const localEl = container.querySelector('.entity-result__secondary-subtitle, [class*="secondary-subtitle"], [class*="location"]')
+      lead.location = localEl?.innerText?.trim() || ''
+
+      // Extrai Imagem
+      const img = container.querySelector('.entity-result__universal-image img, img[src*="profile-displayphoto"]')
+      if (img?.src && !img.src.includes('ghost')) {
+        lead.profile_picture = img.src
       }
 
-      // HEADLINE — seletores modernos do LinkedIn 2024
-      if (!lead.headline && card) {
-        const headlineSelectors = [
-          '.entity-result__primary-subtitle',
-          '.search-entity-result__primary-subtitle',
-          '[class*="primary-subtitle"]',
-          '[class*="subtitle--top"]',
-          '.t-14.t-normal.t-black',
-          '[class*="headline"]',
-          '[class*="lockup__subtitle"]',
-          '.t-14.t-black'
-        ]
-        for (const sel of headlineSelectors) {
-          const el = card.querySelector(sel)
-          const t = el?.innerText?.trim()
-          if (t && t.length > 3 && t.length < 300 &&
-              !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
-              !t.match(/^[\u2022\u00b7]/) && !t.match(/^\d/) && !t.includes('grau')) {
-            lead.headline = t; break
-          }
-        }
+      // Grau de Conexão (procurando no badge ou no texto do container)
+      let grau = '3'
+      const badge = container.querySelector('.entity-result__badge, .entity-result__badge-text, .dist-value')
+      const badgeText = badge?.innerText || textoCompleto
+      if (badgeText.includes('1º') || badgeText.includes('1st')) {
+        grau = '1'
+      } else if (badgeText.includes('2º') || badgeText.includes('2nd')) {
+        grau = '2'
+      } else if (badgeText.includes('3º') || badgeText.includes('3rd')) {
+        grau = '3'
       }
+      lead.connection_degree = grau
 
-      // GRAU DE CONEXÃO
-      if (!lead.connection_degree) {
-        const t = texto.replace(/[\u00b7\u22c5\u2219]/g, '\u2022')
-        if (/\u2022\s*1[\u00bao\u00b0]/.test(t) || t.includes('1st')) lead.connection_degree = '1'
-        else if (/\u2022\s*2[\u00bao\u00b0]/.test(t) || t.includes('2nd')) lead.connection_degree = '2'
-        else if (/\u2022\s*3[\u00bao\u00b0]/.test(t) || t.includes('3rd') || t.includes('3\u00ba e +')) lead.connection_degree = '3'
-      }
+      // Conexões em comum
+      const m = textoCompleto.match(/(\d+)\s+conex[õo]es? em comum/i)
+      if (m) lead.mutual_connections = m[0]
 
-      // CONEXÕES EM COMUM
-      if (!lead.mutual_connections) {
-        const m = texto.match(/(\d+)\s+conex[\u00f5o]es? em comum/i)
-        if (m) lead.mutual_connections = m[0]
-      }
+      // Determina temperatura inicial
+      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio'
 
-      // LOCALIZAÇÃO — apenas seletor CSS específico, sem fallback por texto livre
-      // (texto livre capturava cidades erradas de outros cards ou conexões em comum)
-      if (!lead.location && card) {
-        const locSelectors = [
-          '.entity-result__secondary-subtitle',
-          '[class*="secondary-subtitle"]',
-          '[class*="subline-level-2"]',
-          '.t-12.t-black--light.t-normal'
-        ]
-        for (const sel of locSelectors) {
-          const locEl = card.querySelector(sel)
-          const lt = locEl?.innerText?.trim()
-          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum') && !lt.match(/^\d/)) {
-            lead.location = lt; break
-          }
-        }
-      }
-
-      if (!lead.name || lead.name.length < 2) return
-      if (lead.name.toLowerCase().includes('linkedin')) return
-      if (lead.name.includes('•') || lead.name.includes('º')) return
-
-      if (lead.headline && !lead.company) {
+      // Empresa
+      if (lead.headline) {
         if (lead.headline.includes(' · ')) lead.company = lead.headline.split(' · ').pop().trim()
         else if (lead.headline.includes(' na ')) lead.company = lead.headline.split(' na ').pop().split('|')[0].trim()
         else if (lead.headline.includes(' at ')) lead.company = lead.headline.split(' at ').pop().split('|')[0].trim()
       }
 
-      lead.connection_degree = lead.connection_degree || '3'
-      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio'
-      leads.push(lead)
-    } catch(e) {}
+      if (lead.name && lead.name.length > 1 && !lead.name.toLowerCase().includes('linkedin')) {
+        leads.push(lead)
+      }
+    } catch (e) {
+      console.error('[Prospector] Erro ao processar card de busca:', e)
+    }
   })
 
   return leads

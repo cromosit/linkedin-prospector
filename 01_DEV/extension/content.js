@@ -16,6 +16,36 @@ function exibirBanner(texto, cor = '#1d8fe8') {
 console.log('%c🏛️ LINKEDIN PROSPECTOR v6.0.0 ULTRA ATIVADO!', 'color: #00ffc8; font-size: 30px; font-weight: bold; text-shadow: 2px 2px #000;');
 
 // 1️⃣ LÓGICA DE EXTRAÇÃO DE DADOS BÁSICOS
+function extrairEmpresaDaExperiencia() {
+  const expSelectors = [
+    '#experience ~ div .pvs-list__item--line-separated:first-child .t-14.t-normal',
+    '.pv-top-card--experience-list li:first-child .pv-entity__secondary-title',
+    '.pv-text-details__right-panel .hoverable-link-text span',
+    '.pv-text-details__right-panel .text-body-small span',
+    '#experience + div .pvs-list__paged-list-item:first-child .t-14',
+    '.experience-section li:first-child .pv-entity__secondary-title',
+  ]
+
+  for (const sel of expSelectors) {
+    const el = document.querySelector(sel)
+    const txt = el?.innerText?.trim()
+    if (txt && txt.length > 1 && txt.length < 100 &&
+        !txt.includes('•') && !txt.match(/^\d/) &&
+        !txt.includes('ano') && !txt.includes('mês')) {
+      return txt
+    }
+  }
+
+  const headlineEl = document.querySelector('.text-body-medium.break-words') ||
+                     document.querySelector('.pv-text-details__left-panel .text-body-medium')
+  const headline = headlineEl?.innerText?.trim() || ''
+  if (headline.includes(' · ')) return headline.split(' · ').pop().split('|')[0].trim()
+  if (headline.includes(' na ')) return headline.split(' na ').pop().split('|')[0].trim()
+  if (headline.includes(' at ')) return headline.split(' at ').pop().split('|')[0].trim()
+
+  return ''
+}
+
 function extrairBasico() {
   const dados = { 
     name: '', 
@@ -28,24 +58,65 @@ function extrairBasico() {
   };
   
   try {
-    let nameVal = '';
-    const h1El = document.querySelector('h1.text-heading-xlarge, h1');
-    if (h1El) nameVal = h1El.innerText.split('\n')[0].trim();
-    if (!nameVal || nameVal.toLowerCase().includes('linkedin')) {
-      nameVal = document.title.split('|')[0].split('-')[0].replace(' (Personal)', '').trim();
+    const nomeSelectors = ['h1.text-heading-xlarge','h1.inline.t-24','.pv-text-details__left-panel h1','.ph5 h1','main h1']
+    for (const sel of nomeSelectors) {
+      const el = document.querySelector(sel)
+      const txt = el?.innerText?.trim()
+      if (txt && txt.length > 1 && txt.length < 80 && !txt.includes('•') && !txt.includes('º') && !txt.match(/^\d/)) {
+        dados.name = txt; break
+      }
     }
-    dados.name = nameVal || 'Lead Desconhecido';
-    dados.headline = document.querySelector('.pv-text-details__left-panel .text-body-medium, .text-body-medium.break-words, .pv-top-card-layout__headline')?.innerText.trim() || '';
-    dados.company = document.querySelector('.pv-text-details__right-panel li button span, [data-field="experience"]')?.innerText.trim() || '';
-    dados.location = document.querySelector('.text-body-small.inline.t-black--light.break-words')?.innerText.trim() || '';
-    
-    // Grau de conexão
+    if (!dados.name) {
+      dados.name = document.title.split('|')[0].split('-')[0].replace(' (Personal)', '').trim() || 'Lead Desconhecido';
+    }
+
+    const headlineSelectors = ['.text-body-medium.break-words','.pv-text-details__left-panel .text-body-medium','.ph5 .text-body-medium']
+    for (const sel of headlineSelectors) {
+      const el = document.querySelector(sel)
+      const txt = el?.innerText?.trim()
+      if (txt && txt.length > 2 && !txt.includes('•') && !txt.includes('º')) { 
+        dados.headline = txt; break 
+      }
+    }
+
+    const locationSelectors = [
+      '.pv-text-details__left-panel .pb2 span.text-body-small',
+      '.ph5 .mt2 span.text-body-small',
+      '.pv-top-card--list .pv-top-card--list-bullet span'
+    ]
+    for (const sel of locationSelectors) {
+      const els = document.querySelectorAll(sel)
+      for (const el of els) {
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 3 && txt.length < 60 &&
+            !txt.includes('conexões') && !txt.includes('seguidores') &&
+            (txt.includes(',') || txt.includes('Brasil') || txt.includes('Brazil') ||
+             txt.match(/[A-Z]{2}$/) || txt.includes('São Paulo') || txt.includes('Curitiba') ||
+             txt.includes('Rio') || txt.includes('Minas'))) {
+          dados.location = txt; break
+        }
+      }
+      if (dados.location) break
+    }
+
+    dados.company = extrairEmpresaDaExperiencia()
+
     let grau = '3';
-    const grauTexto = document.querySelector('.dist-value, .entity-result__badge, .pv-member-badge--level')?.innerText || document.body.innerText;
-    if (grauTexto.includes('1º') || grauTexto.includes('1st')) grau = '1';
-    else if (grauTexto.includes('2º') || grauTexto.includes('2nd')) grau = '2';
+    const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•-]/g, '•');
+    if (/•\s*1(st|º|°|a)/i.test(bodyTxt) || /\b1st degree\b/i.test(bodyTxt) || document.querySelector('.dist-value')?.innerText.includes('1')) {
+      grau = '1';
+    } else if (/•\s*2(nd|º|°|a)/i.test(bodyTxt) || /\b2nd degree\b/i.test(bodyTxt) || document.querySelector('.dist-value')?.innerText.includes('2')) {
+      grau = '2';
+    }
     dados.connection_degree = grau;
-    dados.profile_picture = document.querySelector('.pv-top-card-profile-picture__image--show, img.pv-top-card-profile-picture__image')?.src || '';
+
+    const fotoSelectors = ['.pv-top-card-profile-picture__image--show','img.pv-top-card-profile-picture__image','img[class*="profile-picture"]']
+    for (const sel of fotoSelectors) {
+      const el = document.querySelector(sel)
+      if (el?.src && !el.src.includes('ghost') && el.src.startsWith('https')) { 
+        dados.profile_picture = el.src; break 
+      }
+    }
   } catch(e) {
     console.error('[Prospector] Erro no extrairBasico:', e);
   }
@@ -153,29 +224,79 @@ async function capturarPerfilIndividual() {
 
 // 4️⃣ LÓGICA DE DIGITAÇÃO E ENVIO DE MENSAGENS
 async function injetarTextoFormatado(elemento, texto) {
-  elemento.focus();
-  const p = elemento.querySelector('p') || elemento; 
-  p.innerHTML = ''; 
   try {
-     document.execCommand('insertText', false, texto);
-  } catch (e) { 
-     p.innerText = texto; 
+    elemento.focus();
+    document.execCommand('selectAll', false, null);
+    document.execCommand('delete', false, null);
+    
+    await esperar(300);
+    
+    try {
+       document.execCommand('insertText', false, texto);
+    } catch (e) { 
+       const p = elemento.querySelector('p') || elemento;
+       if (p) p.innerText = texto; 
+    }
+    
+    await esperar(300);
+    
+    try { elemento.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+    try { elemento.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+    try { elemento.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true })); } catch(e){}
+    try { elemento.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true })); } catch(e){}
+  } catch (err) {
+    console.error('[Prospector] Erro na injeção de texto:', err);
   }
-  elemento.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-async function focarEEnviar() {
-  await esperar(1500);
-  const btnEnviar = document.querySelector('.msg-overlay-conversation-bubble [type="submit"], .msg-form__send-button, button.artdeco-button--primary[type="submit"]');
-  if (btnEnviar) { 
-    btnEnviar.click(); 
-    exibirBanner('✅ MENSAGEM ENVIADA!', '#00c896'); 
+async function focarEEnviar(leadId) {
+  await esperar(1000);
+  
+  let btnEnviar = null;
+  for (let i = 0; i < 15; i++) {
+    btnEnviar = document.querySelector(
+      '.msg-form__send-button, ' +
+      'button.msg-form__send-btn, ' +
+      '.msg-overlay-conversation-bubble [type="submit"], ' +
+      'button.artdeco-button--primary[type="submit"]'
+    );
+    
+    if (btnEnviar && !btnEnviar.disabled) break;
+    if (btnEnviar && btnEnviar.disabled) {
+       try { btnEnviar.removeAttribute('disabled'); btnEnviar.disabled = false; } catch(e){}
+    }
+    
+    await esperar(300);
+  }
+  
+  if (btnEnviar) {
+    try {
+      btnEnviar.removeAttribute('disabled');
+      btnEnviar.disabled = false;
+    } catch(e){}
+    
+    await esperar(300);
+
+    // Registra o sucesso na API primeiro e aguarda a conclusão antes de clicar e fechar a aba
+    if (leadId) {
+      await registrarSucessoEnvioPorId(leadId);
+    }
+
+    try {
+      btnEnviar.click(); 
+      exibirBanner('✅ MENSAGEM ENVIADA!', '#00c896'); 
+    } catch(err) {
+      console.error('[Prospector] Erro ao enviar mensagem:', err);
+      exibirBanner('⚠️ Clique em Enviar manualmente!', '#ff9f0a');
+    }
     await esperar(1500); 
     window.close(); 
+  } else {
+    exibirBanner('⚠️ Botão enviar não encontrado. Envie manualmente!', '#ff9f0a');
   }
 }
 
-async function automatizarChat(mensagem) {
+async function automatizarChat(mensagem, leadId) {
   const nomeExibicao = (document.querySelector('h1')?.innerText || document.title.split('|')[0]).trim();
   exibirBanner(`🚀 MODO ENVIO: Injetando mensagem para ${nomeExibicao}...`, '#1d8fe8');
   
@@ -203,12 +324,40 @@ async function automatizarChat(mensagem) {
 
   let caixa = null;
   for (let i = 0; i < 12; i++) {
-    caixa = document.querySelector('.msg-form__contenteditable, .msg-overlay-conversation-bubble [contenteditable="true"], [role="textbox"], .msg-form__textarea');
-    if (!caixa) {
-      caixa = Array.from(document.querySelectorAll('[contenteditable="true"]')).find(el => 
-        el.getAttribute('aria-label')?.includes('mensagem') || el.getAttribute('placeholder')?.includes('mensagem') || el.innerText.includes('Escreva')
-      );
-    }
+    // Busca todos os possíveis elementos editáveis de chat e composable do LinkedIn
+    const caixas = Array.from(document.querySelectorAll(
+      '.msg-form__contenteditable, ' +
+      '.msg-composable-form__contenteditable, ' +
+      '.msg-composable-form__textarea, ' +
+      '.msg-form__textarea, ' +
+      '.msg-overlay-conversation-bubble [contenteditable="true"], ' +
+      '[contenteditable="true"], ' +
+      '[role="textbox"]'
+    ));
+
+    // Filtra para garantir que pegamos apenas o campo de corpo da mensagem
+    caixa = caixas.find(el => {
+      const label = (el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.innerText || '').toLowerCase();
+      
+      // Exclui campo de busca de contatos ("Para") e campo de assunto ("Assunto" / "Subject") com termos precisos para evitar falsos positivos com a sílaba 'to'
+      const isExcluido = label === 'to' || label.startsWith('to:') || label.startsWith('to ') ||
+                         label === 'para' || label.startsWith('para:') || label.startsWith('para ') ||
+                         label.includes('digite um nome') || label.includes('type a name') ||
+                         label.includes('pesquisa') || label.includes('destinatário') || 
+                         label.includes('assunto') || label.includes('subject');
+      
+      // Deve possuir indicativos de que é a caixa de corpo/mensagem principal
+      const isCorreto = label.includes('mensagem') || label.includes('message') || 
+                        label.includes('escreva') || label.includes('escrever') ||
+                        el.classList.contains('msg-form__contenteditable') || 
+                        el.classList.contains('msg-composable-form__contenteditable') ||
+                        el.classList.contains('msg-form__textarea') ||
+                        el.closest('.msg-overlay-conversation-bubble') !== null ||
+                        (el.getAttribute('contenteditable') === 'true' && !label);
+      
+      return isCorreto && !isExcluido;
+    });
+
     if (caixa) break;
     await esperar(500);
   }
@@ -218,7 +367,7 @@ async function automatizarChat(mensagem) {
       caixa.click();
       await esperar(800);
       await injetarTextoFormatado(caixa, mensagem); 
-      await focarEEnviar(); 
+      await focarEEnviar(leadId); 
   } else {
       exibirBanner('❌ ERRO: Caixa de chat não encontrada!', '#ff3b5c');
   }
@@ -320,109 +469,178 @@ function monitorarPerfil() {
 }
 
 // 6️⃣ MOTOR DE ATUALIZAÇÃO DE STATUS E HISTÓRICO
-async function registrarSucessoEnvio(p) {
-    const leadId = p.get('leadId');
-    if (!leadId) return;
-
-    chrome.runtime.sendMessage({
-        action: 'apiRequest',
-        method: 'PUT',
-        path: `/api/leads/${leadId}`,
-        body: { status: 'contatado' }
-    }, (res) => {
-        if (res && res.sucesso) {
-            chrome.runtime.sendMessage({
-                action: 'apiRequest',
-                method: 'POST',
-                path: `/api/leads/${leadId}/atividades`,
-                body: { type: 'mensagem_enviada', description: `Mensagem enviada automaticamente via LinkedIn em ${new Date().toLocaleString()}` }
-            });
-        }
+async function registrarSucessoEnvioPorId(leadId) {
+    console.log('[Prospector] Iniciando registrarSucessoEnvioPorId para leadId:', leadId);
+    if (!leadId) {
+        console.warn('[Prospector] Nenhum leadId informado para registro.');
+        return false;
+    }
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+            action: 'apiRequest',
+            method: 'PUT',
+            path: `/api/leads/${leadId}`,
+            body: { status: 'contatado' }
+        }, (res) => {
+            console.log('[Prospector] Resposta da atualização de status para contatado:', res);
+            if (res && res.sucesso) {
+                console.log('[Prospector] Status do lead atualizado para "contatado". Registrando atividade...');
+                exibirBanner('✅ STATUS DO LEAD ATUALIZADO PARA CONTATADO!', '#00c896');
+                chrome.runtime.sendMessage({
+                    action: 'apiRequest',
+                    method: 'POST',
+                    path: `/api/leads/${leadId}/atividades`,
+                    body: { type: 'mensagem_enviada', description: `Mensagem enviada automaticamente via LinkedIn em ${new Date().toLocaleString()}` }
+                }, (actRes) => {
+                    console.log('[Prospector] Resposta do registro de atividade:', actRes);
+                    resolve(true);
+                });
+            } else {
+                const erroMsg = res?.erro || res?.data?.error || 'Erro desconhecido';
+                console.error('[Prospector] Falha ao atualizar status do lead para "contatado":', erroMsg);
+                if (res && res.status === 401) {
+                    exibirBanner('⚠️ Erro 401 (Abra o CRM web para sincronizar o Token da Extensão)', '#ff3b5c');
+                } else {
+                    exibirBanner(`⚠️ Status não atualizou: ${erroMsg}`, '#ff9f0a');
+                }
+                resolve(false);
+            }
+        });
     });
 }
 
 // 7️⃣ EXTRAÇÃO DE MÚLTIPLOS PERFIS EM PÁGINA DE PESQUISA
 function extrairListaDeBusca() {
-  const leads = [];
-  const vistos = new Set();
-  const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent'];
-  // Seleciona apenas os links principais dos perfis nos títulos dos resultados de busca
-  const todosLinks = document.querySelectorAll(
+  const leads = []
+  const vistos = new Set()
+  const blacklist = ['messaging','notifications','jobs','feed','mynetwork','search','company','school','groups','events','learning','premium','sales','recruiter','talent']
+
+  let todosLinks = Array.from(document.querySelectorAll(
     '.entity-result__title-text a[href*="/in/"], ' +
     '.entity-result__title-line a[href*="/in/"], ' +
-    '.reusable-search__result-container [data-view-name="search-results-entity-result-user"] a[href*="/in/"]'
-  );
+    '.entity-result__title a[href*="/in/"]'
+  ))
 
-  (todosLinks.length > 0 ? todosLinks : document.querySelectorAll('a[href*="/in/"]')).forEach(link => {
+  if (todosLinks.length === 0) {
+    todosLinks = Array.from(document.querySelectorAll('a[href*="/in/"]'))
+  }
+
+  todosLinks.forEach(link => {
     try {
-      if (link.closest('.entity-result__simple-insight') || link.closest('.entity-result__insight') || link.closest('.entity-result__insight-line')) return;
-      const href = link.href || '';
-      if (!href.includes('/in/')) return;
-      const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/);
-      if (!match) return;
-      const linkedin_id = match[1];
-      if (vistos.has(linkedin_id)) return;
-      if (blacklist.some(b => linkedin_id.includes(b))) return;
-      if (linkedin_id.length < 3) return;
-      vistos.add(linkedin_id);
+      const href = link.href || ''
+      if (!href.includes('/in/')) return
+      const match = href.match(/\/in\/([a-zA-Z0-9_-]+)/)
+      if (!match) return
+      const linkedin_id = match[1]
+      if (vistos.has(linkedin_id)) return
+      if (blacklist.some(b => linkedin_id.includes(b))) return
+      if (linkedin_id.length < 3) return
 
-      const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' };
-      let container = link;
+      if (link.closest('[class*="insight"]') || link.closest('[class*="mutual"]') || link.closest('.entity-result__simple-insight')) return
 
-      for (let i = 0; i < 10; i++) {
-        container = container.parentElement;
-        if (!container || container.tagName === 'BODY') break;
-        const texto = container.innerText || '';
-
-        if (!lead.name) {
-          const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span');
-          const nomeTexto = nomeSpan?.innerText?.trim() || link.innerText?.trim();
-          if (nomeTexto && nomeTexto.length > 1 && nomeTexto.length < 80 && !nomeTexto.includes('•') && !nomeTexto.includes('º')) lead.name = nomeTexto;
-        }
-
-        if (!lead.headline) {
-          const subs = container.querySelectorAll('[class*="subtitle"],[class*="headline"],.t-14.t-black');
-          subs.forEach(s => { const t = s.innerText?.trim(); if (t && t.length > 3 && t.length < 200 && !lead.headline && !t.includes('conexões') && !t.includes('seguidores') && !t.includes('•')) lead.headline = t; });
-        }
-
-        if (!lead.profile_picture) {
-          const img = container.querySelector('img');
-          if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') && (img.src.includes('media') || img.src.includes('profile'))) lead.profile_picture = img.src;
-        }
-
-        if (!lead.connection_degree) {
-          if (texto.includes('• 1º')||texto.includes('1st')) lead.connection_degree='1';
-          else if (texto.includes('• 2º')||texto.includes('2nd')) lead.connection_degree='2';
-          else if (texto.includes('3º e +')||texto.includes('3rd')||texto.includes('• 3')) lead.connection_degree='3';
-        }
-
-        if (!lead.mutual_connections) { const m = texto.match(/(\d+)\s+conex[õo]es? em comum/i); if (m) lead.mutual_connections = m[0]; }
-
-        if (!lead.location) {
-          const locMatch = texto.match(/([A-ZÀ-Ü][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*,\s*(?:Brasil|[A-Z][a-zà-ü]+(?: [A-ZÀ-Ü][a-zà-ü]+)*))/u);
-          if (locMatch && !locMatch[0].includes('Jacinto') && locMatch[0].length < 50) lead.location = locMatch[0];
-        }
-
-        if (lead.name && lead.connection_degree) break;
+      const paiTexto = link.parentElement?.innerText || ''
+      const avoTexto = link.parentElement?.parentElement?.innerText || ''
+      if (paiTexto.includes('em comum') || avoTexto.includes('em comum') || 
+          paiTexto.includes('mutual') || avoTexto.includes('mutual') ||
+          paiTexto.includes('seguidor') || avoTexto.includes('seguidor') ||
+          paiTexto.includes('shared') || avoTexto.includes('shared')) {
+        return
       }
 
-      if (!lead.name || lead.name.length < 2) return;
-      if (lead.name.toLowerCase().includes('linkedin')) return;
-      if (lead.name.includes('•') || lead.name.includes('º')) return;
+      const nomeSpan = link.querySelector('span[aria-hidden="true"]') || link.querySelector('span') || link
+      let nomeTexto = nomeSpan.innerText?.trim() || link.innerText?.trim() || ''
+      nomeTexto = nomeTexto.split('\n')[0].replace(/\s*•\s*\d+º(?: e \+)?/g, '').trim()
+      if (!nomeTexto || nomeTexto.length < 2 || nomeTexto.toLowerCase().includes('linkedin') || nomeTexto.includes('•') || nomeTexto.includes('º')) {
+        return
+      }
+
+      vistos.add(linkedin_id)
+
+      const lead = { linkedin_id, linkedin_url: `https://www.linkedin.com/in/${linkedin_id}`, source: 'chrome_extension' }
+
+      let card = link
+      for (let i = 0; i < 12; i++) {
+        card = card.parentElement
+        if (!card || card.tagName === 'BODY') break
+        if (card.className?.includes('result') || card.className?.includes('entity') ||
+            card.className?.includes('reusable') || card.className?.includes('search') ||
+            card.tagName === 'LI') break
+      }
+      if (!card || card.tagName === 'BODY') card = link.parentElement?.parentElement?.parentElement
+
+      const textoCard = card?.innerText || ''
+
+      lead.name = nomeTexto
+
+      if (card) {
+        const img = card.querySelector('img')
+        if (img?.src && img.src.startsWith('https') && !img.src.includes('ghost') &&
+            (img.src.includes('media') || img.src.includes('profile'))) {
+          lead.profile_picture = img.src
+        }
+      }
+
+      if (card) {
+        const headlineSelectors = [
+          '.entity-result__primary-subtitle',
+          '.search-entity-result__primary-subtitle',
+          '[class*="primary-subtitle"]',
+          '[class*="subtitle--top"]',
+          '.t-14.t-normal.t-black',
+          '[class*="headline"]',
+          '[class*="lockup__subtitle"]',
+          '.t-14.t-black'
+        ]
+        for (const sel of headlineSelectors) {
+          const el = card.querySelector(sel)
+          const t = el?.innerText?.trim()
+          if (t && t.length > 3 && t.length < 300 &&
+              !t.includes('conex') && !t.includes('seguidor') && !t.includes('em comum') &&
+              !t.match(/^[\u2022\u00b7]/) && !t.match(/^\d/) && !t.includes('grau')) {
+            lead.headline = t; break
+          }
+        }
+      }
+
+      if (card) {
+        const locSelectors = [
+          '.entity-result__secondary-subtitle',
+          '[class*="secondary-subtitle"]',
+          '[class*="subline-level-2"]',
+          '.t-12.t-black--light.t-normal'
+        ]
+        for (const sel of locSelectors) {
+          const locEl = card.querySelector(sel)
+          const lt = locEl?.innerText?.trim()
+          if (lt && lt.length < 80 && !lt.includes('conex') && !lt.includes('seguidor') && !lt.includes('comum') && !lt.match(/^\d/)) {
+            lead.location = lt; break
+          }
+        }
+      }
+
+      let grau = '3'
+      const t = textoCard.replace(/[\u00b7\u22c5\u2219]/g, '\u2022')
+      if (/\u2022\s*1[\u00bao\u00b0]/.test(t) || t.includes('1st') || t.includes('1º')) grau = '1'
+      else if (/\u2022\s*2[\u00bao\u00b0]/.test(t) || t.includes('2nd') || t.includes('2º')) grau = '2'
+      else if (/\u2022\s*3[\u00bao\u00b0]/.test(t) || t.includes('3rd') || t.includes('3º')) grau = '3'
+      lead.connection_degree = grau
+
+      const m = textoCard.match(/(\d+)\s+conex[õo]es? em comum/i)
+      if (m) lead.mutual_connections = m[0]
+
+      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio'
 
       if (lead.headline && !lead.company) {
-        if (lead.headline.includes(' · ')) lead.company = lead.headline.split(' · ').pop().trim();
-        else if (lead.headline.includes(' na ')) lead.company = lead.headline.split(' na ').pop().split('|')[0].trim();
-        else if (lead.headline.includes(' at ')) lead.company = lead.headline.split(' at ').pop().split('|')[0].trim();
+        if (lead.headline.includes(' · ')) lead.company = lead.headline.split(' · ').pop().trim()
+        else if (lead.headline.includes(' na ')) lead.company = lead.headline.split(' na ').pop().split('|')[0].trim()
+        else if (lead.headline.includes(' at ')) lead.company = lead.headline.split(' at ').pop().split('|')[0].trim()
       }
 
-      lead.connection_degree = lead.connection_degree || '3';
-      lead.temperature = lead.connection_degree === '1' ? 'quente' : lead.connection_degree === '2' ? 'morno' : 'frio';
-      leads.push(lead);
+      leads.push(lead)
     } catch(e) {}
-  });
+  })
 
-  return leads;
+  return leads
 }
 
 function detectarTipoPagina() {
@@ -450,6 +668,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const dados = extrairBasico();
     sendResponse({ sucesso: true, dados });
   }
+  else if (request.action === 'extrairContatosDialog') {
+    // Busca informações de contato (abre modal se necessário) antes de salvar
+    (async () => {
+      const dados = request.dados || extrairBasico();
+      await buscarContatos(dados);
+      sendResponse({ sucesso: true, dados });
+    })();
+    return true; // Mantém a porta aberta para resposta async
+  }
   else if (request.action === 'extrairBusca') {
     const leads = extrairListaDeBusca();
     sendResponse({ sucesso: true, leads, total: leads.length });
@@ -457,22 +684,121 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
+function safeDecodeURIComponent(str) {
+  if (!str) return '';
+  try {
+    return decodeURIComponent(str);
+  } catch (e) {
+    try {
+      return decodeURIComponent(str.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
+    } catch (err) {
+      return str;
+    }
+  }
+}
+
 // INICIALIZAÇÃO E MONITORAMENTO SPA
 (() => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('lp_msg')) {
-      const m = decodeURIComponent(params.get('lp_msg'));
-      const act = params.get('lp_action');
-      setTimeout(async () => {
-        if (act === 'send_message') {
-            await automatizarChat(m);
-            await registrarSucessoEnvio(params);
+  try {
+    const params = new URLSearchParams(window.location.search);
+    
+    const lpMsg = params.get('lp_msg');
+    const lpAction = params.get('lp_action');
+    const leadId = params.get('leadId') || params.get('lead_id') || params.get('lp_lead_id');
+    
+    // Se encontrou os parâmetros na URL no momento inicial, salva no storage local da extensão
+    if (lpMsg) {
+      chrome.storage.local.set({
+        pending_msg: lpMsg,
+        pending_action: lpAction || 'send_message',
+        pending_leadId: leadId || ''
+      });
+    }
+    
+    if (leadId) {
+      try { chrome.storage.local.set({ ultimoLeadIdMensagem: leadId }); } catch(e){}
+    }
+
+    // Função que executa após o carregamento do DOM estar pronto
+    const iniciarExecucao = () => {
+      // Detecção resiliente de perfil inexistente (Erro 404) no LinkedIn
+      const isPage404 = window.location.href.includes('/404/') || 
+                        document.title.includes('404') || 
+                        document.body.innerText.includes('Esta página não existe') ||
+                        document.body.innerText.includes('Page not found');
+
+      if (isPage404) {
+          console.warn('[Prospector] Perfil não encontrado no LinkedIn (404).');
+          exibirBanner('❌ PERFIL NÃO ENCONTRADO (404)! Descartando lead no CRM...', '#ff3b5c');
+          setTimeout(async () => {
+            let storedId = null;
+            try {
+              storedId = await new Promise(res => {
+                chrome.storage.local.get(['ultimoLeadIdMensagem'], data => res(data?.ultimoLeadIdMensagem));
+              });
+            } catch(e){}
+            const targetId = leadId || storedId;
+            
+            if (targetId) {
+                chrome.runtime.sendMessage({
+                    action: 'apiRequest',
+                    method: 'PUT',
+                    path: `/api/leads/${targetId}`,
+                    body: { status: 'descartado' }
+                }, () => {
+                    chrome.runtime.sendMessage({
+                        action: 'apiRequest',
+                        method: 'POST',
+                        path: `/api/leads/${targetId}/atividades`,
+                        body: { type: 'erro', description: `Tentativa de envio falhou: perfil não encontrado (URL 404) no LinkedIn.` }
+                    }, () => {
+                        setTimeout(() => window.close(), 2000);
+                    });
+                });
+            } else {
+                setTimeout(() => window.close(), 2000);
+            }
+          }, 1000);
+          return;
+      }
+
+      // Tenta ler qualquer ação pendente que salvamos no storage
+      chrome.storage.local.get(['pending_msg', 'pending_action', 'pending_leadId'], (data) => {
+        if (data.pending_msg) {
+          const m = safeDecodeURIComponent(data.pending_msg);
+          const act = data.pending_action;
+          const targetLeadId = data.pending_leadId || leadId;
+          
+          // Limpa do storage para não re-executar na navegação subsequente
+          chrome.storage.local.remove(['pending_msg', 'pending_action', 'pending_leadId']);
+          
+          setTimeout(async () => {
+            try {
+              if (act === 'send_message') {
+                  await automatizarChat(m, targetLeadId);
+              }
+              else if (act === 'connect') await automatizarConexao(m);
+            } catch (errSetTimeout) {
+              console.error('[Prospector] Erro no fluxo agendado:', errSetTimeout);
+            }
+          }, 2000);
+        } else {
+          // Monitoramento passivo SPA de perfis comuns
+          const observer = new MutationObserver(monitorarPerfil);
+          observer.observe(document.body, { childList: true, subtree: true });
+          monitorarPerfil();
         }
-        else if (act === 'connect') await automatizarConexao(m);
-      }, 2000);
-  } else {
-      const observer = new MutationObserver(monitorarPerfil);
-      observer.observe(document.body, { childList: true, subtree: true });
-      monitorarPerfil();
+      });
+    };
+
+    // Executa no DOMContentLoaded se ainda estiver carregando, senão roda direto
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', iniciarExecucao);
+    } else {
+      iniciarExecucao();
+    }
+
+  } catch (errGlobalInit) {
+    console.error('[Prospector] Falha crítica na inicialização:', errGlobalInit);
   }
 })();

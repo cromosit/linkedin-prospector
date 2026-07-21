@@ -92,7 +92,7 @@ const profileRoutes = require('./routes/profile');
 
 // Uso das rotas
 app.use('/auth', authLimiter, authRoutes);
-app.use('/api/leads', aiLimiter, leadRoutes);
+app.use('/api/leads', leadRoutes);
 app.use('/api/stats', statRoutes);
 app.use('/api/notify', notifyRoutes);
 app.use('/api/unipile', unipileRoutes);

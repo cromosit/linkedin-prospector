@@ -1,8 +1,8 @@
 # 🛸 LinkedIn Prospector — Painel de Controle (Obsidian)
 
 > **Status:** 🟢 Desenvolvimento Ativo
-> **Versão:** 9.0
-> **Última Atualização:** 2026-04-26
+> **Versão:** 9.5
+> **Última Atualização:** 2026-07-20
 
 ---
 
@@ -55,8 +55,8 @@
 
 - [x] Padronizar portas (3001 para Backend)
 - [x] Criar Painel de Controle para Obsidian
-- [ ] Implementar Relatórios de Funil (Sprint Atual)
-- [ ] Follow-up Automático (Sprint 2)
+- [x] Implementar Relatórios de Funil (Sprint Atual)
+- [ ] Follow-up Automático (Sprint 5)
 - [ ] Integração completa com ChatWA
 
 ---

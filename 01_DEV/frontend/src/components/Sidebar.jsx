@@ -41,7 +41,8 @@ export default function Sidebar() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '⬡' },
     { path: '/leads', label: 'Leads', icon: '◈' },
-    { path: '/pipeline', label: 'Pipeline', icon: '📊' },
+    { path: '/pipeline', label: 'Pipeline', icon: '📈' },
+    { path: '/relatorios', label: 'Relatórios', icon: '📊' },
     { path: '/campaigns', label: 'Campanhas', icon: '📁' },
     { path: '/tasks', label: 'Tarefas', icon: '📅' },
     { path: '/integrations', label: 'Integrações', icon: '🔗' },
