@@ -36,3 +36,9 @@
 - **Seletor de Períodos no Dashboard**: Adicionado o dropdown e os campos de data no cabeçalho de `Dashboard.jsx`. O componente atualiza dinamicamente as métricas no frontend.
 - **Seletor de Períodos nos Relatórios**: Adicionado o mesmo dropdown e campos de data no cabeçalho de `Relatorios.jsx`.
 - **Gráfico de Captação Diária**: Adicionado um gráfico de barras responsivo com CSS puro na tela de Relatórios que consome os dados históricos da rota de performance.
+- **Tratamento de Erros e Constraint no Modal**: Melhorada a exibição de erros no `Leads.jsx` para mostrar mensagens reais da API (exibindo conflitos de banco). No backend `routes/leads.js`, substituído o `.single()` por `.maybeSingle()` no PUT para evitar erro 500 caso regras de RLS ou Constraints do Supabase (como a `leads_status_check`) bloqueiem a atualização.
+
+### Melhorias Finais de Inteligência e Captação
+- **Automação de Lead Score (Bump Automático)**: Implementada regra inteligente no `PUT /api/leads/:id` do backend. Quando um lead muda para status "Respondeu" ou "Negociando", ou temperatura "Quente"/"Morno", o sistema aumenta automaticamente o Score do lead (em até +40 pontos), respeitando o limite máximo de 100 e preservando inputs manuais caso o vendedor insira um valor maior.
+- **Extração Avançada de Contato pelo Popup**: Criada a action `extrairContatosDialog` no `content.js` que se comunica assincronamente com o `popup.js`. Agora, ao clicar em "Capturar Lead", a extensão abre o modal nativo do LinkedIn em background, extrai os dados ricos de contato (Email, Telefone, Aniversário) e só então dispara o payload completo para o CRM.
+- **Extração Resiliente de Grau de Conexão**: Refinadas as expressões regulares (Regex) em `content.js` para garantir a captura assertiva do "1º Grau" em perfis (evitando o falso positivo de grau "3" causado por caracteres invisíveis do DOM do LinkedIn).
