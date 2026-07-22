@@ -74,7 +74,7 @@ router.get('/', async (req, res) => {
       query = query.eq('connection_degree', connection_degree);
     if (search) {
       const s = sanitizeString(search, 100);
-      query = query.or(`name.ilike.%${s}%,company.ilike.%${s}%,headline.ilike.%${s}%`);
+      query = query.or(`name.ilike.%${s}%,company.ilike.%${s}%,headline.ilike.%${s}%,current_role.ilike.%${s}%,group_name.ilike.%${s}%`);
     }
 
     const from = (parsedPage - 1) * parsedLimit;
@@ -208,6 +208,67 @@ router.get('/stats/performance', async (req, res) => {
     });
   } catch (err) {
     console.error('Erro no relatório de performance:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// ROTA: Sincronização Inteligente do Inbox (LinkedIn)
+// ==========================================
+router.post('/sync-inbox', async (req, res) => {
+  try {
+    const { contacts } = req.body; // array de contatos ex: [{ name: 'Vitor Granza', url: '...' }]
+    const userId = req.user.userId;
+
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({ error: 'Nenhum contato enviado para sincronização.' });
+    }
+
+    console.log(`📥 [INBOX SYNC] Analisando ${contacts.length} contatos da caixa de mensagens...`);
+
+    let updatedCount = 0;
+
+    for (const contact of contacts) {
+      if (!contact.name) continue;
+
+      // Busca o lead no banco pelo nome (ou ID se tivermos)
+      // Como o LinkedIn Inbox às vezes só dá o nome limpo, vamos buscar pelo nome
+      const { data: leadsEncontrados } = await supabase
+        .from('leads')
+        .select('id, status, name')
+        .eq('assigned_to', userId)
+        .ilike('name', `%${contact.name}%`);
+
+      if (leadsEncontrados && leadsEncontrados.length > 0) {
+        const lead = leadsEncontrados[0];
+
+        // Se ele não estiver em um status terminal e não for "respondeu"
+        if (!['respondeu', 'fechado', 'descartado'].includes(lead.status)) {
+          // Atualiza para respondeu
+          const { error: updateError } = await supabase
+            .from('leads')
+            .update({ status: 'respondeu', updated_at: new Date().toISOString() })
+            .eq('id', lead.id);
+
+          if (!updateError) {
+            updatedCount++;
+            console.log(`✅ [INBOX SYNC] Lead atualizado para 'respondeu': ${lead.name}`);
+
+            // Adiciona na timeline
+            await supabase.from('lead_activities').insert([{
+              lead_id: lead.id,
+              user_id: userId,
+              type: 'status_changed',
+              description: `O status mudou para 'respondeu' automaticamente (Sincronização de Caixa de Entrada do LinkedIn).`
+            }]);
+          }
+        }
+      }
+    }
+
+    res.json({ message: 'Sincronização concluída', updated: updatedCount });
+  } catch (err) {
+    console.error('❌ Erro no sync do inbox:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -874,10 +935,49 @@ NUNCA mencione debug, ABAP, autonomia funcional, treinamento individual ou módu
       anguloEstrategico = `Identificar qual destes serviços atende melhor a empresa ${empresa}: ${servicosCromosit}`;
     }
 
+    // =========================================================================
+    // BUSCA DO TEMPLATE DINÂMICO (NOVA ARQUITETURA POR GRUPO E FUNIL)
+    // =========================================================================
+    let templateDinamico = '';
+    const grupoLead = lead.group_name || lead.classificacao; // Usa o group_name que já existia
+
+    if (grupoLead) {
+      // Mapear o 'tipo' da mensagem para a 'etapa do funil' (topo, meio, fundo)
+      let etapaFunil = 'topo';
+      if (tipo.includes('follow_up')) etapaFunil = 'meio';
+      else if (tipo.includes('whatsapp') || tipo.includes('fundo')) etapaFunil = 'fundo';
+
+      try {
+        const { data: tmpl } = await supabase
+          .from('ai_templates')
+          .select('*')
+          .eq('user_id', req.user.userId)
+          .ilike('classificacao', grupoLead) // Case insensitive match
+          .eq('funil_etapa', etapaFunil)
+          .maybeSingle();
+        
+        if (tmpl) {
+          templateDinamico = `
+[ATENÇÃO! REGRA DE CLASSIFICAÇÃO ATIVADA]
+Este lead pertence ao grupo "${grupoLead}" e a mensagem está na etapa de funil "${etapaFunil}".
+INSTRUÇÃO OBRIGATÓRIA DA ESTRATÉGIA:
+${tmpl.instrucao_prompt}
+
+${tmpl.template_texto ? `USE ESTA ESTRUTURA BASE (SUBSTITUA AS VARIÁVEIS):\n${tmpl.template_texto}` : ''}
+`;
+        }
+      } catch (err) {
+        console.error('Erro ao buscar template dinâmico:', err.message);
+      }
+    }
+
+
     const prompt = `Você é um especialista sênior em prospecção comercial B2B da Cromosit IT.
 Sua missão é gerar uma mensagem altamente empática, organizada e com forte apelo visual, focando exclusivamente na necessidade/dor do lead e criando um rapport inicial com base no cargo e contexto dele.
 
 ${anguloEstrategico}
+
+${templateDinamico}
 
 Tipo de Mensagem a ser Gerada:
 - Formato/Objetivo: ${tipoDescricao[tipo] || tipo}
@@ -912,6 +1012,18 @@ Segue o link da Aula DEMO prática de debug no S/4HANA com o instrutor Rafael: h
 Dá uma olhada com calma na técnica de debug que ele ensina e que dá essa autonomia no dia a dia do ${moduloSAP}. Vale destacar que nossos alunos praticam em ambiente SAP S/4HANA e FIORI ativo versão 2023, já com as Best Practices configuradas.
 
 Você consegue assistir hoje à noite para darmos um alinhamento rápido amanhã sobre os acessos ao sistema e o presente que preparei para você?"
+
+3. [REGRA ABSOLUTA] Se o cargo do lead contiver "Gerente", "Coordenador", "Diretor", "Líder", "Head" OU se o "Contexto extra" citar "vagas abertas", VOCÊ DEVE IGNORAR qualquer outra estrutura e USAR EXATAMENTE o texto abaixo (substituindo apenas as variáveis):
+
+"${saudacaoTempo} ${primeiroNome}, tudo bem?
+
+Acompanhando a ${lead.current_company || lead.company || 'sua empresa'}, vi que vocês estão com volume de vagas abertas, inclusive buscando profissionais SAP.
+
+Sei que fechar essas posições costuma ser um processo longo. Na Cromosit IT, nós ajudamos empresas a resolver esse gargalo de duas formas rápidas:
+1. Alocação ágil de profissionais SAP (Staffing) prontos para atuar nos seus projetos.
+2. Treinamentos técnicos corporativos para dar mais autonomia para a equipe que você já tem em casa.
+
+Faz sentido batermos um papo rápido na próxima semana para vermos se conseguimos apoiar vocês nesse momento de expansão?"
 
 Diretrizes OBRIGATÓRIAS para a Mensagem:
 1. SAUDAÇÃO & NOME: Inicie a mensagem obrigatoriamente saudando o lead pelo primeiro nome e utilizando a saudação temporal exata de acordo com o horário: "${saudacaoTempo} ${primeiroNome}, como vai?". Nunca use termos informais como "Show de bola" ou "Tudo certo?".

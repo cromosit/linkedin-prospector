@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
+const { logAudit } = require('../middleware/auditLogger');
 
 // ==========================================
 // ROTA 1: Iniciar login com LinkedIn
@@ -112,6 +113,11 @@ router.get('/linkedin/callback', async (req, res) => {
     // PASSO 6: Redireciona para o frontend
     const redirectUrl = `${frontendUrl}/auth/sucesso?token=${sessionToken}`;
     console.log('✅ Login completo! Redirecionando para:', redirectUrl.substring(0, 80) + '...');
+    
+    // AUDITORIA: Salvar log de acesso (MCI)
+    req.user = { userId: user.id };
+    logAudit(req, 'LOGIN_LINKEDIN', 'user', user.id);
+
     res.redirect(redirectUrl);
 
   } catch (err) {
@@ -187,6 +193,10 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // AUDITORIA: Salvar log de registro
+    req.user = { userId: user.id };
+    logAudit(req, 'REGISTER_MANUAL', 'user', user.id, { lgpd_accepted: true });
+
     res.status(201).json({ token, user });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao criar conta: ' + err.message });
@@ -220,6 +230,10 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // AUDITORIA: Salvar log de login
+    req.user = { userId: user.id };
+    logAudit(req, 'LOGIN_MANUAL', 'user', user.id);
 
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
   } catch (err) {

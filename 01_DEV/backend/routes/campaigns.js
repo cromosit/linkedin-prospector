@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const auth = require('../middleware/auth');
+const { logAudit } = require('../middleware/auditLogger');
 
 // ==========================================
 // ROTA: Listar Campanhas
@@ -88,6 +89,10 @@ router.delete('/:id', auth, async (req, res) => {
       .eq('user_id', req.user.userId);
 
     if (error) throw error;
+    
+    // AUDITORIA: Salvar log de deleção
+    logAudit(req, 'DELETE_CAMPAIGN', 'campaign', req.params.id);
+
     res.json({ message: 'Campanha excluída com sucesso' });
   } catch (err) {
     res.status(500).json({ error: err.message });

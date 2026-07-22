@@ -46,6 +46,7 @@ export default function Sidebar() {
     { path: '/campaigns', label: 'Campanhas', icon: '📁' },
     { path: '/tasks', label: 'Tarefas', icon: '📅' },
     { path: '/integrations', label: 'Integrações', icon: '🔗' },
+    { path: '/ai-templates', label: 'Templates IA', icon: '🤖' },
     { path: '/settings', label: 'Configurações', icon: '⚙️' },
   ]
 

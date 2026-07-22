@@ -86,9 +86,11 @@ const notifyRoutes = require('./routes/notify');
 const unipileRoutes = require('./routes/unipile');
 const campaignRoutes = require('./routes/campaigns');
 const taskRoutes = require('./routes/tasks');
-const pipelineRoutes = require('./routes/pipelines');
-const aiSettingsRoutes = require('./routes/aiSettings');
-const profileRoutes = require('./routes/profile');
+const pipelinesRouter = require('./routes/pipelines');
+const profileRouter = require('./routes/profile');
+const aiSettingsRouter = require('./routes/aiSettings');
+const aiTemplatesRouter = require('./routes/aiTemplates');
+const notifyRouter = require('./routes/notify');
 
 // Uso das rotas
 app.use('/auth', authLimiter, authRoutes);
@@ -98,9 +100,11 @@ app.use('/api/notify', notifyRoutes);
 app.use('/api/unipile', unipileRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/tasks', taskRoutes);
-app.use('/api/pipelines', pipelineRoutes);
-app.use('/api/ai-settings', aiSettingsRoutes);
-app.use('/api/profile', profileRoutes);
+app.use('/api/pipelines', pipelinesRouter);
+app.use('/api/profile', profileRouter);
+app.use('/api/ai-settings', aiSettingsRouter);
+app.use('/api/ai-templates', aiTemplatesRouter);
+app.use('/api/notify', notifyRouter);
 
 // ==========================================
 // ROTA DE SAÚDE

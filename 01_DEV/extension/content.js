@@ -16,34 +16,37 @@ function exibirBanner(texto, cor = '#1d8fe8') {
 console.log('%c🏛️ LINKEDIN PROSPECTOR v6.0.0 ULTRA ATIVADO!', 'color: #00ffc8; font-size: 30px; font-weight: bold; text-shadow: 2px 2px #000;');
 
 // 1️⃣ LÓGICA DE EXTRAÇÃO DE DADOS BÁSICOS
-function extrairEmpresaDaExperiencia() {
-  const expSelectors = [
-    '#experience ~ div .pvs-list__item--line-separated:first-child .t-14.t-normal',
-    '.pv-top-card--experience-list li:first-child .pv-entity__secondary-title',
-    '.pv-text-details__right-panel .hoverable-link-text span',
-    '.pv-text-details__right-panel .text-body-small span',
-    '#experience + div .pvs-list__paged-list-item:first-child .t-14',
-    '.experience-section li:first-child .pv-entity__secondary-title',
-  ]
+function extrairExperiencia() {
+  const dados = { company: '', current_role: '', current_company: '' };
+  
+  // Tenta pegar a primeira experiência
+  const firstExp = document.querySelector('#experience ~ div .pvs-list__item--line-separated:first-child, .pv-top-card--experience-list li:first-child, .experience-section li:first-child');
+  
+  if (firstExp) {
+    // Cargo geralmente é o primeiro texto em negrito
+    const roleEl = firstExp.querySelector('.t-bold span[aria-hidden="true"], .pv-entity__summary-info h3');
+    if (roleEl) dados.current_role = roleEl.innerText.trim();
 
-  for (const sel of expSelectors) {
-    const el = document.querySelector(sel)
-    const txt = el?.innerText?.trim()
-    if (txt && txt.length > 1 && txt.length < 100 &&
-        !txt.includes('•') && !txt.match(/^\d/) &&
-        !txt.includes('ano') && !txt.includes('mês')) {
-      return txt
+    // Empresa
+    const compEl = firstExp.querySelector('.t-14.t-normal span[aria-hidden="true"], .pv-entity__secondary-title');
+    if (compEl) {
+      let comp = compEl.innerText.trim();
+      comp = comp.split(' · ')[0].trim(); // Remove tempo de empresa
+      dados.current_company = comp;
+      dados.company = comp;
     }
   }
 
-  const headlineEl = document.querySelector('.text-body-medium.break-words') ||
-                     document.querySelector('.pv-text-details__left-panel .text-body-medium')
-  const headline = headlineEl?.innerText?.trim() || ''
-  if (headline.includes(' · ')) return headline.split(' · ').pop().split('|')[0].trim()
-  if (headline.includes(' na ')) return headline.split(' na ').pop().split('|')[0].trim()
-  if (headline.includes(' at ')) return headline.split(' at ').pop().split('|')[0].trim()
+  // Fallback para Headline
+  if (!dados.company) {
+    const headlineEl = document.querySelector('.text-body-medium.break-words') || document.querySelector('.pv-text-details__left-panel .text-body-medium');
+    const headline = headlineEl?.innerText?.trim() || '';
+    if (headline.includes(' · ')) dados.company = headline.split(' · ').pop().split('|')[0].trim();
+    else if (headline.includes(' na ')) dados.company = headline.split(' na ').pop().split('|')[0].trim();
+    else if (headline.includes(' at ')) dados.company = headline.split(' at ').pop().split('|')[0].trim();
+  }
 
-  return ''
+  return dados;
 }
 
 function extrairBasico() {
@@ -51,31 +54,34 @@ function extrairBasico() {
     name: '', 
     headline: '', 
     location: '', 
-    company: '', 
+    company: '',
+    current_role: '',
+    current_company: '',
+    about: '',
     linkedin_url: window.location.href.split('?')[0], 
     linkedin_id: window.location.href.split('/in/')[1]?.split('/')[0]?.replace('/', ''), 
     source: 'linkedin_profile' 
   };
   
   try {
-    const nomeSelectors = ['h1.text-heading-xlarge','h1.inline.t-24','.pv-text-details__left-panel h1','.ph5 h1','main h1']
+    const nomeSelectors = ['h1.text-heading-xlarge','h1.inline.t-24','.pv-text-details__left-panel h1','.ph5 h1','main h1'];
     for (const sel of nomeSelectors) {
-      const el = document.querySelector(sel)
-      const txt = el?.innerText?.trim()
+      const el = document.querySelector(sel);
+      const txt = el?.innerText?.trim();
       if (txt && txt.length > 1 && txt.length < 80 && !txt.includes('•') && !txt.includes('º') && !txt.match(/^\d/)) {
-        dados.name = txt; break
+        dados.name = txt; break;
       }
     }
     if (!dados.name) {
       dados.name = document.title.split('|')[0].split('-')[0].replace(' (Personal)', '').trim() || 'Lead Desconhecido';
     }
 
-    const headlineSelectors = ['.text-body-medium.break-words','.pv-text-details__left-panel .text-body-medium','.ph5 .text-body-medium']
+    const headlineSelectors = ['.text-body-medium.break-words','.pv-text-details__left-panel .text-body-medium','.ph5 .text-body-medium', '.pv-text-details__left-panel h2'];
     for (const sel of headlineSelectors) {
-      const el = document.querySelector(sel)
-      const txt = el?.innerText?.trim()
-      if (txt && txt.length > 2 && !txt.includes('•') && !txt.includes('º')) { 
-        dados.headline = txt; break 
+      const el = document.querySelector(sel);
+      const txt = el?.innerText?.trim();
+      if (txt && txt.length > 2) { 
+        dados.headline = txt; break; 
       }
     }
 
@@ -83,23 +89,33 @@ function extrairBasico() {
       '.pv-text-details__left-panel .pb2 span.text-body-small',
       '.ph5 .mt2 span.text-body-small',
       '.pv-top-card--list .pv-top-card--list-bullet span'
-    ]
+    ];
     for (const sel of locationSelectors) {
-      const els = document.querySelectorAll(sel)
+      const els = document.querySelectorAll(sel);
       for (const el of els) {
-        const txt = el?.innerText?.trim()
+        const txt = el?.innerText?.trim();
         if (txt && txt.length > 3 && txt.length < 60 &&
-            !txt.includes('conexões') && !txt.includes('seguidores') &&
-            (txt.includes(',') || txt.includes('Brasil') || txt.includes('Brazil') ||
-             txt.match(/[A-Z]{2}$/) || txt.includes('São Paulo') || txt.includes('Curitiba') ||
-             txt.includes('Rio') || txt.includes('Minas'))) {
-          dados.location = txt; break
+            !txt.includes('conexões') && !txt.includes('seguidores')) {
+          dados.location = txt; break;
         }
       }
-      if (dados.location) break
+      if (dados.location) break;
     }
 
-    dados.company = extrairEmpresaDaExperiencia()
+    const exp = extrairExperiencia();
+    dados.company = exp.company;
+    dados.current_role = exp.current_role;
+    dados.current_company = exp.current_company;
+    
+    // Sobre / Bio
+    const aboutSelectors = ['#about ~ div .display-flex', '.pv-about-section .pv-shared-text-with-see-more', '.pv-about__summary-text'];
+    for (const sel of aboutSelectors) {
+       const el = document.querySelector(sel);
+       if (el) {
+          dados.about = el.innerText.trim();
+          break;
+       }
+    }
 
     let grau = '3';
     const bodyTxt = (document.body.innerText || '').replace(/[·⋅∙•-]/g, '•');
@@ -109,12 +125,16 @@ function extrairBasico() {
       grau = '2';
     }
     dados.connection_degree = grau;
+    
+    // Conexões em comum
+    const mutualMatch = bodyTxt.match(/(\d+)\s+conex[õo]es? em comum/i) || bodyTxt.match(/(\d+)\s+mutual connections?/i);
+    if (mutualMatch) dados.mutual_connections = mutualMatch[1];
 
-    const fotoSelectors = ['.pv-top-card-profile-picture__image--show','img.pv-top-card-profile-picture__image','img[class*="profile-picture"]']
+    const fotoSelectors = ['.pv-top-card-profile-picture__image--show','img.pv-top-card-profile-picture__image','img[class*="profile-picture"]'];
     for (const sel of fotoSelectors) {
-      const el = document.querySelector(sel)
+      const el = document.querySelector(sel);
       if (el?.src && !el.src.includes('ghost') && el.src.startsWith('https')) { 
-        dados.profile_picture = el.src; break 
+        dados.profile_picture = el.src; break; 
       }
     }
   } catch(e) {
@@ -125,75 +145,56 @@ function extrairBasico() {
 
 // 2️⃣ LÓGICA DE CAPTURA DOS CONTATOS (E-MAIL, FONE, SITE, ANIVERSÁRIO)
 async function buscarContatos(dados) {
-  // Abre a janela de contatos se não estiver aberta
-  if (!window.location.hash.includes('contact-info') && !document.querySelector('[role="dialog"], .artdeco-modal')) {
-     const btn = document.querySelector('#top-card-text-details-contact-info, [href*="/contact-info/"]');
+  if (!window.location.hash.includes('contact-info') && !document.querySelector('.artdeco-modal')) {
+     const btn = document.querySelector('#top-card-text-details-contact-info, a[href*="/contact-info/"]');
      if (btn) {
        btn.click();
-       console.log('[Prospector] Clicou para abrir dados de contato.');
        await esperar(2000);
      }
   }
 
-  // Tenta encontrar o container do modal
-  const modal = document.querySelector('[role="dialog"], .artdeco-modal, .artdeco-modal__content, .pv-contact-info, #artdeco-modal-outlet');
+  const modal = document.querySelector('.artdeco-modal, .pv-contact-info, #artdeco-modal-outlet');
   
   if (modal || window.location.href.includes('contact-info')) {
-    console.log('[Prospector] Extraindo dados do modal de contato...');
     const container = modal || document.body;
     
-    // 1. Extração de E-mail (por link mailto ou regex)
-    const emailEl = container.querySelector('a[href^="mailto:"]');
+    // Email
+    const emailEl = container.querySelector('.ci-email a, a[href^="mailto:"]');
     if (emailEl) {
       dados.email = emailEl.href.replace('mailto:', '').split('?')[0].trim();
     } else {
-      const emailMatch = container.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      if (emailMatch) dados.email = emailMatch[0];
+      const m = container.innerText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (m) dados.email = m[0];
     }
     
-    // 2. Extração de Telefone (por link tel ou regex com limpeza)
-    const foneEl = container.querySelector('a[href^="tel:"]');
+    // Fone
+    const foneEl = container.querySelector('.ci-phone span.t-14, .ci-phone a, a[href^="tel:"]');
     if (foneEl) {
-      let telRaw = decodeURIComponent(foneEl.href.replace('tel:', '')).trim();
-      dados.phone = telRaw.replace(/[^\d+]/g, '');
+      dados.phone = foneEl.innerText.replace(/[^\d+]/g, '');
     } else {
-      const text = container.innerText;
-      const phoneMatch = text.match(/(?:telefone|phone|celular|mobile)[\s\S]*?([\d\s()-]{8,20})/i) || 
-                         text.match(/(\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4})/);
-      if (phoneMatch) {
-        dados.phone = phoneMatch[1].replace(/[^\d]/g, '');
-      }
+      const m = container.innerText.match(/(?:telefone|phone)[\s\S]*?([\d\s()-]{8,20})/i);
+      if (m) dados.phone = m[1].replace(/[^\d]/g, '');
     }
     
-    // 3. Extração de Website (busca links que não sejam linkedin.com ou mailto)
-    const links = Array.from(container.querySelectorAll('a'));
-    const linkExterno = links.find(a => a.href && !a.href.includes('linkedin.com') && !a.href.startsWith('mailto:') && !a.href.startsWith('tel:'));
-    if (linkExterno) {
-      dados.website = linkExterno.href;
-    }
+    // Website
+    const siteEl = container.querySelector('.ci-websites a');
+    if (siteEl && !siteEl.href.includes('linkedin.com')) dados.website = siteEl.href;
     
-    // 4. Aniversário e Data de Conexão (procurando pelos textos das seções)
-    const sections = Array.from(container.querySelectorAll('section, .pv-contact-info__contact-type, .pv-profile-section'));
+    // Birthday & Connected Since
+    const sections = Array.from(container.querySelectorAll('section, .pv-contact-info__contact-type'));
     sections.forEach(s => {
       const t = s.innerText.toLowerCase();
       if (t.includes('aniversário') || t.includes('birthday')) {
-        dados.birthday = s.querySelector('.pv-contact-info__contact-item, span:last-child, .pv-contact-info__header + *')?.innerText.trim();
+        dados.birthday = s.querySelector('.pv-contact-info__contact-item, .pv-contact-info__header + *')?.innerText.trim();
       }
       if (t.includes('conexão desde') || t.includes('connected')) {
-        dados.connected_since = s.querySelector('.pv-contact-info__contact-item, span:last-child, .pv-contact-info__header + *')?.innerText.trim();
+        dados.connected_since = s.querySelector('.pv-contact-info__contact-item, .pv-contact-info__header + *')?.innerText.trim();
       }
     });
 
-    console.log('[Prospector] Dados de contato extraídos:', { email: dados.email, phone: dados.phone, website: dados.website, birthday: dados.birthday, connected_since: dados.connected_since });
-
-    // Fecha o modal clicando fora ou no botão de fechar
-    const closeBtn = document.querySelector('.artdeco-modal__dismiss, [aria-label*="Fechar"], [aria-label*="Close"], button.artdeco-button');
-    if (closeBtn) {
-      closeBtn.click();
-    } else {
-      // Fallback: pressiona ESC para fechar o modal
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
-    }
+    const closeBtn = document.querySelector('.artdeco-modal__dismiss, button.artdeco-button[aria-label*="Fechar"], button.artdeco-button[aria-label*="Close"]');
+    if (closeBtn) closeBtn.click();
+    else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
   }
 }
 
@@ -650,6 +651,41 @@ function detectarTipoPagina() {
   return 'outro';
 }
 
+// 7.5️⃣ LÓGICA DE SINCRONIZAÇÃO DO INBOX (LINKEDIN MESSAGING)
+let lastInboxSync = 0;
+function monitorarInbox() {
+  if (!window.location.href.includes('/messaging/')) return;
+  
+  // Evita rodar muitas vezes (delay de 10 segundos entre syncs)
+  if (Date.now() - lastInboxSync < 10000) return;
+  lastInboxSync = Date.now();
+
+  const conversationCards = document.querySelectorAll('.msg-conversation-card__participant-names, .msg-conversation-listitem__participant-names');
+  if (!conversationCards || conversationCards.length === 0) return;
+
+  const contacts = [];
+  conversationCards.forEach(el => {
+    const name = el.innerText.trim();
+    if (name && name !== 'Você' && name !== 'You') {
+      contacts.push({ name });
+    }
+  });
+
+  if (contacts.length > 0) {
+    chrome.runtime.sendMessage({
+      action: 'apiRequest',
+      method: 'POST',
+      path: '/api/leads/sync-inbox',
+      body: { contacts }
+    }, (res) => {
+      if (res && res.updated > 0) {
+        exibirBanner(`✅ INBOX SYNC:\n${res.updated} lead(s) atualizaram para 'Respondeu' no CRM!`, '#00ffc8');
+      }
+    });
+  }
+}
+
+
 // 8️⃣ LISTENER DE COMUNICACAO INTERNA DA EXTENSAO
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'detectarPagina') {
@@ -783,10 +819,14 @@ function safeDecodeURIComponent(str) {
             }
           }, 2000);
         } else {
-          // Monitoramento passivo SPA de perfis comuns
-          const observer = new MutationObserver(monitorarPerfil);
+          // Monitoramento passivo SPA
+          const monitorarSPA = () => {
+            monitorarPerfil();
+            monitorarInbox();
+          };
+          const observer = new MutationObserver(monitorarSPA);
           observer.observe(document.body, { childList: true, subtree: true });
-          monitorarPerfil();
+          monitorarSPA();
         }
       });
     };
