@@ -8,7 +8,7 @@ echo ================================================
 echo.
 
 echo Copiando arquivos do Frontend (ignorando node_modules)...
-robocopy "01_DEV\frontend" "03_PRD\frontend" /MIR /XD node_modules dist .git
+robocopy "01_DEV\frontend" "frontend" /MIR /XD node_modules dist .git
 
 echo.
 echo Copiando arquivos do Backend (ignorando node_modules)...
