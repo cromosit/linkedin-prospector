@@ -56,7 +56,7 @@
 - [x] Padronizar portas (3001 para Backend)
 - [x] Criar Painel de Controle para Obsidian
 - [x] Implementar Relatórios de Funil (Sprint Atual)
-- [ ] Follow-up Automático (Sprint 5)
+- [x] Follow-up Automático (Sprint 5)
 - [ ] Integração completa com ChatWA
 
 ---

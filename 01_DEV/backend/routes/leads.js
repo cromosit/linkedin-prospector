@@ -765,6 +765,14 @@ router.put('/:id', async (req, res) => {
       } catch (e) { console.error('Erro ao criar tarefa auto:', e.message); }
     }
 
+    // [AUTOMAÇÃO CHATWA] Move o deal de coluna se o status mudou
+    if (updates.status && lead.phone) {
+      const chatwaCrmService = require('../services/chatwaCrmService');
+      chatwaCrmService.updateDealStageByPhone(lead.phone, updates.status).catch(e => {
+        console.error('⚠️ [ChatWA CRM] Falha ao atualizar estágio do deal:', e.message);
+      });
+    }
+
     res.json({ message: 'Lead atualizado com sucesso', lead });
   } catch (err) {
     console.error('Erro ao atualizar lead:', err.message);

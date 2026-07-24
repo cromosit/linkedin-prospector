@@ -91,6 +91,7 @@ const profileRouter = require('./routes/profile');
 const aiSettingsRouter = require('./routes/aiSettings');
 const aiTemplatesRouter = require('./routes/aiTemplates');
 const notifyRouter = require('./routes/notify');
+const chatwaWebhooksRouter = require('./routes/chatwaWebhooks');
 
 // Uso das rotas
 app.use('/auth', authLimiter, authRoutes);
@@ -105,6 +106,7 @@ app.use('/api/profile', profileRouter);
 app.use('/api/ai-settings', aiSettingsRouter);
 app.use('/api/ai-templates', aiTemplatesRouter);
 app.use('/api/notify', notifyRouter);
+app.use('/api/webhooks', chatwaWebhooksRouter);
 
 // ==========================================
 // ROTA DE SAÚDE

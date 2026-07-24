@@ -156,6 +156,84 @@ class ChatwaCrmService {
       return null;
     }
   }
+
+  /**
+   * Busca todos os estágios do CRM no ChatWA para mapeamento dinâmico
+   */
+  async getStages() {
+    const token = await this.authenticate();
+    try {
+      // Tenta buscar os pipelines/stages
+      const response = await axios.get(`${CHATWA_API_BASE}/crm/pipelines`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // A resposta pode variar dependendo da versão do Whaticket. Geralmente retorna um array de pipelines com 'stages'
+      return response.data;
+    } catch (error) {
+      console.error('⚠️ [ChatWA CRM] Erro ao buscar pipelines:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Move o Deal (Negócio) para outro estágio baseado no telefone do Lead
+   */
+  async updateDealStageByPhone(phone, status) {
+    if (!phone) return;
+    const formattedNumber = this.formatNumber(phone);
+    if (!formattedNumber) return;
+
+    const token = await this.authenticate();
+    
+    // 1. Busca o contato
+    const contact = await this.getContactByNumber(formattedNumber);
+    if (!contact || !contact.id) {
+      console.log(`⚠️ [ChatWA CRM] Contato não encontrado para ${formattedNumber}. Não é possível atualizar Deal.`);
+      return;
+    }
+
+    try {
+      // 2. Busca os deals do contato
+      // (Em muitas versões do Whaticket API, listar negócios por contato pode ser feito buscando todos os deals e filtrando, ou se vier embutido)
+      const resDeals = await axios.get(`${CHATWA_API_BASE}/crm/deals`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const deals = resDeals.data.deals || resDeals.data || [];
+      const contactDeal = deals.find(d => d.contactId === contact.id && d.status === 'OPEN');
+      
+      if (!contactDeal) {
+        console.log(`⚠️ [ChatWA CRM] Nenhum negócio ABERTO encontrado para o contato ID ${contact.id}.`);
+        return;
+      }
+      
+      // Mapeamento local 
+      const stageMap = {
+        'novo': 24,
+        'contatado': 25,
+        'respondeu': 26,
+        'em_negociacao': 27,
+        'fechado': 28,
+        'descartado': 29
+      };
+      
+      const newStageId = stageMap[status];
+      if (!newStageId) return;
+
+      if (contactDeal.stageId === newStageId) return; // Já está na etapa certa
+
+      // 3. Atualiza o Deal
+      await axios.put(`${CHATWA_API_BASE}/crm/deals/${contactDeal.id}`, {
+        stageId: newStageId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log(`✅ [ChatWA CRM] Negócio ${contactDeal.id} movido para estágio ID ${newStageId} (${status}).`);
+    } catch (error) {
+      console.error('❌ [ChatWA CRM] Erro ao atualizar estágio do negócio:', error.response?.data || error.message);
+    }
+  }
 }
 
 module.exports = new ChatwaCrmService();
