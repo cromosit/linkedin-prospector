@@ -252,9 +252,9 @@ app.listen(PORT, () => {
   console.log(`🔗 Login LinkedIn: http://localhost:${PORT}/auth/linkedin`);
   console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}\n`);
 
-  // Sprint 2: Inicia o vigilante de follow-up
-  executarWorkerFollowup();
-  setInterval(executarWorkerFollowup, 1000 * 60 * 60 * 12);
+  // Sprint 5: Inicia o serviço de cron (Follow-up Automático)
+  // const cronService = require('./services/cron');
+  // cronService.startCronJobs();
 });
 
 module.exports = app;

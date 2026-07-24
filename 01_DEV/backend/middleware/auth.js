@@ -18,7 +18,12 @@ const authMiddleware = (req, res, next) => {
 
     // 💡 BYPASS DE SEGURANÇA LOCAL PARA A EXTENSÃO
     if (token === 'bypass-local-dev-token') {
-      req.user = { userId: '550e8400-e29b-41d4-a716-446655440000', email: 'contato@cromosit.com', name: 'Samuel (Master)' };
+      req.user = { 
+        userId: '550e8400-e29b-41d4-a716-446655440000', 
+        email: 'contato@cromosit.com', 
+        name: 'Samuel (Master)',
+        tenant_id: '00000000-0000-0000-0000-000000000000' // ID fictício para dev
+      };
       return next();
     }
 

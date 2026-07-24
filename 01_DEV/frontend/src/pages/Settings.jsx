@@ -183,6 +183,20 @@ export default function Settings() {
             </form>
 
             <div style={{ borderTop: '1px solid var(--border)', marginTop: '20px', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase' }}>Integração com a Extensão (Chrome)</span>
+              <p style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '5px' }}>Copie seu token pessoal para colar na extensão do LinkedIn Prospector.</p>
+              <button 
+                style={{ ...S.btnSubmit, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} 
+                onClick={() => {
+                  navigator.clipboard.writeText(localStorage.getItem('token') || '');
+                  alert('Token copiado para a área de transferência! Cole na extensão.');
+                }}
+              >
+                📋 Copiar Meu Token
+              </button>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: '20px', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase' }}>Encerrar Sessão</span>
               <button style={S.btnLogout} onClick={handleLogout}>Desconectar da Plataforma</button>
             </div>

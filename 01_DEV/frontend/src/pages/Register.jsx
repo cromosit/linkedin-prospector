@@ -48,7 +48,7 @@ export default function Register() {
         {error && <div style={S.err}>{error}</div>}
 
         <form onSubmit={handleRegister} style={S.form}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 10fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label style={S.label}>Nome</label>
               <input style={S.input} type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />

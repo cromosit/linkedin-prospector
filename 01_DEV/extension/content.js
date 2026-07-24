@@ -665,7 +665,7 @@ function monitorarInbox() {
 
   const contacts = [];
   conversationCards.forEach(el => {
-    const name = el.innerText.trim();
+    const name = el.innerText.split('\n')[0].trim();
     if (name && name !== 'Você' && name !== 'You') {
       contacts.push({ name });
     }

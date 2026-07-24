@@ -7,7 +7,7 @@ export default function Campaigns() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
-    const [form, setForm] = useState({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos' })
+    const [form, setForm] = useState({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos', steps: [] })
   const [iaLoading, setIaLoading] = useState(false)
 
   useEffect(() => { carregarCampanhas() }, [])
@@ -46,7 +46,8 @@ export default function Campaigns() {
       description: c.description || '', 
       search_url: c.search_url || '', 
       message_template: c.message_template || '',
-      target_degree: c.target_degree || 'todos'
+      target_degree: c.target_degree || 'todos',
+      steps: c.campaign_steps || []
     })
     setModal(true)
   }
@@ -54,7 +55,7 @@ export default function Campaigns() {
   const fecharModal = () => {
     setModal(false)
     setEditingId(null)
-    setForm({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos' })
+    setForm({ name: '', description: '', search_url: '', message_template: '', target_degree: 'todos', steps: [] })
   }
 
   const excluirCampanha = async (id) => {
@@ -198,6 +199,50 @@ export default function Campaigns() {
                   value={form.message_template} 
                   onChange={e => setForm({...form, message_template: e.target.value})} 
                 />
+
+                <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(29, 143, 232, 0.05)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--blue)' }}>🔄 SEQUÊNCIA DE FOLLOW-UP (PASSOS)</label>
+                    <button 
+                      type="button" 
+                      style={{ ...S.btn, padding: '5px 10px', fontSize: '11px', background: 'var(--blue)' }}
+                      onClick={() => setForm({ ...form, steps: [...form.steps, { delay_days: 1, message_template: '' }] })}
+                    >
+                      + Adicionar Passo
+                    </button>
+                  </div>
+                  
+                  {form.steps.length === 0 && <p style={{ fontSize: '11px', color: 'var(--text3)' }}>Nenhum passo adicionado. Essa campanha não enviará mensagens automáticas.</p>}
+                  
+                  {form.steps.map((step, idx) => (
+                    <div key={idx} style={{ marginBottom: '15px', padding: '10px', background: '#0b1118', border: '1px solid var(--border)', borderRadius: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text2)' }}>Passo {idx + 1}</span>
+                        <button type="button" style={{ background: 'transparent', border: 'none', color: '#ff3b5c', cursor: 'pointer', fontSize: '11px' }} onClick={() => setForm({ ...form, steps: form.steps.filter((_, i) => i !== idx) })}>Remover</button>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text3)' }}>Aguardar (dias):</label>
+                        <input type="number" min="0" style={{ ...S.input, width: '60px', marginBottom: 0, padding: '5px' }} value={step.delay_days} onChange={e => {
+                          const newSteps = [...form.steps];
+                          newSteps[idx].delay_days = parseInt(e.target.value);
+                          setForm({ ...form, steps: newSteps });
+                        }} />
+                        <span style={{ fontSize: '11px', color: 'var(--text3)' }}>depois do passo anterior</span>
+                      </div>
+                      <textarea 
+                        style={{ ...S.input, height: '60px', resize: 'vertical', marginBottom: 0 }} 
+                        placeholder="Mensagem a ser enviada..." 
+                        value={step.message_template}
+                        onChange={e => {
+                          const newSteps = [...form.steps];
+                          newSteps[idx].message_template = e.target.value;
+                          setForm({ ...form, steps: newSteps });
+                        }}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                   <button type="submit" style={{ ...S.btn, flex: 1 }}>{editingId ? 'Salvar Alterações' : 'Criar Campanha'}</button>

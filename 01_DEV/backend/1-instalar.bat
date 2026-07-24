@@ -6,8 +6,7 @@ echo  Instalando dependencias...
 echo ========================================
 echo.
 
-cd /d "%USERPROFILE%\02 - linkedin-prospector\backend"
-
+cd /d "%~dp0"
 npm install
 
 echo.

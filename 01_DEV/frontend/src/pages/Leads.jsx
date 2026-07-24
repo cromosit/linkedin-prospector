@@ -48,8 +48,10 @@ const FORM_EMPTY = {
   about: '', service_interest: '', temperature: 'morno',
   notes: '', source: 'manual', connection_degree: '3',
   current_role: '', current_company: '', instant_messaging: '',
-  group_name: '',
-  score: 30, status: 'novo', legal_basis: 'Legítimo Interesse'
+  group_name: '', next_followup_date: '',
+  score: 30, status: 'novo', legal_basis: 'Legítimo Interesse',
+  gpctba_goal: '', gpctba_plan: '', gpctba_challenge: '',
+  gpctba_timing: '', gpctba_budget: '', gpctba_authority: ''
 }
 
 const LIMIT = 20
@@ -777,6 +779,35 @@ export default function Leads() {
                 </div>
               </div>
 
+              {/* GPCTBA */}
+              <div style={S.sectionTitle('#8854d0')}>📊 QUALIFICAÇÃO GPCTBA</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>G (Goal) - Objetivo</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_goal || ''} onChange={e => setForm({ ...form, gpctba_goal: e.target.value })} placeholder="Qual o principal objetivo do lead?" />
+                </div>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>P (Plan) - Plano</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_plan || ''} onChange={e => setForm({ ...form, gpctba_plan: e.target.value })} placeholder="Como ele planeja atingir esse objetivo?" />
+                </div>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>C (Challenge) - Desafio/Dor</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_challenge || ''} onChange={e => setForm({ ...form, gpctba_challenge: e.target.value })} placeholder="O que o impede hoje?" />
+                </div>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>T (Timing) - Prazo</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_timing || ''} onChange={e => setForm({ ...form, gpctba_timing: e.target.value })} placeholder="Para quando ele precisa resolver isso?" />
+                </div>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>B (Budget) - Orçamento</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_budget || ''} onChange={e => setForm({ ...form, gpctba_budget: e.target.value })} placeholder="Existe verba alocada/disponível?" />
+                </div>
+                <div>
+                  <label style={{...S.label, color: '#8854d0'}}>A (Authority) - Tomador de Decisão</label>
+                  <textarea style={{ ...S.input, height: '40px', resize: 'vertical' }} value={form.gpctba_authority || ''} onChange={e => setForm({ ...form, gpctba_authority: e.target.value })} placeholder="Ele decide sozinho? Quem mais participa?" />
+                </div>
+              </div>
+
               {/* IA: interesse e notas */}
               <div style={S.sectionTitle('#ff9f0a')}>🤖 INTEL DA IA</div>
               <div style={{ marginBottom: '12px' }}>
@@ -793,6 +824,15 @@ export default function Leads() {
                   style={{ ...S.input, height: '80px', resize: 'vertical', borderColor: '#ff3b5c30' }}
                   value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+              <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column' }}>
+                <label style={{ ...S.label, color: '#10b981' }}>📅 DATA DE RETORNO (Follow-up)</label>
+                <input
+                  type="date"
+                  style={{ ...S.input, borderColor: '#10b98130', cursor: 'pointer' }}
+                  value={form.next_followup_date ? form.next_followup_date.substring(0, 10) : ''}
+                  onChange={e => setForm({ ...form, next_followup_date: e.target.value })}
                 />
               </div>
               <div>

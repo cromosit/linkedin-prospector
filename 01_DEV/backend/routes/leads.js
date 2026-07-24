@@ -58,9 +58,9 @@ router.get('/', async (req, res) => {
       .from('leads')
       .select('*', { count: 'exact' });
 
-    if (userId !== '550e8400-e29b-41d4-a716-446655440000') {
-      query = query.eq('assigned_to', userId);
-    }
+    // if (userId !== '550e8400-e29b-41d4-a716-446655440000') {
+    //   query = query.eq('assigned_to', userId);
+    // }
 
     query = query.order('created_at', { ascending: false });
 
@@ -235,7 +235,7 @@ router.post('/sync-inbox', async (req, res) => {
       // Como o LinkedIn Inbox às vezes só dá o nome limpo, vamos buscar pelo nome
       const { data: leadsEncontrados } = await supabase
         .from('leads')
-        .select('id, status, name')
+        .select('id, status, name, score, temperature')
         .eq('assigned_to', userId)
         .ilike('name', `%${contact.name}%`);
 
@@ -244,10 +244,23 @@ router.post('/sync-inbox', async (req, res) => {
 
         // Se ele não estiver em um status terminal e não for "respondeu"
         if (!['respondeu', 'fechado', 'descartado'].includes(lead.status)) {
-          // Atualiza para respondeu
+          
+          let currentScore = lead.score || 0;
+          let newScore = currentScore;
+          if (currentScore < 60) newScore += 30; // Bump score for respondeu
+          
+          let newTemp = lead.temperature || 'frio';
+          if (newScore >= 40 && newTemp === 'frio') newTemp = 'morno';
+
+          // Atualiza para respondeu e aplica bumps
           const { error: updateError } = await supabase
             .from('leads')
-            .update({ status: 'respondeu', updated_at: new Date().toISOString() })
+            .update({ 
+               status: 'respondeu', 
+               score: Math.min(100, newScore),
+               temperature: newTemp,
+               updated_at: new Date().toISOString() 
+            })
             .eq('id', lead.id);
 
           if (!updateError) {
@@ -608,7 +621,7 @@ router.put('/:id', async (req, res) => {
       'connected_since','mutual_connections','connection_degree',
       'source','temperature','notes','service_interest','score',
       'status','profile_picture','linkedin_url','group_name','campaign_id',
-      'contacted_at', 'next_followup_at', 'pipeline_id', 'pipeline_stage_id',
+      'contacted_at', 'next_followup_at', 'next_followup_date', 'pipeline_id', 'pipeline_stage_id',
       'stage_entered_at'
     ];
 
@@ -654,11 +667,19 @@ router.put('/:id', async (req, res) => {
         }
       }
       
-      // BUMP DE SCORE AUTOMÁTICO (Interesse / Resposta)
+      // BUMP DE SCORE E TEMPERATURA AUTOMÁTICO (Interesse / Resposta)
       if (leadAtual) {
          let currentScore = leadAtual.score || 0;
          let newScore = currentScore;
+         let currentTemp = leadAtual.temperature || 'frio';
+         let newTemp = req.body.temperature || currentTemp;
          
+         // Aplica score manual ANTES do cálculo de temperatura
+         if (req.body.score !== undefined) {
+             const manualScore = Math.min(100, Math.max(0, parseInt(req.body.score) || 0));
+             newScore = Math.max(currentScore, manualScore);
+         }
+
          if (req.body.status === 'respondeu' && currentScore < 60) newScore += 30;
          else if (req.body.status === 'em_negociacao' && currentScore < 80) newScore += 40;
          
@@ -667,6 +688,16 @@ router.put('/:id', async (req, res) => {
          
          if (newScore > currentScore) {
              updates.score = Math.min(100, newScore);
+         } else if (req.body.score !== undefined) {
+             updates.score = Math.min(100, newScore); // Ensure manual score is saved
+         }
+
+         // Sincroniza a temperatura baseada no status ou no score final
+         let finalScore = updates.score !== undefined ? updates.score : newScore;
+         if ((req.body.status === 'em_negociacao' || finalScore >= 80) && newTemp !== 'quente') {
+             updates.temperature = 'quente';
+         } else if ((req.body.status === 'respondeu' || finalScore >= 40) && newTemp === 'frio') {
+             updates.temperature = 'morno';
          }
       }
     } catch (errAuto) {

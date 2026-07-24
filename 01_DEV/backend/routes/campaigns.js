@@ -11,8 +11,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('campaigns')
-      .select('*')
-      .eq('user_id', req.user.userId)
+      .select('*, campaign_steps(*)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -26,7 +25,7 @@ router.get('/', auth, async (req, res) => {
 // ROTA: Criar Campanha
 // ==========================================
 router.post('/', auth, async (req, res) => {
-  const { name, description, search_url, message_template, target_degree } = req.body;
+  const { name, description, search_url, message_template, target_degree, steps } = req.body;
   try {
     const { data, error } = await supabase
       .from('campaigns')
@@ -42,6 +41,19 @@ router.post('/', auth, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Salvar passos
+    if (steps && steps.length > 0 && data) {
+      const stepsToInsert = steps.map((s, idx) => ({
+        campaign_id: data.id,
+        tenant_id: req.user.tenant_id, // multi-tenant (se houver middleware que preencha req.user.tenant_id, ou deixamos nulo se gerido pela trigger)
+        step_order: idx + 1,
+        delay_days: s.delay_days || 1,
+        message_template: s.message_template
+      }));
+      await supabase.from('campaign_steps').insert(stepsToInsert);
+    }
+
     res.status(201).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -52,7 +64,7 @@ router.post('/', auth, async (req, res) => {
 // ROTA: Atualizar Campanha
 // ==========================================
 router.put('/:id', auth, async (req, res) => {
-  const { name, description, search_url, message_template, status, target_degree } = req.body;
+  const { name, description, search_url, message_template, status, target_degree, steps } = req.body;
   try {
     const { data, error } = await supabase
       .from('campaigns')
@@ -71,6 +83,22 @@ router.put('/:id', auth, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Atualizar passos (deletar antigos e inserir novos)
+    if (steps && data) {
+      await supabase.from('campaign_steps').delete().eq('campaign_id', req.params.id);
+      if (steps.length > 0) {
+        const stepsToInsert = steps.map((s, idx) => ({
+          campaign_id: data.id,
+          tenant_id: req.user.tenant_id, // multi-tenant
+          step_order: idx + 1,
+          delay_days: s.delay_days || 1,
+          message_template: s.message_template
+        }));
+        await supabase.from('campaign_steps').insert(stepsToInsert);
+      }
+    }
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
