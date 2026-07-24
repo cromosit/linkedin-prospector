@@ -57,7 +57,7 @@
 - [x] Criar Painel de Controle para Obsidian
 - [x] Implementar Relatórios de Funil (Sprint Atual)
 - [x] Follow-up Automático (Sprint 5)
-- [ ] Integração completa com ChatWA
+- [x] Integração completa com ChatWA
 
 ---
 *Cromosit IT — 2026*
