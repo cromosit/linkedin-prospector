@@ -9,9 +9,8 @@ echo.
 :: Aguarda 2 segundos para o servidor inicializar
 timeout /t 2 /nobreak > nul
 
-:: Abre o navegador nos endpoints principais
-start chrome http://localhost:3000
-start chrome http://localhost:3000/auth/linkedin
+start chrome http://localhost:5174
+start chrome http://localhost:3001/auth/linkedin
 
 echo  Navegador aberto!
 echo.

@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
+const { logAudit } = require('../middleware/auditLogger');
 
 // ==========================================
 // ROTA 1: Iniciar login com LinkedIn
@@ -112,6 +113,11 @@ router.get('/linkedin/callback', async (req, res) => {
     // PASSO 6: Redireciona para o frontend
     const redirectUrl = `${frontendUrl}/auth/sucesso?token=${sessionToken}`;
     console.log('✅ Login completo! Redirecionando para:', redirectUrl.substring(0, 80) + '...');
+    
+    // AUDITORIA: Salvar log de acesso (MCI)
+    req.user = { userId: user.id };
+    logAudit(req, 'LOGIN_LINKEDIN', 'user', user.id);
+
     res.redirect(redirectUrl);
 
   } catch (err) {
@@ -139,6 +145,99 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+const crypto = require('crypto');
+
+// Função auxiliar para gerar hash de senha
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
+// ==========================================
+// ROTA 4: Registro Manual (LGPD READY)
+// ==========================================
+router.post('/register', async (req, res) => {
+  const { name, email, password, company, role, lgpdConsent } = req.body;
+
+  if (!lgpdConsent) {
+    return res.status(400).json({ error: 'Você deve aceitar os termos de privacidade (LGPD) para continuar.' });
+  }
+
+  try {
+    const { data: existingUser } = await supabase.from('users').select('id').eq('email', email).single();
+    if (existingUser) return res.status(400).json({ error: 'E-mail já cadastrado.' });
+
+    const passwordHash = hashPassword(password);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
+        name,
+        email,
+        password_hash: passwordHash,
+        company,
+        role,
+        lgpd_accepted: true,
+        lgpd_consent_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const token = jwt.sign(
+      { userId: user.id, name: user.name, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // AUDITORIA: Salvar log de registro
+    req.user = { userId: user.id };
+    logAudit(req, 'REGISTER_MANUAL', 'user', user.id, { lgpd_accepted: true });
+
+    res.status(201).json({ token, user });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao criar conta: ' + err.message });
+  }
+});
+
+// ==========================================
+// ROTA 5: Login Manual
+// ==========================================
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+    }
+
+    // Compara o hash da senha enviada com o que está no banco
+    if (user.password_hash !== hashPassword(password)) {
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, name: user.name, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // AUDITORIA: Salvar log de login
+    req.user = { userId: user.id };
+    logAudit(req, 'LOGIN_MANUAL', 'user', user.id);
+
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro no login: ' + err.message });
   }
 });
 
