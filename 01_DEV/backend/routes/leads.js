@@ -920,8 +920,9 @@ router.post('/:id/gerar-mensagem', aiLimiter, async (req, res) => {
 
     const primeiroNome = lead.name ? lead.name.split(' ')[0].trim() : 'Prezado(a)';
 
-    // Calcula a saudação com base no horário atual do servidor
-    const hora = new Date().getHours();
+    // Calcula a saudação com base no horário de Brasília (UTC-3), pois o servidor pode estar em UTC
+    const brasilTime = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+    const hora = new Date(brasilTime).getHours();
     let saudacaoTempo = 'Bom dia';
     if (hora >= 12 && hora < 18) {
       saudacaoTempo = 'Boa tarde';
