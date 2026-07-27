@@ -416,25 +416,23 @@ els.btnWhatsApp?.addEventListener('click', () => {
 
 els.btnLinkedInMsg?.addEventListener('click', async () => {
   const mensagem = els.msgText.textContent
-  if (!mensagem) return
+  if (!mensagem) {
+    mostrarErro('⚠️ Você precisa gerar a mensagem com a IA primeiro!')
+    return
+  }
+  
   els.btnLinkedInMsg.textContent = '⟳ Abrindo chat...'
   els.btnLinkedInMsg.disabled = true
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  chrome.tabs.sendMessage(tab.id, { action: 'enviarMensagemLinkedIn', texto: mensagem }, (response) => {
-    if (response && response.sucesso) {
-      chrome.storage.local.get('token', ({ token }) => {
-        fetch(`${API_URL}/api/leads/${leadIdCapturado}/registrar-contato-linkedin`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ mensagem })
-        })
-      })
-    } else {
-      mostrarErro(response?.erro || 'Não foi possível abrir o chat.')
-    }
-    els.btnLinkedInMsg.textContent = '💬 Enviar no LinkedIn'
-    els.btnLinkedInMsg.disabled = false
+  
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0]
+    const url = new URL(tab.url)
+    url.searchParams.set('lp_action', 'send_message')
+    url.searchParams.set('lp_msg', encodeURIComponent(mensagem))
+    if (leadIdCapturado) url.searchParams.set('leadId', leadIdCapturado)
+    chrome.tabs.update(tab.id, { url: url.toString() })
   })
+  window.close()
 })
 
 els.btnSaveToken?.addEventListener('click', async () => {
