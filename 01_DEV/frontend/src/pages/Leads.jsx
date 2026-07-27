@@ -98,6 +98,7 @@ export default function Leads() {
   const [enriquecendo, setEnriquecendo] = useState(false)
   const [toast, setToast]           = useState(null)
   const [contextoIA, setContextoIA] = useState('')
+  const [mensagemRecebida, setMensagemRecebida] = useState('')
 
   // Recarrega quando filtros/busca/página mudam
   useEffect(() => { carregarLeads() }, [busca, pagina, filtroStatus, filtroTemp, filtroGrau])
@@ -225,7 +226,9 @@ export default function Leads() {
     setGerandoMsg(true)
     setTipoMsg(tipo)
     try {
-      const res = await api.post(`/api/leads/${leadSel.id}/gerar-mensagem`, { tipo, contexto: contextoIA })
+      const payload = { tipo, contexto: contextoIA }
+      if (tipo === 'responder') payload.mensagem_recebida = mensagemRecebida;
+      const res = await api.post(`/api/leads/${leadSel.id}/gerar-mensagem`, payload)
       setMsgGerada(res.data.mensagem)
     } catch (err) {
       setMsgGerada('❌ Erro ao gerar abordagem.')
@@ -282,6 +285,7 @@ export default function Leads() {
   const abrirEditar = async (lead) => {
     setLeadSel(lead)
     setContextoIA('')
+    setMensagemRecebida('')
     
     // Higieniza para evitar erro de 'value prop on input should not be null'
     const cleanForm = { ...FORM_EMPTY }
@@ -314,7 +318,7 @@ export default function Leads() {
     try {
       await api.post(`/api/leads/${leadSel.id}/atividades`, {
         type: 'linkedin_aberto',
-        description: 'Clique no botão "Enviar no LinkedIn" (abriu chat)'
+        description: msgGerada ? `Enviou mensagem no LinkedIn:\n"${msgGerada}"` : 'Clique no botão "Enviar no LinkedIn" (abriu chat)'
       })
       // Recarrega as atividades no modal para aparecer na hora
       const res = await api.get(`/api/leads/${leadSel.id}`)
@@ -327,6 +331,7 @@ export default function Leads() {
     setForm(FORM_EMPTY)
     setMsgGerada('')
     setContextoIA('')
+    setMensagemRecebida('')
     setModal(true)
   }
 
@@ -865,6 +870,7 @@ export default function Leads() {
                   { k: 'conexao_com_comum', label: '👥 Com Comum' },
                   { k: 'primeiro_contato',  label: '💬 1º Contato' },
                   { k: 'follow_up',         label: '🔄 Follow-up' },
+                  { k: 'responder',         label: '✍️ Responder' },
                   { k: 'whatsapp',          label: '📱 WhatsApp' }
                 ].map(({ k, label }) => (
                   <button
@@ -880,6 +886,18 @@ export default function Leads() {
                   >{label}</button>
                 ))}
               </div>
+
+              {tipoMsg === 'responder' && (
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ ...S.label, color: '#ff9f0a' }}>Mensagem Recebida do Lead</label>
+                  <textarea
+                    style={{ ...S.input, height: '60px', resize: 'vertical', borderColor: '#ff9f0a30' }}
+                    value={mensagemRecebida}
+                    onChange={e => setMensagemRecebida(e.target.value)}
+                    placeholder="Cole aqui o que o lead respondeu para a IA ter o contexto da conversa..."
+                  />
+                </div>
+              )}
 
               {/* Ações da mensagem */}
               <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>

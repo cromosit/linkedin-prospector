@@ -1,8 +1,8 @@
 # 🛸 LinkedIn Prospector — Painel de Controle (Obsidian)
 
-> **Status:** 🟢 Desenvolvimento Ativo
-> **Versão:** 9.5
-> **Última Atualização:** 2026-07-20
+> **Status:** 🟢 Produção / Desenvolvimento Ativo
+> **Versão:** 10.0 (Integração ChatWA + Multi-Telas)
+> **Última Atualização:** 24/07/2026
 
 ---
 
@@ -10,8 +10,8 @@
 
 | Componente | URL | Porta | Comando |
 | :--- | :--- | :--- | :--- |
-| **Backend (API)** | [http://localhost:3001](http://localhost:3001) | `3001` | `npm run dev` (em /backend) |
-| **Frontend (CRM)** | [http://localhost:5174](http://localhost:5174) | `5174` | `npm run dev` (em /frontend) |
+| **Backend (API)** | [http://localhost:3001](http://localhost:3001) | `3001` | `npm run dev` (em /01_DEV/backend) |
+| **Frontend (CRM)** | [http://localhost:5174](http://localhost:5174) | `5174` | `npm run dev` (em /01_DEV/frontend) |
 | **Login LinkedIn** | [http://localhost:3001/auth/linkedin](http://localhost:3001/auth/linkedin) | - | - |
 | **Health Check** | [http://localhost:3001/health](http://localhost:3001/health) | - | - |
 
@@ -30,24 +30,23 @@
 
 ## 📁 Estrutura do Projeto
 
-- `/01_DEV/backend` - Servidor Node.js + Express
-- `/01_DEV/frontend` - Aplicação React + Vite
-- `/01_DEV/extension` - Extensão Chrome (MV3)
-- `/01_DEV/Doc` - Documentação técnica complementar
+- `/01_DEV` - Ambiente local de desenvolvimento e testes.
+- `/03_PRD` - Espelho do backend em produção.
+- `/frontend` (raiz) - Espelho do frontend que a Vercel lê automaticamente.
+- `/sincronizar_prd.bat` - Script oficial para promover DEV para Produção.
 
 ---
 
 ## 📝 Notas de Manutenção
 
-### 🔑 Como pegar o Token para a Extensão
-1. Faça login em `http://localhost:5173`.
-2. Abra o Console (F12).
-3. Execute: `localStorage.getItem('token')`.
-4. Copie o valor e cole no popup da extensão.
+### 🚀 Fluxo de Deploy
+Tudo é desenvolvido em `01_DEV`. Quando estiver pronto para Produção:
+1. Rode `sincronizar_prd.bat` na raiz do projeto (ele copia as telas pra Vercel e a API pra PRD).
+2. Rode `git-salvar.bat` para subir as alterações ao GitHub.
+3. Se a Railway travar no Build por causa do `package-lock.json`, rode `01_DEV/fix-dependencias.bat` e suba novamente.
 
-### 🔄 Padronização de Portas
-- O projeto foi padronizado para usar a porta **3001** no backend para evitar conflitos comuns com a porta 3000 em ambientes Windows.
-- O arquivo `.env` e os scripts `.bat` foram atualizados para refletir essa mudança.
+### 🔗 Webhook ChatWA
+O Prospector intercepta os eventos do Kanban do ChatWA pela rota de **POST**: `/api/webhooks/chatwa`.
 
 ---
 
@@ -57,7 +56,8 @@
 - [x] Criar Painel de Controle para Obsidian
 - [x] Implementar Relatórios de Funil (Sprint Atual)
 - [x] Follow-up Automático (Sprint 5)
-- [x] Integração completa com ChatWA
+- [x] Integração Bidirecional Completa com ChatWA (Sprint 10)
+- [ ] Próximo passo a definir...
 
 ---
 *Cromosit IT — 2026*

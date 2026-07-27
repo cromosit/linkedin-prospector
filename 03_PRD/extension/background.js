@@ -1,36 +1,49 @@
-// background.js — MOTOR DE SINCRONIZAÇÃO v3.8.5 MASTER — CROMOSIT IT
-const API_URL = 'https://linkedin-prospector-production.up.railway.app/api';
+// background.js — Service Worker da extensão
+// Gerencia token e proxy de chamadas de API (CSP do LinkedIn bloqueia fetch direto)
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'save_lead') {
-    console.log('[Background] Iniciando salvamento do lead:', request.lead.name);
+const API_URL = 'https://linkedin-prospector-production.up.railway.app'
 
-    fetch(`${API_URL}/leads`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request.lead)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+  // Sincroniza token da web app
+  if (message.type === 'SET_TOKEN' && message.token) {
+    chrome.storage.local.set({ token: message.token }, () => {
+      console.log('✅ Token sincronizado automaticamente do app')
+      sendResponse({ success: true })
     })
-    .then(async (response) => {
-      const text = await response.text();
+    return true
+  }
+
+  // PROXY de API — content scripts não podem fazer fetch externo (CSP do LinkedIn)
+  // Todas as chamadas ao backend passam pelo background
+  if (message.action === 'apiRequest') {
+    const { method = 'PUT', path, body } = message
+    console.log(`🚀 [Background] Chamando API: ${method} ${path}`, body);
+    
+    chrome.storage.local.get(['token'], async ({ token }) => {
+      if (!token) {
+        console.error('❌ [Background] Erro: Token não encontrado. Abra o CRM para sincronizar.');
+        sendResponse({ sucesso: false, erro: 'Token não encontrado. Abra o CRM primeiro.' });
+        return;
+      }
+
       try {
-        const data = JSON.parse(text);
-        if (response.ok) {
-           console.log('[Background] Lead salvo com sucesso:', data);
-           sendResponse({ success: true, data });
-        } else {
-           console.error('[Background] Erro na API:', data);
-           sendResponse({ success: false, error: data.message || 'Erro no servidor' });
-        }
-      } catch (e) {
-        console.error('[Background] Resposta malformada:', text);
-        sendResponse({ success: false, error: 'Resposta do servidor não é um JSON válido.' });
+        const res = await fetch(`${API_URL}${path}`, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: body ? JSON.stringify(body) : undefined
+        })
+        const data = await res.json()
+        console.log(`✅ [Background] Resposta da API:`, data);
+        sendResponse({ sucesso: res.ok, data, status: res.status })
+      } catch (err) {
+        console.error(`❌ [Background] Erro na requisição:`, err.message);
+        sendResponse({ sucesso: false, erro: err.message })
       }
     })
-    .catch(err => {
-      console.error('[Background] Erro de rede:', err);
-      sendResponse({ success: false, error: 'Falha na conexão com o servidor.' });
-    });
-
-    return true; // Mantém o canal aberto para resposta assíncrona
+    return true 
   }
-});
+})

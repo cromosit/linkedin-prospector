@@ -8,7 +8,7 @@ echo   Configuracao inicial do GitHub
 echo ================================================
 echo.
 
-cd /d C:\Users\samue\linkedin-prospector
+cd /d "%~dp0"
 
 REM Verifica se Git esta instalado
 git --version >nul 2>&1

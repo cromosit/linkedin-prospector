@@ -884,14 +884,15 @@ router.post('/:id/gerar-mensagem', aiLimiter, async (req, res) => {
       console.error('Erro ao ler chaves de IA para gerar mensagem:', dbErr.message);
     }
 
-    const { tipo = 'conexao', contexto = '' } = req.body;
+    const { tipo = 'conexao', contexto = '', mensagem_recebida = '' } = req.body;
 
     const tipoDescricao = {
       'conexao':             'pedido de conexão CIRÚRGICO (máx 140 caracteres)',
       'primeiro_contato':    'primeira mensagem DIRETA (máx 250 caracteres)',
       'conexao_com_comum':   'pedido de conexão menc. comum CURTO (máx 160 caracteres)',
       'follow_up':           'follow-up RÁPIDO (máx 200 caracteres)',
-      'whatsapp':            'mensagem de WhatsApp EXTREMAMENTE CURTA (máx 150 caracteres, foco em 2 frases)'
+      'whatsapp':            'mensagem de WhatsApp EXTREMAMENTE CURTA (máx 150 caracteres, foco em 2 frases)',
+      'responder':           'resposta direta, conversacional e contextualizada à mensagem que o lead enviou (máx 350 caracteres)'
     };
 
     const grauLabel = lead.connection_degree === '1'
@@ -1033,6 +1034,7 @@ ${lead.mutual_connections ? `- Conexões em comum: ${lead.mutual_connections}` :
 ${lead.service_interest ? `- Mapeamento de dor/interesse da IA: ${lead.service_interest}` : ''}
 ${lead.about ? `- Informações do perfil (Bio): ${lead.about.substring(0, 300)}` : ''}
 ${contexto ? `- Contexto extra para a abordagem: ${sanitizeString(contexto, 300)}` : ''}
+${mensagem_recebida ? `- Mensagem recebida do lead (você deve gerar uma RESPOSTA direta a esta mensagem): ${sanitizeString(mensagem_recebida, 1000)}` : ''}
 
 Exemplos de Referência de Tom e Estilo para Consultores SAP:
 

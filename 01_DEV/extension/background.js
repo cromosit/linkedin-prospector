@@ -1,7 +1,7 @@
 // background.js — Service Worker da extensão
 // Gerencia token e proxy de chamadas de API (CSP do LinkedIn bloqueia fetch direto)
 
-const API_URL = 'http://localhost:3001'
+const API_URL = 'https://linkedin-prospector-production.up.railway.app'
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
