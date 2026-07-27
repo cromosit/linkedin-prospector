@@ -685,6 +685,92 @@ function monitorarInbox() {
   }
 }
 
+// 7.6️⃣ INJEÇÃO DO BOTÃO "IA Responder" NO CHAT
+function monitorarChatBox() {
+  const formActions = document.querySelectorAll('.msg-form__left-actions, .msg-composable-form__left-actions');
+  formActions.forEach(actionContainer => {
+    if (actionContainer.querySelector('.lp-btn-ia-reply')) return; // Já injetado
+
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'lp-btn-ia-reply-container';
+    btnContainer.style.cssText = 'display: inline-block; margin-left: 8px; vertical-align: middle;';
+
+    const btn = document.createElement('button');
+    btn.className = 'lp-btn-ia-reply artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view';
+    btn.innerHTML = `<span style="font-size:16px;" title="✨ Responder com IA Prospector">✨</span>`;
+    btn.style.cssText = 'border-radius: 50%; padding: 4px; border: 1px solid #1d8fe8; background: #e8f3fa; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; transition: 0.2s;';
+    
+    btn.onmouseover = () => { btn.style.transform = 'scale(1.1)'; btn.style.background = '#d0e8f7'; };
+    btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.background = '#e8f3fa'; };
+
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const chatContainer = actionContainer.closest('.msg-overlay-conversation-bubble, .msg-conversation-card__content-container, .scaffold-layout__main') || document.body;
+      
+      // 1. Pega o nome do Lead
+      let nomeLead = '';
+      const nameEl = chatContainer.querySelector('h2, .msg-overlay-bubble-header__title, .msg-entity-lockup__entity-title');
+      if (nameEl) {
+        nomeLead = nameEl.innerText.split('\\n')[0].trim();
+      }
+      
+      // 2. Extrai mensagens recentes (últimas 5)
+      const mensagensHTML = chatContainer.querySelectorAll('.msg-s-message-list__event, .msg-s-event-listitem');
+      let hist = [];
+      mensagensHTML.forEach(m => {
+         const remetente = m.querySelector('.msg-s-message-group__name, .msg-s-message-group__profile-link, .msg-s-message-group__profile-link span[aria-hidden="true"]')?.innerText.trim() || 'Desconhecido';
+         const txt = m.querySelector('.msg-s-event-listitem__body, .msg-s-event-listitem__message-bubble')?.innerText.trim() || '';
+         if(txt) {
+            hist.push(`${remetente}: ${txt}`);
+         }
+      });
+      const chatHistory = hist.slice(-5).join('\\n\\n');
+
+      if (!nomeLead || !chatHistory) {
+         exibirBanner('❌ Não foi possível ler o histórico ou o nome do lead no chat.', '#ff3b5c');
+         return;
+      }
+
+      btn.innerHTML = '⏳';
+      btn.style.pointerEvents = 'none';
+
+      chrome.runtime.sendMessage({
+        action: 'apiRequest',
+        method: 'POST',
+        path: '/api/leads/extension-reply',
+        body: { name: nomeLead, chatHistory: chatHistory }
+      }, async (res) => {
+        btn.innerHTML = `<span style="font-size:16px;" title="✨ Responder com IA Prospector">✨</span>`;
+        btn.style.pointerEvents = 'auto';
+
+        if (res && res.mensagem) {
+           // Procura a caixa de texto
+           let caixaMsg = chatContainer.querySelector('.msg-form__contenteditable, .msg-composable-form__contenteditable, [contenteditable="true"]');
+           if (caixaMsg) {
+              await injetarTextoFormatado(caixaMsg, res.mensagem);
+              exibirBanner('✅ Resposta gerada com sucesso! Revise e envie.', '#00ffc8');
+           } else {
+              exibirBanner('❌ Caixa de texto não encontrada.', '#ff3b5c');
+           }
+        } else {
+           const erro = res?.erro || res?.error || res?.data?.error || 'Lead não encontrado ou erro na IA.';
+           exibirBanner(`❌ Erro: ${erro}`, '#ff3b5c');
+        }
+      });
+    };
+
+    btnContainer.appendChild(btn);
+    // Insere antes do primeiro botão de ação
+    if (actionContainer.firstChild) {
+      actionContainer.insertBefore(btnContainer, actionContainer.firstChild);
+    } else {
+      actionContainer.appendChild(btnContainer);
+    }
+  });
+}
+
 
 // 8️⃣ LISTENER DE COMUNICACAO INTERNA DA EXTENSAO
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -823,6 +909,7 @@ function safeDecodeURIComponent(str) {
           const monitorarSPA = () => {
             monitorarPerfil();
             monitorarInbox();
+            monitorarChatBox();
           };
           const observer = new MutationObserver(monitorarSPA);
           observer.observe(document.body, { childList: true, subtree: true });

@@ -848,6 +848,57 @@ router.post('/:id/lgpd-purge', async (req, res) => {
 // ==========================================
 // ROTA 8: Gerar mensagem com IA
 // ==========================================
+// ROTA: Resposta Direta via Extensão (Sem ID, busca pelo Nome)
+// ==========================================
+router.post('/extension-reply', aiLimiter, async (req, res) => {
+  try {
+    const { name, chatHistory, contexto = '' } = req.body;
+    
+    if (!name || !chatHistory) {
+      return res.status(400).json({ error: 'Nome e histórico de chat são obrigatórios.' });
+    }
+
+    const primeiroNomeBusca = name.split(' ')[0].trim();
+
+    // 1. Busca o lead mais recente com esse nome no CRM (ignora assigned_to caso não tenha RLS estrito aqui)
+    const { data: leads, error } = await supabase
+      .from('leads')
+      .select('*')
+      .ilike('name', `%${primeiroNomeBusca}%`)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error || !leads || leads.length === 0) {
+      return res.status(404).json({ error: `Lead '${primeiroNomeBusca}' não encontrado no CRM. Capture-o primeiro.` });
+    }
+
+    const lead = leads[0];
+
+    // 2. Chama a rota de gerar-mensagem internamente via HTTP
+    const port = process.env.PORT || 3001;
+    const localUrl = `http://localhost:${port}`;
+    
+    const response = await axios.post(
+      `${localUrl}/api/leads/${lead.id}/gerar-mensagem`,
+      {
+        tipo: 'responder',
+        contexto: contexto,
+        mensagem_recebida: chatHistory
+      },
+      {
+        headers: { Authorization: req.headers.authorization }
+      }
+    );
+
+    return res.json(response.data);
+
+  } catch (err) {
+    console.error('Erro no /extension-reply:', err.message || err);
+    res.status(500).json({ error: err?.response?.data?.error || 'Falha ao processar resposta via IA' });
+  }
+});
+
+// ==========================================
 router.post('/:id/gerar-mensagem', aiLimiter, async (req, res) => {
   try {
     const { data: lead, error } = await supabase
